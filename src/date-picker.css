@@ -214,11 +214,21 @@ date-picker > input:not([type="hidden"]) {
 
 @media (forced-colors: active) {
   .dp-day[data-selected="true"] {
-    background-color: Highlight;
-    color: HighlightText;
+    border: 2px solid Highlight;
+    background-color: Canvas;
+    color: CanvasText;
+    font-weight: 700;
   }
 
-  .dp-day[data-selected="true"],
+  .dp-day[data-selected="true"]::before {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 1px solid CanvasText;
+    border-radius: calc(var(--dp-radius) * 0.5);
+    pointer-events: none;
+  }
+
   .dp-day[data-today="true"] {
     border-color: Highlight;
   }

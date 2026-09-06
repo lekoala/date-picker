@@ -95,16 +95,20 @@ A typed invalid date uses `setCustomValidity()` on the visible input. A parsed b
 
 The same resolved date state used by the grid is used for manual-entry validation.
 
-## Forced colors risk (selected day)
+## Forced colors guard (selected day)
 
-**Warning:** the selected day is painted with the public `--dp-accent` / `--dp-accent-fg` tokens, whose defaults are the system pair `Highlight` / `HighlightText`.
+Forced colors should not rely on the normal selected-day fill tokens.
 
-A selected day can become unreadable — e.g. white text on white background — when:
+When `forced-colors: active`, the selected day switches to a border-based treatment:
 
-- a consumer overrides `--dp-accent` (or `--dp-accent-fg`) with an arbitrary color while forced colors are active; or
-- the active high-contrast theme resolves `Highlight` ≈ `HighlightText` (light highlight).
+- `Canvas` background;
+- `CanvasText` foreground;
+- `Highlight` outer border;
+- an inner `CanvasText` ring.
 
-Guard: never assume the accent token stays contrast-safe. When `forced-colors: active`, the selected-cell pair must come from the system (`Highlight` / `HighlightText`), not from the author-painted tokens. Re-run the `color-contrast` review and the AT forced-colors case whenever `--dp-*` styling changes. `src/date-picker.css` currently only remaps borders and disabled cells in that media query — the selected cell itself is still driven by the token.
+This avoids relying on white text over a `Highlight` fill, which can become ambiguous when the active high-contrast theme resolves `Highlight` near-white or when small white digits rasterize poorly.
+
+Guard: re-run the `color-contrast` review and the forced-colors screenshot bundle whenever `--dp-*` styling or day-cell rendering changes.
 
 ## Required manual test matrix before 0.1
 

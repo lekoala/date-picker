@@ -42,7 +42,7 @@ Automated Playwright covers interaction invariants; this checklist now distingui
 
 - [x] [auto] Typing a valid localized date updates the field validation state (no stale invalid message).
 - [ ] [split] Typing an impossible date produces an announced invalid message (native invalid state/message covered automatically; announcement still manual).
-- [ ] [manual] Forced-colors mode keeps selected/today/disabled distinguishable — including a selected day when `Highlight` resolves near-white (no white-on-white from `--dp-accent`).
+- [x] [manual] Forced-colors mode keeps selected/today/disabled distinguishable — including a selected day when `Highlight` resolves near-white (no white-on-white from `--dp-accent`; spot-checked with the forced-colors screenshot bundle).
 
 ## Automated pass
 
@@ -50,6 +50,7 @@ Automated Playwright covers interaction invariants; this checklist now distingui
 - Engines: Chromium, Firefox, WebKit.
 - Browser command run: `bunx playwright test test/browser/picker.spec.js test/browser/focus.spec.js test/browser/calendar.spec.js test/browser/form-state.spec.js test/browser/surfaces.spec.js`.
 - Result: 123 browser tests passed across the configured desktop projects.
+- Forced-colors spot check: `bun run shot:forced-colors:important` reviewed manually after the selected-day forced-colors fix.
 
 ## Record
 

@@ -83,6 +83,8 @@
     "test:browser:headed": "playwright test browser --project chromium --headed",
     "test:browser:all": "playwright test browser",
     "test:dist": "playwright test dist --project chromium",
+    "shot:forced-colors": "bun scripts/forced-colors-shot.js",
+    "shot:forced-colors:important": "bun scripts/forced-colors-shot.js /demo/index.html --scenario important --out-dir tmp/forced-colors-important",
     "check": "bun run test:syntax && bun run lint && bun run typecheck && bun run test",
     "verify": "bun run check && bun run sync && bun run test:types && bun run check:generated && bun run check:package",
     "check:all": "bun run verify && bun run test:browser:all && bun run test:dist",

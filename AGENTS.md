@@ -116,4 +116,32 @@ bun scripts/helpers/probe.mjs /test/fixtures/focus.html "(async () => {
 
 The probe prints the expression result, `document.activeElement`, every `[popover]` open state, and console/page errors. It starts its own static server on a free port, so it never collides with a running Playwright run. `scripts/helpers/server.js` exports `startServer()`/`freePort()` for ad-hoc scripts that need more than one step. Set `PROBE_HEADED=1` for a visible window.
 
-Workflow: reproduce with the probe → fix → re-probe → promote the proven behavior into a browser spec or delete it. Probes never ship. Verify an engine-quirk fix on all engines before committing.
+For forced-colors and high-contrast visual checks, capture reproducible screenshots instead of relying on an ad-hoc browser session:
+
+```bash
+# full demo page in forced colors
+bun run shot:forced-colors -- /demo/index.html --out tmp/forced-colors-demo.png
+
+# built-in important states bundle
+bun run shot:forced-colors:important
+
+# constrained calendar only
+bun run shot:forced-colors -- /demo/index.html --selector "#constrained" --out tmp/forced-colors-constrained.png
+
+# picker card with the popup open before capture
+bun run shot:forced-colors -- /demo/index.html --selector "section.card:nth-of-type(2)" --setup "(async () => { document.querySelector('#simple-picker .dp-picker-button').click(); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); return true; })()" --out tmp/forced-colors-picker-open.png
+```
+
+`scripts/forced-colors-shot.js` starts its own static server, emulates `forced-colors: active` plus the requested color scheme, optionally runs a setup expression in the page, then saves either a full-page shot or an element shot. It accepts a root-relative path, a repo path or an absolute URL. It uses Chromium, matching the DevTools forced-colors pipeline. Set `PROBE_HEADED=1` for a visible window.
+
+Use `--scenario important` when you want one command that covers the main forced-colors regressions in this repo. It writes a small bundle to `tmp/forced-colors-important/`:
+
+- `overview.png` — full demo overview.
+- `inline-states.png` — inline calendar with selected day and today visible together.
+- `constrained-disabled.png` — constrained calendar with disabled-day styling.
+- `constrained-disabled-focus.png` — the disabled day with keyboard focus.
+- `picker-open.png` — the picker card with the popup open.
+
+Run `bun run shot:forced-colors -- --list-scenarios` to list the built-in presets.
+
+Workflow: reproduce with the probe or forced-colors shot → fix → re-probe/re-capture → promote the proven behavior into a browser spec or checklist note, or delete the one-off artifact. Probes never ship. Verify an engine-quirk fix on all engines before committing.
