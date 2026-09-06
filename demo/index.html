@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr-BE">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>@lekoala/date-picker prototype</title>
+  <link rel="stylesheet" href="../src/date-picker.css">
+  <style>
+    :root { font-family: system-ui, sans-serif; color-scheme: light dark; }
+    body { max-width: 76rem; margin: 0 auto; padding: 2rem; }
+    h1 { margin-block-end: .25rem; }
+    .lead { color: color-mix(in srgb, CanvasText 65%, Canvas); margin-block-start: 0; }
+    .demos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 25rem), 1fr)); gap: 1rem; }
+    .card { min-width: 0; padding: 1rem; border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); border-radius: .75rem; }
+    .card h2 { margin-block-start: 0; font-size: 1.05rem; }
+    .field { display: grid; gap: .35rem; margin-block: .75rem; }
+    input { min-height: 2.5rem; box-sizing: border-box; border: 1px solid color-mix(in srgb, CanvasText 25%, Canvas); border-radius: .5rem 0 0 .5rem; padding: .45rem .65rem; background: Canvas; color: CanvasText; font: inherit; }
+    date-picker { width: min(100%, 19rem); }
+    .range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+    .range date-picker { width: 100%; }
+    output { display: block; margin-block-start: .75rem; padding: .6rem; background: color-mix(in srgb, CanvasText 5%, Canvas); border-radius: .5rem; }
+    .availability { display: inline-flex; gap: 2px; }
+    .availability i { inline-size: .32rem; block-size: .32rem; border-radius: 50%; background: currentColor; }
+    .mini-wrap { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: start; }
+    .fake-agenda { min-height: 11rem; padding: 1rem; border: 1px dashed color-mix(in srgb, CanvasText 30%, Canvas); border-radius: .6rem; }
+    code { font-size: .85em; }
+    @media (max-width: 42rem) { body { padding: 1rem; } .range, .mini-wrap { grid-template-columns: 1fr; } }
+  </style>
+  <script type="importmap">
+    {"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}
+  </script>
+</head>
+<body>
+  <h1>@lekoala/date-picker</h1>
+  <p class="lead">Prototype: one calendar primitive, reused as selector, picker and mini navigator.</p>
+
+  <main class="demos">
+    <section class="card">
+      <h2>1. Inline selector</h2>
+      <date-calendar id="inline" value="2026-09-10" display="2026-09" fixed-weeks></date-calendar>
+      <output id="inline-state">value: 2026-09-10</output>
+    </section>
+
+    <section class="card">
+      <h2>2. Editable localized picker</h2>
+      <form id="simple-form">
+        <label class="field" for="simple-date">
+          Date du rendez-vous
+          <date-picker id="simple-picker" value="2026-09-06" locale="fr-BE">
+            <input id="simple-date" name="date" required>
+          </date-picker>
+        </label>
+        <button>Submit</button>
+      </form>
+      <output id="form-state">submitted ISO value appears here</output>
+    </section>
+
+    <section class="card">
+      <h2>3. Constraints</h2>
+      <p>September only; weekends unavailable.</p>
+      <date-calendar id="constrained" display="2026-09" min="2026-09-01" max="2026-09-30" fixed-weeks></date-calendar>
+    </section>
+
+    <section class="card">
+      <h2>4. Start / end</h2>
+      <div class="range">
+        <label class="field" for="start-date">Début
+          <date-picker id="start-picker" value="2026-09-10" locale="fr-BE">
+            <input id="start-date" name="start">
+          </date-picker>
+        </label>
+        <label class="field" for="end-date">Fin
+          <date-picker id="end-picker" value="2026-09-15" locale="fr-BE">
+            <input id="end-date" name="end">
+          </date-picker>
+        </label>
+      </div>
+      <output id="range-state"></output>
+    </section>
+
+    <section class="card">
+      <h2>5. Availability metadata</h2>
+      <p>Two dots = morning + afternoon; one dot = morning only.</p>
+      <date-calendar id="availability" display="2026-09" fixed-weeks></date-calendar>
+    </section>
+
+    <section class="card" style="grid-column: 1 / -1;">
+      <h2>6. Mini calendar navigator</h2>
+      <p>Month/year changes only the mini calendar. Activating a day navigates the external anchor.</p>
+      <div class="mini-wrap">
+        <date-calendar id="mini" display="2026-09" selection="none" fixed-weeks show-week-numbers></date-calendar>
+        <div class="fake-agenda">
+          <strong>External calendar anchor</strong>
+          <output id="agenda-anchor" data-date="2026-09-03">2026-09-03</output>
+          <p>The mini calendar has no selected value. It only emits <code>dateactivate</code>.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

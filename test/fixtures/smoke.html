@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+<link rel="stylesheet" href="/src/date-picker.css">
+<date-calendar id="cal" value="2026-09-10" display="2026-09" fixed-weeks></date-calendar>
+<date-calendar id="mini" display="2026-09" selection="none" fixed-weeks></date-calendar>
+<date-picker id="picker" value="2026-09-06" locale="fr-BE"><input id="input" name="date"></date-picker>
+<date-picker id="start" value="2026-09-10"><input name="start"></date-picker>
+<date-picker id="end" value="2026-09-15"><input name="end"></date-picker>
+<pre id="result">pending</pre>
+<script type="module">
+import "/src/define.js";
+import { linkDateRange } from "/src/index.js";
+const result = document.getElementById("result");
+const checks = [];
+function check(value, label) { if (!value) throw new Error(label); checks.push(label); }
+try {
+  await customElements.whenDefined("date-calendar");
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const cal = document.getElementById("cal");
+  check(cal.querySelectorAll(".dp-day").length === 42, "fixed weeks 42");
+  check(cal.querySelectorAll('.dp-day[tabindex="0"]').length === 1, "one roving tabstop");
+  const month = cal.querySelector(".dp-month-select");
+  month.value = "10"; month.dispatchEvent(new Event("change", { bubbles: true }));
+  check(cal.display === "2026-10", "display changes");
+  check(cal.value === "2026-09-10", "display does not select");
+  cal.focusDate("2026-10-10", { moveFocus: false });
+  const cell = cal.querySelector('[data-date="2026-10-10"]');
+  cell.focus();
+  cell.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  await Promise.resolve();
+  check(cal.focusedDate === "2026-10-11", "arrow moves focus");
+  check(cal.value === "2026-09-10", "arrow does not select");
+  cal.querySelector('[data-date="2026-10-11"]').dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  check(cal.value === "2026-10-11", "enter selects");
+
+  const mini = document.getElementById("mini");
+  let activated = "";
+  mini.addEventListener("dateactivate", (e) => activated = e.detail.date);
+  mini.querySelector('[data-date="2026-09-12"]').click();
+  check(activated === "2026-09-12", "mini activates");
+  check(mini.value === "", "mini does not select");
+
+  const picker = document.getElementById("picker");
+  check(document.getElementById("input").value === "06/09/2026", "localized picker display");
+  check(picker.querySelector('input[type="hidden"][name="date"]').value === "2026-09-06", "canonical hidden value");
+
+  const start = document.getElementById("start");
+  const end = document.getElementById("end");
+  linkDateRange(start, end);
+  check(end.min === "2026-09-10", "range end min");
+  check(start.max === "2026-09-15", "range start max");
+
+  result.textContent = `PASS\n${checks.join("\n")}`;
+  result.dataset.status = "pass";
+} catch (error) {
+  result.textContent = `FAIL\n${error.stack || error}`;
+  result.dataset.status = "fail";
+}
+</script>

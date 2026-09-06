@@ -1,0 +1,95 @@
+{
+  "name": "@lekoala/date-picker",
+  "version": "0.0.0",
+  "description": "Native-first date picker and inline calendar primitives",
+  "type": "module",
+  "sideEffects": [
+    "./src/define.js",
+    "./src/date-picker.css",
+    "./dist/date-picker.js",
+    "./dist/date-picker.min.js",
+    "./dist/date-picker.standalone.min.js",
+    "./dist/date-picker.css",
+    "./dist/date-picker.min.css"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lekoala/date-picker.git"
+  },
+  "homepage": "https://github.com/lekoala/date-picker",
+  "bugs": "https://github.com/lekoala/date-picker/issues",
+  "packageManager": "bun@1.4.2",
+  "keywords": [
+    "date-picker",
+    "calendar",
+    "datepicker",
+    "popover",
+    "web-component",
+    "accessibility"
+  ],
+  "files": [
+    "dist",
+    "src",
+    "docs",
+    "LICENSE",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./src/index.js"
+    },
+    "./define": {
+      "types": "./dist/types/define.d.ts",
+      "import": "./src/define.js"
+    },
+    "./calendar": {
+      "types": "./dist/types/date-calendar.d.ts",
+      "import": "./src/date-calendar.js"
+    },
+    "./date-picker.css": "./src/date-picker.css",
+    "./locales/fr": {
+      "types": "./dist/types/locales/fr.d.ts",
+      "import": "./src/locales/fr.js"
+    },
+    "./standalone": "./dist/date-picker.standalone.min.js",
+    "./dist/date-picker.js": "./dist/date-picker.js",
+    "./dist/date-picker.min.js": "./dist/date-picker.min.js",
+    "./dist/date-picker.standalone.min.js": "./dist/date-picker.standalone.min.js",
+    "./dist/date-picker.css": "./dist/date-picker.css",
+    "./dist/date-picker.min.css": "./dist/date-picker.min.css"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "node test/server.js",
+    "build:bundle": "bun scripts/build.js",
+    "build:types": "bun run types",
+    "build": "bun run build:bundle && bun run build:types",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc -p jsconfig.json",
+    "types": "tsc -p tsconfig.types.json",
+    "test": "bun test test/unit",
+    "test:syntax": "node --check src/date.js && node --check src/intl.js && node --check src/calendar-model.js && node --check src/source.js && node --check src/messages.js && node --check src/date-calendar.js && node --check src/date-picker.js && node --check src/date-range.js && node --check src/index.js && node --check src/define.js",
+    "test:types": "tsc -p test/types/tsconfig.json",
+    "test:browser": "playwright test test/browser --project chromium",
+    "test:browser:headed": "playwright test test/browser --project chromium --headed",
+    "test:browser:all": "playwright test test/browser",
+    "check": "bun run test:syntax && bun run lint && bun run typecheck && bun run test",
+    "verify": "bun run check && bun run build && bun run test:types",
+    "check:all": "bun run verify && bun run test:browser:all",
+    "prepack": "bun run build",
+    "prepublishOnly": "bun run verify"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.11",
+    "@playwright/test": "1.62.1",
+    "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "@lekoala/floating": "^0.1.1"
+  }
+}
