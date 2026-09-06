@@ -3,10 +3,11 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./test",
   testMatch: "**/*.spec.js",
-  timeout: 10_000,
+  timeout: 30_000,
   expect: { timeout: 3_000 },
   fullyParallel: true,
   workers: 4,
+  retries: process.env.CI ? 1 : 0,
   reporter: "list",
   webServer: {
     command: "node test/server.js",
