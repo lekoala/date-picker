@@ -126,7 +126,17 @@ The direct child text input is required. On enhancement its original `name` move
 - `value` — canonical selected date;
 - `locale`;
 - `min`;
-- `max`.
+- `max`;
+- `open-on-focus` — boolean (default `true`): open the popover when the input receives focus without moving focus; `open-on-focus="false"` keeps focus alone passive;
+- `open` — read-only: whether the popover is shown;
+- `openOnFocus` — property form of `open-on-focus`.
+
+### Native form semantics
+
+- `disabled` — non-editable, popup cannot open, field is not submitted.
+- `readonly` — non-editable, value is still submitted, popup cannot open (the trigger is disabled).
+- Clearing the editable input clears the canonical value; the component does not render its own clear button.
+- `input.defaultValue` (or the input's `value` attribute) is the source of truth for the next `form.reset()`, which restores canonical + visible representations and revalidates.
 
 ### Forwarded callback properties
 

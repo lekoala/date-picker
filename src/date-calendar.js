@@ -136,6 +136,7 @@ export class DateCalendarElement extends HTMLElement {
   set value(value) {
     const next = value || "";
     if (next && !isDate(next)) throw new TypeError(`Invalid calendar value: ${next}`);
+    if (next === this._model.value) return;
     this._model.setValue(next);
     this._reflect("value", next);
     if (this._connected) this.render();
@@ -156,7 +157,9 @@ export class DateCalendarElement extends HTMLElement {
   }
 
   set focusedDate(value) {
-    this.focusDate(value, { moveFocus: false });
+    const next = value || "";
+    if (next === this._model.focused) return;
+    this.focusDate(next, { moveFocus: false });
   }
 
   /** @public */
@@ -630,11 +633,11 @@ export class DateCalendarElement extends HTMLElement {
     this.innerHTML = `
       <div class="dp-calendar-shell">
         <div class="dp-calendar-header">
-          <button type="button" class="dp-nav dp-prev" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}>‹</button>
           <label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this._messages.month)}</label>
           <select id="${this._id}-month" class="dp-month-select" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>
           <label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this._messages.year)}</label>
           <select id="${this._id}-year" class="dp-year-select" aria-label="${escapeHtml(this._messages.year)}">${yearOptions}</select>
+          <button type="button" class="dp-nav dp-prev" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}>‹</button>
           <button type="button" class="dp-nav dp-next" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}>›</button>
         </div>
         <h2 id="${headingId}" class="dp-calendar-heading" aria-live="polite">${escapeHtml(formatMonthYear(`${display}-15`, locale))}</h2>

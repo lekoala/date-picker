@@ -7,7 +7,7 @@ import { getDefaultMessages } from "./messages.js";
 let uid = 0;
 
 export class DatePickerElement extends HTMLElement {
-  static observedAttributes = ["value", "locale", "min", "max"];
+  static observedAttributes = ["value", "locale", "min", "max", "open-on-focus"];
 
   constructor() {
     super();
@@ -28,6 +28,7 @@ export class DatePickerElement extends HTMLElement {
     this._attributeObserver = null;
     this._stopTracking = null;
     this._open = false;
+    this._suppressFocusOpen = false;
     this._messages = getDefaultMessages();
     /** @type {any} */
     this._source = null;
@@ -102,6 +103,7 @@ export class DatePickerElement extends HTMLElement {
       return;
     }
     if (name === "locale") this._refreshLocale();
+    if (name === "open-on-focus") return;
     this._syncCalendarOptions();
     void this.validate();
   }
@@ -156,6 +158,21 @@ export class DatePickerElement extends HTMLElement {
   set max(value) {
     if (value) this.setAttribute("max", value);
     else this.removeAttribute("max");
+  }
+
+  /** @public */
+  get openOnFocus() {
+    return this.getAttribute("open-on-focus") !== "false";
+  }
+
+  set openOnFocus(value) {
+    if (value === false) this.setAttribute("open-on-focus", "false");
+    else this.removeAttribute("open-on-focus");
+  }
+
+  /** @public */
+  get open() {
+    return this._open;
   }
 
   /** @public */
@@ -228,9 +245,11 @@ export class DatePickerElement extends HTMLElement {
     input.insertAdjacentElement("afterend", hidden);
     this._hiddenInput = hidden;
     this._attributeObserver = new MutationObserver(() => {
-      if (this._hiddenInput && this._input) this._hiddenInput.disabled = this._input.disabled;
+      if (!this._input) return;
+      if (this._hiddenInput) this._hiddenInput.disabled = this._input.disabled;
+      if (this._button) this._button.disabled = this._input.disabled || this._input.readOnly;
     });
-    this._attributeObserver.observe(input, { attributes: true, attributeFilter: ["disabled"] });
+    this._attributeObserver.observe(input, { attributes: true, attributeFilter: ["disabled", "readonly"] });
   }
 
   _build() {
@@ -244,7 +263,8 @@ export class DatePickerElement extends HTMLElement {
     button.setAttribute("aria-haspopup", "dialog");
     button.setAttribute("aria-expanded", "false");
     button.setAttribute("aria-controls", panelId);
-    button.innerHTML = '<span aria-hidden="true">▦</span>';
+    button.innerHTML =
+      '<span aria-hidden="true"><svg viewBox="0 0 16 16" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="1.75" y="3" width="12.5" height="11" rx="1.75"/><path d="M1.75 6.75h12.5"/><path d="M5.25 1.75v2.5M10.75 1.75v2.5"/></svg></span>';
 
     const panel = document.createElement("div");
     panel.id = panelId;
@@ -295,11 +315,30 @@ export class DatePickerElement extends HTMLElement {
     input.addEventListener("change", () => void this._commitText(false), { signal });
     input.addEventListener("blur", () => void this._commitText(false), { signal });
     input.addEventListener(
+      "focus",
+      (event) => {
+        // Opening on focus never steals focus: the user can start typing
+        // immediately (DECISIONS D4). Programmatic focus restores are guarded
+        // through _suppressFocusOpen and the relatedTarget containment check.
+        if (!this.openOnFocus || this._suppressFocusOpen) return;
+        const related = /** @type {FocusEvent} */ (event).relatedTarget;
+        if (related instanceof Node && this.contains(related)) return;
+        if (!this._open) this.show({ moveFocus: false });
+      },
+      { signal },
+    );
+    input.addEventListener(
       "keydown",
       (event) => {
         if (event.key === "ArrowDown" || (event.altKey && event.key === "ArrowDown")) {
           event.preventDefault();
-          this.show();
+          if (this._open) {
+            // Chromium drops script-initiated focus changes made during keydown
+            // dispatch; defer to a macrotask so the grid can take keyboard focus.
+            setTimeout(() => this._calendar?.focusGrid(), 0);
+          } else {
+            this.show();
+          }
         } else if (event.key === "Escape" && this._open) {
           event.preventDefault();
           this.hide(false);
@@ -316,7 +355,7 @@ export class DatePickerElement extends HTMLElement {
         if (!isDate(date)) return;
         this._setValue(date, { emit: true, format: true });
         this.hide(false);
-        input.focus();
+        this._focusInput();
       },
       { signal },
     );
@@ -332,9 +371,10 @@ export class DatePickerElement extends HTMLElement {
       "reset",
       (event) => {
         const form = event.target;
-        if (!this._open && form instanceof HTMLFormElement && this._input && form === this._input.form) {
+        if (form instanceof HTMLFormElement && this._input && form === this._input.form) {
           // The reset event fires before the control values are restored;
           // re-derive the canonical value once the reset has applied.
+          this.hide(false);
           queueMicrotask(() => this._restoreDefault());
         }
       },
@@ -430,6 +470,27 @@ export class DatePickerElement extends HTMLElement {
     const text = String(input.defaultValue ?? "").trim();
     const parsed = isDate(text) ? text : this._adapter().parse(text);
     this._setValue(parsed && isDate(parsed) ? parsed : "", { emit: false, format: true });
+    if (this._calendar) {
+      if (this._value) {
+        this._calendar.display = monthKey(this._value);
+        this._calendar.focusedDate = this._value;
+      } else {
+        this._calendar.display = monthKey(todayISO());
+        this._calendar.focusedDate = todayISO();
+      }
+    }
+    void this.validate();
+  }
+
+  _focusInput() {
+    // focus() must not run synchronously from a keydown handler (Chromium drops
+    // focus changes there) and must not re-open the popover under the default
+    // open-on-focus. Deferring keeps _suppressFocusOpen active for the call.
+    this._suppressFocusOpen = true;
+    setTimeout(() => {
+      this._input?.focus();
+      this._suppressFocusOpen = false;
+    }, 0);
   }
 
   /** @param {boolean} emit */
@@ -448,7 +509,8 @@ export class DatePickerElement extends HTMLElement {
       input.setCustomValidity(this._messages.invalidDate);
       return false;
     }
-    calendar.display = monthKey(parsed);
+    const display = monthKey(parsed);
+    if (calendar.display !== display) calendar.display = display;
     await calendar.ensureDate(parsed);
     const state = calendar.getDateState(parsed);
     if (state.disabled) {
@@ -471,13 +533,13 @@ export class DatePickerElement extends HTMLElement {
     return input.checkValidity();
   }
 
-  /** @public */
-  show() {
+  /** @public @param {{moveFocus?:boolean}} [options] */
+  show(options = {}) {
     const panel = this._panel;
     const calendar = this._calendar;
     const input = this._input;
     const button = this._button;
-    if (!panel || !calendar || !input || !button || this._open || input.disabled) return;
+    if (!panel || !calendar || !input || !button || this._open || input.disabled || input.readOnly) return;
     const target = this._value || this._adapter().parse(input.value) || todayISO();
     calendar.display = monthKey(target);
     calendar.focusedDate = target;
@@ -489,7 +551,7 @@ export class DatePickerElement extends HTMLElement {
       reposition(this, panel, { placement: "bottom-start", distance: 4, shiftPadding: 8 });
     position();
     this._stopTracking = autoUpdate(this, panel, position);
-    queueMicrotask(() => calendar.focusGrid());
+    if (options.moveFocus !== false) queueMicrotask(() => calendar.focusGrid());
     this.dispatchEvent(new Event("open", { bubbles: true }));
   }
 
@@ -506,7 +568,7 @@ export class DatePickerElement extends HTMLElement {
     this._open = false;
     this._input?.setAttribute("aria-expanded", "false");
     this._button?.setAttribute("aria-expanded", "false");
-    if (restoreFocus) this._input?.focus();
+    if (restoreFocus) this._focusInput();
     this.dispatchEvent(new Event("close", { bubbles: true }));
   }
 }

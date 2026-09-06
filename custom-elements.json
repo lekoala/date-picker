@@ -221,6 +221,9 @@
             },
             {
               "name": "max"
+            },
+            {
+              "name": "open-on-focus"
             }
           ],
           "members": [
@@ -247,6 +250,14 @@
             {
               "kind": "getter",
               "name": "max"
+            },
+            {
+              "kind": "getter",
+              "name": "openOnFocus"
+            },
+            {
+              "kind": "getter",
+              "name": "open"
             },
             {
               "kind": "getter",

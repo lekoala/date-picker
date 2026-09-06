@@ -25,17 +25,101 @@ test.describe("form lifecycle and ownership", () => {
     await expect(page.locator("#min-date")).toHaveValue("");
   });
 
+  test("form reset after a calendar selection restores the default", async ({ page }) => {
+    await page.click("#reset-picker .dp-picker-button");
+    await page.click('#reset-picker .dp-day[data-date="2026-09-18"]');
+    await expect(page.locator("#reset-picker")).toHaveAttribute("value", "2026-09-18");
+    await page.click("#reset-btn");
+    await expect(page.locator("#reset-picker")).toHaveAttribute("value", "2026-09-06");
+    await expect(page.locator("#reset-date")).toHaveValue("06/09/2026");
+  });
+
+  test("form reset after an invalid manual input restores the default", async ({ page }) => {
+    await page.fill("#reset-date", "99/99/2026");
+    await page.locator("#reset-date").blur();
+    await expect(page.locator("#reset-date")).toHaveValue("99/99/2026");
+    await page.evaluate(() => document.getElementById("reset-picker").hide());
+    await page.click("#reset-btn");
+    await expect(page.locator("#reset-picker")).toHaveAttribute("value", "2026-09-06");
+    await expect(page.locator("#reset-date")).toHaveValue("06/09/2026");
+  });
+
+  test("changing input.defaultValue drives the next reset", async ({ page }) => {
+    await page.evaluate(() => {
+      document.getElementById("reset-date").defaultValue = "20/09/2026";
+      document.getElementById("reset-picker").value = "2026-09-10";
+    });
+    await page.click("#reset-btn");
+    await expect(page.locator("#reset-picker")).toHaveAttribute("value", "2026-09-20");
+    await expect(page.locator("#reset-date")).toHaveValue("20/09/2026");
+    await expect(page.locator('#reset-picker input[type="hidden"][name="date"]')).toHaveValue("2026-09-20");
+  });
+
   test("disabling the input blocks opening and unsubmits the field", async ({ page }) => {
     await expect(page.locator("#toggle-date")).toBeEnabled();
     await page.click("#disable-toggle");
     await expect(page.locator("#toggle-date")).toBeDisabled();
     await expect(page.locator("#toggle-picker input[type='hidden']")).toBeDisabled();
-    await page.click("#toggle-picker .dp-picker-button");
-    await expect(page.locator("#toggle-picker .dp-picker-panel")).toBeHidden();
+    await expect(page.locator("#toggle-picker .dp-picker-button")).toBeDisabled();
+    const opened = await page.evaluate(() => {
+      const picker = document.getElementById("toggle-picker");
+      picker.show();
+      return picker.open;
+    });
+    expect(opened).toBe(false);
     await page.click("#disable-toggle");
     await expect(page.locator("#toggle-date")).toBeEnabled();
+    await expect(page.locator("#toggle-picker .dp-picker-button")).toBeEnabled();
     await page.click("#toggle-picker .dp-picker-button");
     await expect(page.locator("#toggle-picker .dp-picker-panel")).toBeVisible();
+  });
+
+  test("readonly keeps the value submitted while the picker cannot open it", async ({ page }) => {
+    const hidden = page.locator('#ro-picker input[type="hidden"][name="readonly-date"]');
+    await page.click("#readonly-toggle");
+    await expect(page.locator("#ro-date")).toHaveAttribute("readonly", "");
+    await expect(page.locator("#ro-picker .dp-picker-button")).toBeDisabled();
+    await expect(hidden).not.toBeDisabled();
+    await expect(hidden).toHaveValue("2026-09-08");
+    const opened = await page.evaluate(() => {
+      const picker = document.getElementById("ro-picker");
+      picker.show();
+      return picker.open;
+    });
+    expect(opened).toBe(false);
+    await page.click("#readonly-toggle");
+    await expect(page.locator("#ro-picker .dp-picker-button")).toBeEnabled();
+    await page.click("#ro-picker .dp-picker-button");
+    await expect(page.locator("#ro-picker .dp-picker-panel")).toBeVisible();
+  });
+
+  test("clearing an optional field clears the canonical value and emits valuechange", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__valueChanges = 0;
+      document.getElementById("min-picker").addEventListener("valuechange", () => window.__valueChanges++);
+    });
+    await page.fill("#min-date", "12/09/2026");
+    await page.locator("#min-date").blur();
+    await expect(page.locator("#min-picker")).toHaveAttribute("value", "2026-09-12");
+    await page.fill("#min-date", "");
+    await page.locator("#min-date").blur();
+    await expect(page.locator("#min-picker")).not.toHaveAttribute("value", /.+/);
+    await expect(page.locator('#min-picker input[type="hidden"]')).toHaveValue("");
+    expect(await page.evaluate(() => window.__valueChanges)).toBeGreaterThan(0);
+  });
+
+  test("clearing a required field leaves a canonical blank that fails native validation", async ({
+    page,
+  }) => {
+    await page.fill("#reset-date", "");
+    await page.locator("#reset-date").blur();
+    await expect(page.locator("#reset-picker")).not.toHaveAttribute("value", /.+/);
+    await expect(page.locator('#reset-picker input[type="hidden"][name="date"]')).toHaveValue("");
+    const validity = await page.evaluate(() => document.getElementById("reset-date").checkValidity());
+    expect(validity).toBe(false);
+    await page.evaluate(() => document.getElementById("reset-picker").hide());
+    await page.click("#submit-btn");
+    await expect(page.locator("#demo-out")).toHaveText("");
   });
 
   test("a form= attribute is forwarded to the hidden canonical field", async ({ page }) => {

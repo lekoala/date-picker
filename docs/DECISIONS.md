@@ -30,3 +30,11 @@ The navigation-only calendar keeps `selection="none"`.
 - Demos, tests and internal code may reference `.dp-*` classes; their use there does not turn those classes into public API.
 
 Context: DOM-backed styling hooks become API the moment they are documented — every internal rename then breaks consumers. We prefer to expose hooks (`--dp-*`, `renderDay()`, events) and keep the rendered anatomy free to evolve.
+
+## D4 — `<date-picker>` opens on focus; `open` is read-only
+
+- The picker opens its popover when the input receives focus (`open-on-focus`, default `true`; set `open-on-focus="false"` to opt out).
+- Opening on focus **never steals keyboard focus**: the user can start typing immediately. The grid takes focus only on ArrowDown, on the calendar trigger, or after the user moves the pointer into the popup.
+- `show()` / `hide()` are the control surface. `open` is a **read-only getter** reflecting the popover. There is no `open` attribute: the popover element is the single machine of truth and a second state machine would only drift.
+- `readonly` mirrors native semantics: the field is non-editable, the value is still submitted, and the picker cannot change it — the calendar trigger is disabled. `disabled` additionally unsubmits the field. `readonly` is never used to mean "no typing, but calendar selection allowed".
+- Clearing the editable input clears the canonical value (the component renders no internal clear button). Form resets follow the native `defaultValue` contract.

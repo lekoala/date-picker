@@ -7,11 +7,12 @@ test.describe("popover inside nested app surfaces", () => {
 
   test("opens inside a modal dialog, selects, and keeps the dialog open", async ({ page }) => {
     const dialog = page.locator("#surface-dialog");
+    const panel = page.locator("#dialog-picker .dp-picker-panel");
     await page.click("#open-dialog");
     await expect(dialog).toHaveJSProperty("open", true);
-    await page.click("#dialog-picker .dp-picker-button");
-    const panel = page.locator("#dialog-picker .dp-picker-panel");
+    // showModal() focuses the picker input first, which opens the popover on focus.
     await expect(panel).toBeVisible();
+    await expect(page.locator("#dialog-date")).toBeFocused();
     await expect(panel).not.toHaveAttribute("aria-modal", "true");
     await page.click('#dialog-picker .dp-day[data-date="2026-09-10"]');
     await expect(panel).toBeHidden();
@@ -24,11 +25,12 @@ test.describe("popover inside nested app surfaces", () => {
 
   test("Escape closes the popover first, then the dialog", async ({ page }) => {
     const dialog = page.locator("#surface-dialog");
+    const panel = page.locator("#dialog-picker .dp-picker-panel");
     await page.click("#open-dialog");
-    await page.click("#dialog-picker .dp-picker-button");
-    await expect(page.locator("#dialog-picker .dp-day[tabindex='0']")).toBeFocused();
+    await expect(panel).toBeVisible();
+    await expect(page.locator("#dialog-date")).toBeFocused();
     await page.keyboard.press("Escape");
-    await expect(page.locator("#dialog-picker .dp-picker-panel")).toBeHidden();
+    await expect(panel).toBeHidden();
     await expect(page.locator("#dialog-date")).toBeFocused();
     await expect(dialog).toHaveJSProperty("open", true);
     await page.keyboard.press("Escape");

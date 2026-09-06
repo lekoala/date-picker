@@ -38,6 +38,8 @@ For a navigator that should not own a selection:
 
 A composition around a real editable text input. The user sees and edits a short locale-aware numeric date while form submission stays canonical ISO.
 
+**Use `<date-picker>` when choosing a date benefits from calendar context.** For a simple editable date field, a normal input with formatting and validation is the right tool instead.
+
 ```html
 <date-picker value="2026-09-10" locale="fr-BE">
   <input name="appointment_date" required>
@@ -45,6 +47,8 @@ A composition around a real editable text input. The user sees and edits a short
 ```
 
 With JavaScript enabled the input displays `10/09/2026`; the hidden submitted value remains `2026-09-10`. The visible input keeps the label, focus, required state and validation UI.
+
+By default the calendar opens when the field receives focus — without stealing the keyboard focus, so typing works immediately. `open-on-focus="false"` makes the calendar opt-in (trigger button or `ArrowDown`). Under `readonly` the value stays editable-by-calendar-off but is still submitted; under `disabled` the field is also unsubmitted.
 
 ## Start/end ranges
 
@@ -124,6 +128,8 @@ The calendar follows the WAI-ARIA date-picker/grid interaction model:
 - abbreviated weekday headers keep full `abbr` names.
 
 The picker popup uses native Popover for the top layer and `@lekoala/floating` for geometry. It has `role="dialog"`, but it is intentionally **not** marked `aria-modal` because the current implementation does not inert the rest of the document.
+
+When the popup opens on the field's focus, grid navigation is reachable via `ArrowDown` (or the trigger button) so the focus-restore/Escape flow stays predictable.
 
 See [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md).
 

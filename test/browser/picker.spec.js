@@ -28,6 +28,16 @@ test("typing a locale date commits the ISO value", async ({ page }) => {
   await expect(page.locator("#simple-picker")).toHaveAttribute("value", "2026-09-10");
 });
 
+test("open reflects the popover state and Escape restores focus", async ({ page }) => {
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
+  await page.click("#simple-picker .dp-picker-button");
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", true);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
+  await expect(page.locator("#simple-picker .dp-picker-panel")).toBeHidden();
+  await expect(page.locator("#simple-date")).toBeFocused();
+});
+
 test("range linkage updates reciprocal effective bounds", async ({ page }) => {
   await expect(page.locator("#end-picker")).toHaveAttribute("min", "2026-09-10");
   await expect(page.locator("#start-picker")).toHaveAttribute("max", "2026-09-15");

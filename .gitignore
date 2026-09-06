@@ -6,3 +6,4 @@ test-results/
 *.log
 .temp
 .temp-server-pid
+.pn

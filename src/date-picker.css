@@ -38,10 +38,14 @@ date-calendar {
 
 .dp-calendar-header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: var(--dp-gap);
   margin-block-end: 0.4rem;
+}
+
+.dp-calendar-header .dp-prev {
+  margin-inline-start: calc(var(--dp-gap) * 2.5);
 }
 
 .dp-calendar-header :where(button, select) {

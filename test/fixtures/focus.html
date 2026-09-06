@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+<link rel="stylesheet" href="/src/date-picker.css">
+<style>
+  body { font-family: system-ui, sans-serif; }
+  .field { display: grid; gap: 0.35rem; inline-size: 16rem; margin-block: 0.75rem; }
+</style>
+
+<label class="field" for="focus-date">
+  Focus ouvrant
+  <date-picker id="focus-picker" value="2026-09-06" locale="fr-BE">
+    <input id="focus-date" name="focus-field">
+  </date-picker>
+</label>
+
+<label class="field" for="no-focus-date">
+  Focus désactivé
+  <date-picker id="no-focus-picker" value="2026-09-06" locale="fr-BE" open-on-focus="false">
+    <input id="no-focus-date" name="no-focus-field">
+  </date-picker>
+</label>
+
+<script type="module">
+import "/src/define.js";
+</script>

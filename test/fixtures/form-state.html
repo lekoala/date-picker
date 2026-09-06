@@ -30,6 +30,16 @@
   </date-picker>
 </label>
 
+<p>
+  <label><input id="readonly-toggle" type="checkbox"> Lecture seule</label>
+</p>
+<label class="field" for="ro-date">
+  Date en lecture seule
+  <date-picker id="ro-picker" value="2026-09-08" locale="fr-BE">
+    <input id="ro-date" name="readonly-date">
+  </date-picker>
+</label>
+
 <label class="field" id="external-label" for="alt-date">
   Form externe
   <date-picker id="alt-picker" value="2026-09-12" locale="fr-BE">
@@ -62,5 +72,11 @@ const toggle = document.getElementById("disable-toggle");
 const toggleDate = document.getElementById("toggle-date");
 toggle.addEventListener("change", () => {
   toggleDate.disabled = toggle.checked;
+});
+
+const readonlyToggle = document.getElementById("readonly-toggle");
+const roDate = document.getElementById("ro-date");
+readonlyToggle.addEventListener("change", () => {
+  roDate.readOnly = readonlyToggle.checked;
 });
 </script>

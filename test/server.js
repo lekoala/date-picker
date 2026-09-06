@@ -23,6 +23,6 @@ createServer((request, response) => {
   if (statSync(file).isDirectory()) file = join(file, "index.html");
   response.writeHead(200, { "content-type": types.get(extname(file)) || "application/octet-stream" });
   createReadStream(file).pipe(response);
-}).listen(4859, "127.0.0.1", () => {
-  console.log("date-picker demo: http://127.0.0.1:4859/demo/index.html");
+}).listen(Number(process.env.PORT || 4859), "127.0.0.1", () => {
+  console.log(`date-picker demo: http://127.0.0.1:${Number(process.env.PORT || 4859)}/demo/index.html`);
 });

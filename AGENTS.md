@@ -89,3 +89,17 @@ Source remains JavaScript with JSDoc + TypeScript `checkJs`, matching `@lekoala/
 ## Before expanding scope
 
 A feature should clearly serve at least one documented use case in `docs/USE_CASES.md`. Otherwise write the use case first or keep it application-owned.
+
+## Reusable debug probes
+
+Interaction quirks (focus/popover/click re-entrancy, engine differences) are proven with small scripts, not with throwaway inline code that stays in the session.
+
+Keep reusable probes in `scripts/helpers/`:
+
+```bash
+bun scripts/helpers/probe.mjs /test/fixtures/focus.html "document.getElementById('focus-picker').value"
+```
+
+Probe prints the expression result, `document.activeElement`, every `[popover]` open state, plus console/page errors. `scripts/helpers/server.js` starts the static server on a free port for manual checks. `PROBE_HEADED=1` opens a visible window.
+
+When a probe proves a behavior, either turn it into a browser spec or delete it — probes never ship. Verify an engine-quirk fix on all engines before committing.
