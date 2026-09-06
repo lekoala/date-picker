@@ -13,6 +13,7 @@
     "./dist/date-picker.min.css"
   ],
   "license": "MIT",
+  "customElements": "custom-elements.json",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lekoala/date-picker.git"
@@ -32,6 +33,7 @@
     "dist",
     "src",
     "docs",
+    "custom-elements.json",
     "LICENSE",
     "README.md"
   ],
@@ -67,7 +69,9 @@
     "dev": "node test/server.js",
     "build:bundle": "bun scripts/build.js",
     "build:types": "bun run types",
-    "build": "bun run build:bundle && bun run build:types",
+    "build:manifest": "bun scripts/custom-elements.js",
+    "build": "bun run build:bundle && bun run build:types && bun run build:manifest",
+    "sync": "bun run build",
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "tsc -p jsconfig.json",
@@ -75,13 +79,16 @@
     "test": "bun test test/unit",
     "test:syntax": "node --check src/date.js && node --check src/intl.js && node --check src/calendar-model.js && node --check src/source.js && node --check src/messages.js && node --check src/date-calendar.js && node --check src/date-picker.js && node --check src/date-range.js && node --check src/index.js && node --check src/define.js",
     "test:types": "tsc -p test/types/tsconfig.json",
-    "test:browser": "playwright test test/browser --project chromium",
-    "test:browser:headed": "playwright test test/browser --project chromium --headed",
-    "test:browser:all": "playwright test test/browser",
+    "test:browser": "playwright test browser --project chromium",
+    "test:browser:headed": "playwright test browser --project chromium --headed",
+    "test:browser:all": "playwright test browser",
+    "test:dist": "playwright test dist --project chromium",
     "check": "bun run test:syntax && bun run lint && bun run typecheck && bun run test",
-    "verify": "bun run check && bun run build && bun run test:types",
-    "check:all": "bun run verify && bun run test:browser:all",
-    "prepack": "bun run build",
+    "verify": "bun run check && bun run sync && bun run test:types && bun run check:generated && bun run check:package",
+    "check:all": "bun run verify && bun run test:browser:all && bun run test:dist",
+    "check:generated": "bun scripts/check-generated.js",
+    "check:package": "bun scripts/check-package.js",
+    "prepack": "bun run sync",
     "prepublishOnly": "bun run verify"
   },
   "devDependencies": {

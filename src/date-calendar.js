@@ -118,6 +118,7 @@ export class DateCalendarElement extends HTMLElement {
     this.render();
   }
 
+  /** @public */
   get locale() {
     return resolveLocale(this.getAttribute("locale") || "");
   }
@@ -127,6 +128,7 @@ export class DateCalendarElement extends HTMLElement {
     else this.removeAttribute("locale");
   }
 
+  /** @public */
   get value() {
     return this._model.value;
   }
@@ -139,6 +141,7 @@ export class DateCalendarElement extends HTMLElement {
     if (this._connected) this.render();
   }
 
+  /** @public */
   get display() {
     return this._model.display;
   }
@@ -147,6 +150,7 @@ export class DateCalendarElement extends HTMLElement {
     this._setDisplay(value, { emit: false });
   }
 
+  /** @public */
   get focusedDate() {
     return this._model.focused;
   }
@@ -155,6 +159,7 @@ export class DateCalendarElement extends HTMLElement {
     this.focusDate(value, { moveFocus: false });
   }
 
+  /** @public */
   get min() {
     const value = this.getAttribute("min") || "";
     return isDate(value) ? value : "";
@@ -165,6 +170,7 @@ export class DateCalendarElement extends HTMLElement {
     else this.removeAttribute("min");
   }
 
+  /** @public */
   get max() {
     const value = this.getAttribute("max") || "";
     return isDate(value) ? value : "";
@@ -175,6 +181,7 @@ export class DateCalendarElement extends HTMLElement {
     else this.removeAttribute("max");
   }
 
+  /** @public */
   get firstDay() {
     return parseFirstDay(this.getAttribute("first-day") || "1");
   }
@@ -183,6 +190,7 @@ export class DateCalendarElement extends HTMLElement {
     this.setAttribute("first-day", String(value));
   }
 
+  /** @public */
   get selection() {
     return this.getAttribute("selection") === "none" ? "none" : "single";
   }
@@ -191,6 +199,7 @@ export class DateCalendarElement extends HTMLElement {
     this.setAttribute("selection", value === "none" ? "none" : "single");
   }
 
+  /** @public */
   get fixedWeeks() {
     return this.hasAttribute("fixed-weeks");
   }
@@ -199,6 +208,7 @@ export class DateCalendarElement extends HTMLElement {
     this.toggleAttribute("fixed-weeks", Boolean(value));
   }
 
+  /** @public */
   get showWeekNumbers() {
     return this.hasAttribute("show-week-numbers");
   }
@@ -207,6 +217,7 @@ export class DateCalendarElement extends HTMLElement {
     this.toggleAttribute("show-week-numbers", Boolean(value));
   }
 
+  /** @public */
   get messages() {
     return this._messages;
   }
@@ -216,7 +227,7 @@ export class DateCalendarElement extends HTMLElement {
     if (this._connected) this.render();
   }
 
-  /** @returns {DateSource | null} */
+  /** @public @returns {DateSource | null} */
   get source() {
     return this._source;
   }
@@ -226,7 +237,7 @@ export class DateCalendarElement extends HTMLElement {
     this.refreshSource();
   }
 
-  /** @returns {DateStateResolver | null} */
+  /** @public @returns {DateStateResolver | null} */
   get dateState() {
     return this._dateState;
   }
@@ -236,7 +247,7 @@ export class DateCalendarElement extends HTMLElement {
     if (this._connected) this.render();
   }
 
-  /** @returns {DayRenderer | null} */
+  /** @public @returns {DayRenderer | null} */
   get renderDay() {
     return this._renderDay;
   }
@@ -246,7 +257,7 @@ export class DateCalendarElement extends HTMLElement {
     if (this._connected) this.render();
   }
 
-  /** @returns {DateDisabledPredicate | null} */
+  /** @public @returns {DateDisabledPredicate | null} */
   get isDateDisabled() {
     return this._isDateDisabled;
   }
@@ -314,7 +325,7 @@ export class DateCalendarElement extends HTMLElement {
     return { start: first[0], end: last[6] };
   }
 
-  /** @param {string} date */
+  /** @public @param {string} date */
   getDateState(date) {
     const fromSource = this._sourceStates.get(date) || {};
     const local = this._dateState?.(date, { ...fromSource }) || {};
@@ -327,6 +338,7 @@ export class DateCalendarElement extends HTMLElement {
     return { ...state, disabled };
   }
 
+  /** @public */
   async refreshSource() {
     this._loadController?.abort();
     this._loadedRanges.clear();
@@ -337,7 +349,7 @@ export class DateCalendarElement extends HTMLElement {
     }
   }
 
-  /** Ensure source state exists for the month containing a typed/selected date. @param {string} date */
+  /** @public Ensure source state exists for the month containing a typed/selected date. @param {string} date */
   async ensureDate(date) {
     if (!isDate(date) || !this._source) return;
     await this._loadDisplay(monthKey(date), false);
@@ -397,15 +409,17 @@ export class DateCalendarElement extends HTMLElement {
     );
   }
 
+  /** @public */
   previousMonth() {
     return this._setDisplay(shiftMonth(this.display, -1));
   }
 
+  /** @public */
   nextMonth() {
     return this._setDisplay(shiftMonth(this.display, 1));
   }
 
-  /** @param {string} date @param {{moveFocus?:boolean}} [options] */
+  /** @public @param {string} date @param {{moveFocus?:boolean}} [options] */
   focusDate(date, options = {}) {
     if (!isDate(date)) throw new TypeError(`Invalid date: ${date}`);
     const previousDisplay = this.display;
@@ -416,6 +430,7 @@ export class DateCalendarElement extends HTMLElement {
     if (options.moveFocus !== false) queueMicrotask(() => this.focusGrid());
   }
 
+  /** @public */
   focusGrid() {
     const target = this.querySelector(`.dp-day[data-date="${CSS.escape(this.focusedDate)}"]`);
     if (target instanceof HTMLElement) target.focus();
@@ -538,7 +553,7 @@ export class DateCalendarElement extends HTMLElement {
     return `${String(year).padStart(4, "0")}-${String(parsed.month).padStart(2, "0")}-${String(feb ? 28 : parsed.day).padStart(2, "0")}`;
   }
 
-  /** @param {boolean} [load] */
+  /** @public @param {boolean} [load] */
   render(load = true) {
     if (!this._connected) return;
     const locale = this.locale;

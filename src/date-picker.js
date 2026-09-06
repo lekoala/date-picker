@@ -106,14 +106,17 @@ export class DatePickerElement extends HTMLElement {
     void this.validate();
   }
 
+  /** @public */
   get input() {
     return this._input;
   }
 
+  /** @public */
   get calendar() {
     return this._calendar;
   }
 
+  /** @public */
   get value() {
     return this._value;
   }
@@ -123,6 +126,7 @@ export class DatePickerElement extends HTMLElement {
     this._setValue(value || "", { emit: false, format: true });
   }
 
+  /** @public */
   get locale() {
     return resolveLocale(this.getAttribute("locale") || "");
   }
@@ -132,6 +136,7 @@ export class DatePickerElement extends HTMLElement {
     else this.removeAttribute("locale");
   }
 
+  /** @public */
   get min() {
     const value = this.getAttribute("min") || "";
     return isDate(value) ? value : "";
@@ -142,6 +147,7 @@ export class DatePickerElement extends HTMLElement {
     else this.removeAttribute("min");
   }
 
+  /** @public */
   get max() {
     const value = this.getAttribute("max") || "";
     return isDate(value) ? value : "";
@@ -152,6 +158,7 @@ export class DatePickerElement extends HTMLElement {
     else this.removeAttribute("max");
   }
 
+  /** @public */
   get messages() {
     return this._messages;
   }
@@ -163,7 +170,7 @@ export class DatePickerElement extends HTMLElement {
     void this.validate();
   }
 
-  /** @returns {any} */
+  /** @public @returns {any} */
   get source() {
     return this._source;
   }
@@ -173,7 +180,7 @@ export class DatePickerElement extends HTMLElement {
     if (this._calendar) this._calendar.source = this._source;
   }
 
-  /** @returns {any} */
+  /** @public @returns {any} */
   get dateState() {
     return this._dateState;
   }
@@ -183,7 +190,7 @@ export class DatePickerElement extends HTMLElement {
     if (this._calendar) this._calendar.dateState = this._dateState;
   }
 
-  /** @returns {any} */
+  /** @public @returns {any} */
   get renderDay() {
     return this._renderDay;
   }
@@ -193,7 +200,7 @@ export class DatePickerElement extends HTMLElement {
     if (this._calendar) this._calendar.renderDay = this._renderDay;
   }
 
-  /** @returns {any} */
+  /** @public @returns {any} */
   get isDateDisabled() {
     return this._isDateDisabled;
   }
@@ -452,6 +459,7 @@ export class DatePickerElement extends HTMLElement {
     return true;
   }
 
+  /** @public */
   async validate() {
     const input = this._input;
     if (!input) return true;
@@ -463,6 +471,7 @@ export class DatePickerElement extends HTMLElement {
     return input.checkValidity();
   }
 
+  /** @public */
   show() {
     const panel = this._panel;
     const calendar = this._calendar;
@@ -484,7 +493,7 @@ export class DatePickerElement extends HTMLElement {
     this.dispatchEvent(new Event("open", { bubbles: true }));
   }
 
-  /** @param {boolean} [restoreFocus] */
+  /** @public @param {boolean} [restoreFocus] */
   hide(restoreFocus = false) {
     if (!this._panel || !this._open) return;
     this._stopTracking?.();

@@ -1,0 +1,341 @@
+{
+  "schemaVersion": "2.1.0",
+  "readme": "README.md",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "src/date-calendar.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "DateCalendarElement",
+          "tagName": "date-calendar",
+          "attributes": [
+            {
+              "name": "value"
+            },
+            {
+              "name": "display"
+            },
+            {
+              "name": "min"
+            },
+            {
+              "name": "max"
+            },
+            {
+              "name": "first-day"
+            },
+            {
+              "name": "locale"
+            },
+            {
+              "name": "fixed-weeks"
+            },
+            {
+              "name": "show-week-numbers"
+            },
+            {
+              "name": "selection"
+            }
+          ],
+          "members": [
+            {
+              "kind": "getter",
+              "name": "locale"
+            },
+            {
+              "kind": "getter",
+              "name": "value"
+            },
+            {
+              "kind": "getter",
+              "name": "display"
+            },
+            {
+              "kind": "getter",
+              "name": "focusedDate"
+            },
+            {
+              "kind": "getter",
+              "name": "min"
+            },
+            {
+              "kind": "getter",
+              "name": "max"
+            },
+            {
+              "kind": "getter",
+              "name": "firstDay"
+            },
+            {
+              "kind": "getter",
+              "name": "selection"
+            },
+            {
+              "kind": "getter",
+              "name": "fixedWeeks"
+            },
+            {
+              "kind": "getter",
+              "name": "showWeekNumbers"
+            },
+            {
+              "kind": "getter",
+              "name": "messages"
+            },
+            {
+              "kind": "getter",
+              "name": "source"
+            },
+            {
+              "kind": "getter",
+              "name": "dateState"
+            },
+            {
+              "kind": "getter",
+              "name": "renderDay"
+            },
+            {
+              "kind": "getter",
+              "name": "isDateDisabled"
+            },
+            {
+              "kind": "method",
+              "name": "getDateState"
+            },
+            {
+              "kind": "method",
+              "name": "refreshSource"
+            },
+            {
+              "kind": "method",
+              "name": "ensureDate"
+            },
+            {
+              "kind": "method",
+              "name": "previousMonth"
+            },
+            {
+              "kind": "method",
+              "name": "nextMonth"
+            },
+            {
+              "kind": "method",
+              "name": "focusDate"
+            },
+            {
+              "kind": "method",
+              "name": "focusGrid"
+            },
+            {
+              "kind": "method",
+              "name": "render"
+            }
+          ],
+          "events": [
+            {
+              "name": "dateactivate"
+            },
+            {
+              "name": "datechange"
+            },
+            {
+              "name": "dateinvalid"
+            },
+            {
+              "name": "dateloadend"
+            },
+            {
+              "name": "dateloaderror"
+            },
+            {
+              "name": "dateloadstart"
+            },
+            {
+              "name": "displaychange"
+            }
+          ],
+          "cssProperties": [
+            {
+              "name": "--dp-bg"
+            },
+            {
+              "name": "--dp-fg"
+            },
+            {
+              "name": "--dp-muted"
+            },
+            {
+              "name": "--dp-border"
+            },
+            {
+              "name": "--dp-hover"
+            },
+            {
+              "name": "--dp-accent"
+            },
+            {
+              "name": "--dp-accent-fg"
+            },
+            {
+              "name": "--dp-radius"
+            },
+            {
+              "name": "--dp-day-size"
+            },
+            {
+              "name": "--dp-gap"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DateCalendarElement",
+          "declaration": {
+            "name": "DateCalendarElement",
+            "module": "src/date-calendar.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/date-picker.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "DatePickerElement",
+          "tagName": "date-picker",
+          "attributes": [
+            {
+              "name": "value"
+            },
+            {
+              "name": "locale"
+            },
+            {
+              "name": "min"
+            },
+            {
+              "name": "max"
+            }
+          ],
+          "members": [
+            {
+              "kind": "getter",
+              "name": "input"
+            },
+            {
+              "kind": "getter",
+              "name": "calendar"
+            },
+            {
+              "kind": "getter",
+              "name": "value"
+            },
+            {
+              "kind": "getter",
+              "name": "locale"
+            },
+            {
+              "kind": "getter",
+              "name": "min"
+            },
+            {
+              "kind": "getter",
+              "name": "max"
+            },
+            {
+              "kind": "getter",
+              "name": "messages"
+            },
+            {
+              "kind": "getter",
+              "name": "source"
+            },
+            {
+              "kind": "getter",
+              "name": "dateState"
+            },
+            {
+              "kind": "getter",
+              "name": "renderDay"
+            },
+            {
+              "kind": "getter",
+              "name": "isDateDisabled"
+            },
+            {
+              "kind": "method",
+              "name": "validate"
+            },
+            {
+              "kind": "method",
+              "name": "show"
+            },
+            {
+              "kind": "method",
+              "name": "hide"
+            }
+          ],
+          "events": [
+            {
+              "name": "close"
+            },
+            {
+              "name": "open"
+            },
+            {
+              "name": "valuechange"
+            }
+          ],
+          "cssProperties": [
+            {
+              "name": "--dp-bg"
+            },
+            {
+              "name": "--dp-fg"
+            },
+            {
+              "name": "--dp-muted"
+            },
+            {
+              "name": "--dp-border"
+            },
+            {
+              "name": "--dp-hover"
+            },
+            {
+              "name": "--dp-accent"
+            },
+            {
+              "name": "--dp-accent-fg"
+            },
+            {
+              "name": "--dp-radius"
+            },
+            {
+              "name": "--dp-day-size"
+            },
+            {
+              "name": "--dp-gap"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DatePickerElement",
+          "declaration": {
+            "name": "DatePickerElement",
+            "module": "src/date-picker.js"
+          }
+        }
+      ]
+    }
+  ]
+}

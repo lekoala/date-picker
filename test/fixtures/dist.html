@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<date-calendar id="cal" value="2026-09-10" display="2026-09" fixed-weeks></date-calendar>
+<date-calendar id="mini" display="2026-09" selection="none" fixed-weeks></date-calendar>
+<date-picker id="picker" value="2026-09-06" locale="fr-BE">
+  <input id="date-input" name="date">
+</date-picker>
+<output id="anchor">2026-09-03</output>
+
+<script type="module" src="/dist/date-picker.standalone.min.js"></script>
+<script type="module">
+const mini = document.getElementById("mini");
+const anchor = document.getElementById("anchor");
+mini.addEventListener("dateactivate", (event) => {
+  anchor.textContent = event.detail.date;
+});
+</script>
