@@ -125,6 +125,9 @@ bun run shot:forced-colors -- /demo/index.html --out tmp/forced-colors-demo.png
 # built-in important states bundle
 bun run shot:forced-colors:important
 
+# same bundle with prefers-color-scheme: dark
+bun run shot:forced-colors:important:dark
+
 # constrained calendar only
 bun run shot:forced-colors -- /demo/index.html --selector "#constrained" --out tmp/forced-colors-constrained.png
 
@@ -141,6 +144,8 @@ Use `--scenario important` when you want one command that covers the main forced
 - `constrained-disabled.png` — constrained calendar with disabled-day styling.
 - `constrained-disabled-focus.png` — the disabled day with keyboard focus.
 - `picker-open.png` — the picker card with the popup open.
+
+Use `bun run shot:forced-colors:important:dark` for the same bundle under `forced-colors: active` plus `prefers-color-scheme: dark`. It writes to `tmp/forced-colors-important-dark/`.
 
 Run `bun run shot:forced-colors -- --list-scenarios` to list the built-in presets.
 

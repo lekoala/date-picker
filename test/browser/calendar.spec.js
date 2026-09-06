@@ -124,3 +124,47 @@ test("weekends can be disabled without disappearing from keyboard navigation", a
     "true",
   );
 });
+
+test("forced colors keep selected, today and disabled days visually distinct", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "forced-colors visual assertions follow the Chromium capture pipeline");
+  await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
+
+  const styles = await page.evaluate(() => {
+    const read = (selector) => {
+      const element = document.querySelector(selector);
+      if (!(element instanceof HTMLElement)) return null;
+      const style = getComputedStyle(element);
+      const before = getComputedStyle(element, "::before");
+      return {
+        backgroundColor: style.backgroundColor,
+        color: style.color,
+        borderColor: style.borderTopColor,
+        borderWidth: style.borderTopWidth,
+        opacity: style.opacity,
+        beforeBorderColor: before.borderTopColor,
+        beforeBorderWidth: before.borderTopWidth,
+      };
+    };
+
+    return {
+      selected: read('#inline .dp-day[data-date="2026-09-10"]'),
+      today: read('#inline .dp-day[data-date="2026-09-06"]'),
+      disabled: read('#constrained .dp-day[data-date="2026-09-05"]'),
+    };
+  });
+
+  expect(styles.selected).not.toBeNull();
+  expect(styles.today).not.toBeNull();
+  expect(styles.disabled).not.toBeNull();
+  expect(styles.selected.borderWidth).toBe("2px");
+  expect(styles.selected.beforeBorderWidth).toBe("1px");
+  expect(styles.selected.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(styles.selected.borderColor).toBe(styles.today.borderColor);
+  expect(styles.selected.color).toBe(styles.selected.beforeBorderColor);
+  expect(styles.disabled.opacity).toBe("1");
+  expect(styles.disabled.color).not.toBe(styles.selected.color);
+  expect(styles.disabled.color).not.toBe(styles.today.color);
+});

@@ -48,8 +48,8 @@ Automated Playwright covers interaction invariants; this checklist now distingui
 
 - Date: 2026-09-06.
 - Engines: Chromium, Firefox, WebKit.
-- Browser command run: `bunx playwright test test/browser/picker.spec.js test/browser/focus.spec.js test/browser/calendar.spec.js test/browser/form-state.spec.js test/browser/surfaces.spec.js`.
-- Result: 123 browser tests passed across the configured desktop projects.
+- Browser command run: `bun run test:browser:accessibility`.
+- Result: 124 browser tests passed and 2 were skipped across the configured desktop projects; the forced-colors style assertion is Chromium-only.
 - Forced-colors spot check: `bun run shot:forced-colors:important` reviewed manually after the selected-day forced-colors fix.
 
 ## Record

@@ -24,6 +24,15 @@ bun run test:browser:all
 
 runs Chromium, Firefox and WebKit.
 
+For the accessibility-adjacent browser subset used by the AT checklist:
+
+```bash
+bun run test:browser:accessibility
+```
+
+This runs the focused picker/calendar/focus/form/surface specs across the configured desktop projects, including the forced-colors regression check in `calendar.spec.js`.
+The forced-colors style assertion follows the Chromium capture pipeline, so it is intentionally skipped on Firefox and WebKit.
+
 ## What belongs in browser tests
 
 Browser tests should cover behavior that cannot be trusted to a DOM shim:
