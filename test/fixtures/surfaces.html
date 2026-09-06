@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+<link rel="stylesheet" href="/src/date-picker.css">
+<style>
+  body { font-family: system-ui, sans-serif; }
+  .nested {
+    position: relative;
+    overflow: hidden;
+    transform: translateZ(0);
+    inline-size: 16rem;
+    block-size: 12rem;
+    padding: 0.5rem;
+    border: 1px solid #888;
+  }
+  .field { display: grid; gap: 0.35rem; inline-size: 16rem; }
+</style>
+
+<button id="open-dialog" type="button">Open dialog</button>
+<dialog id="surface-dialog">
+  <form method="dialog">
+    <label class="field" for="dialog-date">
+      Rendez-vous
+      <date-picker id="dialog-picker" value="2026-09-06" locale="fr-BE">
+        <input id="dialog-date" name="appointment" required>
+      </date-picker>
+    </label>
+    <button id="close-dialog" value="close" type="submit">Close</button>
+  </form>
+</dialog>
+
+<div class="nested">
+  <date-picker id="nested-picker" value="2026-09-06" locale="fr-BE">
+    <input id="nested-date" name="nested">
+  </date-picker>
+</div>
+
+<script type="module">
+import "/src/define.js";
+
+const dialog = document.getElementById("surface-dialog");
+document.getElementById("open-dialog").addEventListener("click", () => dialog.showModal());
+</script>

@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
 test("picker keeps localized editable display and canonical form value", async ({ page }) => {
   await expect(page.locator("#simple-date")).toHaveValue("06/09/2026");
   await expect(page.locator('#simple-picker input[type="hidden"][name="date"]')).toHaveValue("2026-09-06");
-  await page.click('#simple-form button[type="submit"], #simple-form button');
+  await page.click("#simple-form button[type='submit']");
   await expect(page.locator("#form-state")).toContainText("date=2026-09-06");
 });
 

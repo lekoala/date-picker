@@ -59,6 +59,11 @@ export class DatePickerElement extends HTMLElement {
     if (initial && isDate(initial)) this._setValue(initial, { emit: false, format: true });
     else if (!input.value) this._setValue("", { emit: false, format: false });
     else input.setCustomValidity(this._messages.invalidDate);
+
+    // Native form reset restores these defaultValues, then _restoreDefault()
+    // recommits the canonical value from them.
+    input.defaultValue = input.value;
+    if (this._hiddenInput) this._hiddenInput.defaultValue = this._value;
   }
 
   disconnectedCallback() {
@@ -316,6 +321,18 @@ export class DatePickerElement extends HTMLElement {
       },
       { capture: true, signal },
     );
+    this.ownerDocument.addEventListener(
+      "reset",
+      (event) => {
+        const form = event.target;
+        if (!this._open && form instanceof HTMLFormElement && this._input && form === this._input.form) {
+          // The reset event fires before the control values are restored;
+          // re-derive the canonical value once the reset has applied.
+          queueMicrotask(() => this._restoreDefault());
+        }
+      },
+      { capture: true, signal },
+    );
     this.addEventListener(
       "keydown",
       (event) => {
@@ -398,6 +415,14 @@ export class DatePickerElement extends HTMLElement {
     } else if (previous !== this._value) {
       this.dispatchEvent(new CustomEvent("valuechange", { detail: { value: this._value }, bubbles: true }));
     }
+  }
+
+  _restoreDefault() {
+    const input = this._input;
+    if (!input) return;
+    const text = String(input.defaultValue ?? "").trim();
+    const parsed = isDate(text) ? text : this._adapter().parse(text);
+    this._setValue(parsed && isDate(parsed) ? parsed : "", { emit: false, format: true });
   }
 
   /** @param {boolean} emit */

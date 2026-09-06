@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+<link rel="stylesheet" href="/src/date-picker.css">
+<style>
+  body { font-family: system-ui, sans-serif; }
+  .field { display: grid; gap: 0.35rem; inline-size: 16rem; margin-block: 0.75rem; }
+  [form="alt-form"] { margin-block-start: 1rem; }
+</style>
+
+<form id="demo-form">
+  <label class="field" for="reset-date">
+    Date par défaut
+    <date-picker id="reset-picker" value="2026-09-06" locale="fr-BE">
+      <input id="reset-date" name="date" required>
+    </date-picker>
+  </label>
+  <button id="reset-btn" type="reset">Reset</button>
+  <button id="submit-btn" type="submit">Envoyer</button>
+  <output id="demo-out"></output>
+</form>
+
+<p>
+  <label><input id="disable-toggle" type="checkbox"> Désactiver</label>
+</p>
+<label class="field" for="toggle-date">
+  Date basculable
+  <date-picker id="toggle-picker" value="2026-09-10" locale="fr-BE">
+    <input id="toggle-date" name="togglable">
+  </date-picker>
+</label>
+
+<label class="field" id="external-label" for="alt-date">
+  Form externe
+  <date-picker id="alt-picker" value="2026-09-12" locale="fr-BE">
+    <input id="alt-date" name="extern" form="alt-form">
+  </date-picker>
+</label>
+<form id="alt-form"></form>
+
+<form id="min-form">
+  <label class="field" for="min-date">
+    Sans défaut
+    <date-picker id="min-picker" locale="fr-BE">
+      <input id="min-date" name="sansdefaut">
+    </date-picker>
+  </label>
+  <button id="min-reset" type="reset">Réinitialiser</button>
+</form>
+
+<script type="module">
+import "/src/define.js";
+
+const form = document.getElementById("demo-form");
+const out = document.getElementById("demo-out");
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  out.textContent = new URLSearchParams(new FormData(form)).toString();
+});
+
+const toggle = document.getElementById("disable-toggle");
+const toggleDate = document.getElementById("toggle-date");
+toggle.addEventListener("change", () => {
+  toggleDate.disabled = toggle.checked;
+});
+</script>
