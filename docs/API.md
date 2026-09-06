@@ -33,7 +33,7 @@ calendar.dateState = (date, sourceState) => ({
 calendar.renderDay = (date, state) => Node | string | null;
 ```
 
-`renderDay` only decorates `.dp-day-extra`; it cannot replace the interactive cell.
+`renderDay` decorates the day cell; it cannot replace the interactive cell. The returned node is placed inside a component-owned, non-interactive container that is `aria-hidden`. That container has no stable class name: style the nodes you return, not the component's internals (see [DECISIONS.md](DECISIONS.md#d3--css--dp--is-public--dp--is-not)).
 
 ### Source
 

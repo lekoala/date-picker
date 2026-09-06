@@ -201,6 +201,7 @@ Deliberately out of scope for the first release:
 ## Docs
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Decisions](docs/DECISIONS.md)
 - [API](docs/API.md)
 - [Use cases](docs/USE_CASES.md)
 - [Accessibility](docs/ACCESSIBILITY.md)

@@ -76,7 +76,7 @@ Everything else remains application metadata.
 
 ### `renderDay(date, state)`
 
-Returns a `Node`, `DocumentFragment`, string or nothing. The result is appended inside `.dp-day-extra`, which is non-interactive and `aria-hidden`.
+Returns a `Node`, `DocumentFragment`, string or nothing. The result is appended inside a component-owned, non-interactive, `aria-hidden` container. That container name is an implementation detail: consumers style the nodes they return and keep their own class names.
 
 Accessible meaning belongs in `state.description`, not in purely visual dots/badges.
 
