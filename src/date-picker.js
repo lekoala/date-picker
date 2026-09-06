@@ -346,7 +346,25 @@ export class DatePickerElement extends HTMLElement {
       },
       { signal },
     );
-    button.addEventListener("click", () => (this._open ? this.hide(false) : this.show()), { signal });
+    button.addEventListener(
+      "click",
+      (event) => {
+        if (this._open) {
+          // Keyboard activation (detail 0) of an already-open picker moves into
+          // the grid instead of toggling it shut. This matters under the default
+          // open-on-focus, where the popup is already open when Tab reaches the
+          // button; Escape keeps closing it. Defer focus as in the input handler.
+          if (event.detail === 0) {
+            setTimeout(() => this._calendar?.focusGrid(), 0);
+            return;
+          }
+          this.hide(false);
+          return;
+        }
+        this.show();
+      },
+      { signal },
+    );
     calendar.addEventListener(
       "dateactivate",
       (event) => {

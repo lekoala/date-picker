@@ -319,6 +319,17 @@ export class DateCalendarElement extends HTMLElement {
     return weeks;
   }
 
+  /** @param {HTMLElement} element @returns {string} */
+  _focusTargetKey(element) {
+    if (element.matches(".dp-month-select, .dp-year-select") && element.id) {
+      return `#${CSS.escape(element.id)}`;
+    }
+    if (element.matches(".dp-nav[data-calendar-action]")) {
+      return `.dp-nav[data-calendar-action="${CSS.escape(element.dataset.calendarAction || "")}"]`;
+    }
+    return "";
+  }
+
   /** @param {string} [display] */
   _range(display = this.display) {
     const weeks = this._weeks(display);
@@ -629,6 +640,12 @@ export class DateCalendarElement extends HTMLElement {
       })
       .join("");
 
+    const focusedElement = document.activeElement;
+    const focusKey =
+      focusedElement instanceof HTMLElement && this.contains(focusedElement)
+        ? this._focusTargetKey(focusedElement)
+        : "";
+
     this._rendering = true;
     this.innerHTML = `
       <div class="dp-calendar-shell">
@@ -647,6 +664,13 @@ export class DateCalendarElement extends HTMLElement {
         </table>
       </div>`;
     this._rendering = false;
+
+    if (focusKey) {
+      queueMicrotask(() => {
+        const target = this.querySelector(focusKey);
+        if (target instanceof HTMLElement) target.focus();
+      });
+    }
 
     if (this._renderDay) {
       for (const cell of this.querySelectorAll(".dp-day[data-date]")) {

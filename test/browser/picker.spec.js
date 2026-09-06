@@ -38,6 +38,26 @@ test("open reflects the popover state and Escape restores focus", async ({ page 
   await expect(page.locator("#simple-date")).toBeFocused();
 });
 
+test("keyboard Enter on the open trigger moves into the grid instead of closing", async ({ page }) => {
+  await page.locator("#simple-date").focus();
+  await expect(page.locator("#simple-picker .dp-picker-panel")).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#simple-picker .dp-picker-button")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", true);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
+  await expect(page.locator("#simple-date")).toBeFocused();
+});
+
+test("mouse click on the open trigger still closes the popover", async ({ page }) => {
+  await page.click("#simple-picker .dp-picker-button");
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", true);
+  await page.click("#simple-picker .dp-picker-button");
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
+});
+
 test("range linkage updates reciprocal effective bounds", async ({ page }) => {
   await expect(page.locator("#end-picker")).toHaveAttribute("min", "2026-09-10");
   await expect(page.locator("#start-picker")).toHaveAttribute("max", "2026-09-15");

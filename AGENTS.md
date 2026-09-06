@@ -71,6 +71,10 @@ The source shape is data-oriented. Do not hard-code application URL/query conven
 
 Start/end coupling stays external. Do not add sibling selectors or `rangeStart/rangeEnd` branches inside `DatePickerElement`.
 
+## Language
+
+Docs and code comments are written in English. Demo content and user-facing localized strings stay in their display language.
+
 ## Tooling
 
 Use the pinned repo tools:

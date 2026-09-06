@@ -74,6 +74,12 @@ date-calendar {
   cursor: pointer;
 }
 
+.dp-calendar-header :where(button, select):disabled,
+.dp-picker-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .dp-nav:hover:not(:disabled),
 .dp-day:hover:not([data-disabled="true"]) {
   background: var(--dp-hover);
@@ -207,12 +213,24 @@ date-picker > input:not([type="hidden"]) {
 }
 
 @media (forced-colors: active) {
+  .dp-day[data-selected="true"] {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
   .dp-day[data-selected="true"],
   .dp-day[data-today="true"] {
     border-color: Highlight;
   }
 
-  .dp-day[data-disabled="true"] {
+  .dp-day-extra {
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .dp-day[data-disabled="true"],
+  .dp-calendar-header :where(button, select):disabled,
+  .dp-picker-button:disabled {
     opacity: 1;
     color: GrayText;
   }

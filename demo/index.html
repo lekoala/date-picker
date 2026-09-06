@@ -20,6 +20,8 @@
     .range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
     .range date-picker { width: 100%; }
     output { display: block; margin-block-start: .75rem; padding: .6rem; background: color-mix(in srgb, CanvasText 5%, Canvas); border-radius: .5rem; }
+    .hint { font-size: .85em; color: color-mix(in srgb, CanvasText 65%, Canvas); margin-block: .5rem 0; }
+    kbd { font: inherit; padding: 0 .3em; border: 1px solid color-mix(in srgb, CanvasText 30%, Canvas); border-radius: .25em; }
     .availability { display: inline-flex; gap: 2px; }
     .availability i { inline-size: .32rem; block-size: .32rem; border-radius: 50%; background: currentColor; }
     .mini-wrap { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: start; }
@@ -54,6 +56,7 @@
         </label>
         <button type="submit">Submit</button>
       </form>
+      <p class="hint">Keyboard: the calendar opens when the field is focused. <kbd>↓</kbd> enters the grid, <kbd>Enter</kbd> picks a date, <kbd>Esc</kbd> closes and returns focus. From the calendar icon, <kbd>Enter</kbd> drops focus into the calendar.</p>
       <output id="form-state">submitted ISO value appears here</output>
     </section>
 

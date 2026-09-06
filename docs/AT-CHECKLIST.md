@@ -36,7 +36,7 @@ Automated Playwright covers interaction invariants; this checklist covers what o
 
 - [ ] Typing a valid localized date updates the field validation state (no stale invalid message).
 - [ ] Typing an impossible date produces an announced invalid message.
-- [ ] Forced-colors mode keeps selected/today/disabled distinguishable.
+- [ ] Forced-colors mode keeps selected/today/disabled distinguishable — including a selected day when `Highlight` resolves near-white (no white-on-white from `--dp-accent`).
 
 ## Record
 

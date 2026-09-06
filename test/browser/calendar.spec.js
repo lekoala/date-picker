@@ -18,6 +18,19 @@ test("month/year navigation changes display but not selection", async ({ page })
   await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
 });
 
+test("Enter on prev/next keeps focus on the button across the re-render", async ({ page }) => {
+  const prev = page.locator("#inline .dp-prev");
+  await prev.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#inline")).toHaveAttribute("display", "2026-08");
+  await expect(prev).toBeFocused();
+  const next = page.locator("#inline .dp-next");
+  await next.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#inline")).toHaveAttribute("display", "2026-09");
+  await expect(next).toBeFocused();
+});
+
 test("arrow keys move focus; Enter activates and selects", async ({ page }) => {
   const selected = page.locator('#inline .dp-day[data-date="2026-09-10"]');
   await selected.focus();
@@ -39,6 +52,16 @@ test("outside-month days remain activatable in the mini calendar", async ({ page
   await expect(outside).toHaveAttribute("data-outside-month", "true");
   await outside.click();
   await expect(page.locator("#agenda")).toHaveAttribute("date", "2026-08-31");
+});
+
+test("constraints disable prev/next and dim them visually", async ({ page }) => {
+  const prev = page.locator("#constrained .dp-prev");
+  const next = page.locator("#constrained .dp-next");
+  await expect(prev).toBeDisabled();
+  await expect(next).toBeDisabled();
+  await expect(prev).toHaveCSS("opacity", "0.45");
+  await expect(next).toHaveCSS("opacity", "0.45");
+  await expect(page.locator("#inline .dp-prev")).toHaveCSS("opacity", "1");
 });
 
 test("weekends can be disabled without disappearing from keyboard navigation", async ({ page }) => {
