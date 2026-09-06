@@ -5,8 +5,8 @@ import {
   addYears,
   compareDates,
   getMonthWeeks,
-  isoWeekNumber,
   isDate,
+  isoWeekNumber,
   shiftMonth,
   startOfWeek,
 } from "../../src/date.js";

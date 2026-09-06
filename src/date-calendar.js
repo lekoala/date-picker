@@ -1,3 +1,4 @@
+import { CalendarModel } from "./calendar-model.js";
 import {
   addDays,
   clampDate,
@@ -10,7 +11,6 @@ import {
   shiftMonth,
   todayISO,
 } from "./date.js";
-import { CalendarModel } from "./calendar-model.js";
 import { formatLongDate, formatMonthYear, monthNames, resolveLocale, weekdayNames } from "./intl.js";
 import { getDefaultMessages } from "./messages.js";
 import { normalizeDateStates } from "./source.js";
@@ -355,7 +355,8 @@ export class DateCalendarElement extends HTMLElement {
     this.toggleAttribute("data-loading", true);
     this.dispatchEvent(new CustomEvent("dateloadstart", { detail: range, bubbles: true }));
     try {
-      const loader = typeof this._source === "function" ? this._source : this._source.load?.bind(this._source);
+      const loader =
+        typeof this._source === "function" ? this._source : this._source.load?.bind(this._source);
       if (!loader) throw new TypeError("Date source must be a function or expose load(range, { signal })");
       const payload = await loader(range, { signal: controller.signal });
       if (controller.signal.aborted) return;
@@ -507,8 +508,10 @@ export class DateCalendarElement extends HTMLElement {
     } else if (event.key === "End") {
       const offset = (new Date(`${date}T12:00:00Z`).getUTCDay() - this.firstDay + 7) % 7;
       next = addDays(date, 6 - offset);
-    } else if (event.key === "PageUp") next = event.shiftKey ? this._shiftYear(date, -1) : this._shiftDateMonth(date, -1);
-    else if (event.key === "PageDown") next = event.shiftKey ? this._shiftYear(date, 1) : this._shiftDateMonth(date, 1);
+    } else if (event.key === "PageUp")
+      next = event.shiftKey ? this._shiftYear(date, -1) : this._shiftDateMonth(date, -1);
+    else if (event.key === "PageDown")
+      next = event.shiftKey ? this._shiftYear(date, 1) : this._shiftDateMonth(date, 1);
     if (!next) return;
     event.preventDefault();
     this.focusDate(this._clamp(next));
@@ -557,7 +560,9 @@ export class DateCalendarElement extends HTMLElement {
     const maxYear = this.max ? Number(this.max.slice(0, 4)) : displayYear + 10;
     const windowStart = Math.max(minYear, displayYear - 10);
     const windowEnd = Math.min(maxYear, displayYear + 10);
-    const weekHeader = this.showWeekNumbers ? `<th scope="col" class="dp-week-heading" abbr="Week">#</th>` : "";
+    const weekHeader = this.showWeekNumbers
+      ? `<th scope="col" class="dp-week-heading" abbr="Week">#</th>`
+      : "";
 
     const monthOptions = names
       .map((name, index) => {
@@ -573,12 +578,17 @@ export class DateCalendarElement extends HTMLElement {
     }
 
     const dayHeaders = weekdayShort
-      .map((name, index) => `<th scope="col" abbr="${escapeHtml(weekdayLong[index])}">${escapeHtml(name.replace(".", ""))}</th>`)
+      .map(
+        (name, index) =>
+          `<th scope="col" abbr="${escapeHtml(weekdayLong[index])}">${escapeHtml(name.replace(".", ""))}</th>`,
+      )
       .join("");
 
     const rows = weeks
       .map((week) => {
-        const weekNumber = this.showWeekNumbers ? `<th scope="row" class="dp-week-number">${isoWeekNumber(week[0])}</th>` : "";
+        const weekNumber = this.showWeekNumbers
+          ? `<th scope="row" class="dp-week-number">${isoWeekNumber(week[0])}</th>`
+          : "";
         const cells = week
           .map((date) => {
             const state = this.getDateState(date);
@@ -587,7 +597,11 @@ export class DateCalendarElement extends HTMLElement {
             const focused = this.focusedDate === date;
             const isToday = date === today;
             const description = typeof state.description === "string" ? state.description : "";
-            const label = [formatLongDate(date, locale), description, state.disabled ? this._messages.unavailable : ""]
+            const label = [
+              formatLongDate(date, locale),
+              description,
+              state.disabled ? this._messages.unavailable : "",
+            ]
               .filter(Boolean)
               .join(". ");
             return `<td class="dp-day" data-date="${date}"${outside ? ' data-outside-month="true"' : ""}${isToday ? ' data-today="true" aria-current="date"' : ""}${selected ? ' data-selected="true" aria-selected="true"' : ""}${state.disabled ? ' data-disabled="true" aria-disabled="true"' : ""} tabindex="${focused ? "0" : "-1"}" aria-label="${escapeHtml(label)}"><span class="dp-day-number" aria-hidden="true">${Number(date.slice(8, 10))}</span><span class="dp-day-extra" aria-hidden="true"></span></td>`;

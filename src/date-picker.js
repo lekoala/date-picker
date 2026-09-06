@@ -54,7 +54,8 @@ export class DatePickerElement extends HTMLElement {
     this._syncCalendarOptions();
 
     const adapter = this._adapter();
-    const initial = this.getAttribute("value") || (isDate(input.value) ? input.value : adapter.parse(input.value));
+    const initial =
+      this.getAttribute("value") || (isDate(input.value) ? input.value : adapter.parse(input.value));
     if (initial && isDate(initial)) this._setValue(initial, { emit: false, format: true });
     else if (!input.value) this._setValue("", { emit: false, format: false });
     else input.setCustomValidity(this._messages.invalidDate);
@@ -91,7 +92,8 @@ export class DatePickerElement extends HTMLElement {
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this._connected || this._reflecting || oldValue === newValue) return;
     if (name === "value") {
-      if (!newValue || isDate(newValue)) this._setValue(newValue || "", { emit: false, format: true, reflect: false });
+      if (!newValue || isDate(newValue))
+        this._setValue(newValue || "", { emit: false, format: true, reflect: false });
       return;
     }
     if (name === "locale") this._refreshLocale();
@@ -379,7 +381,8 @@ export class DatePickerElement extends HTMLElement {
     this._value = value || "";
     if (options.reflect !== false) this._reflectValue(this._value);
     if (this._hiddenInput) this._hiddenInput.value = this._value;
-    if (this._input && options.format !== false) this._input.value = this._value ? this._adapter().format(this._value) : "";
+    if (this._input && options.format !== false)
+      this._input.value = this._value ? this._adapter().format(this._value) : "";
     if (this._calendar) {
       this._calendar.value = this._value;
       if (this._value) this._calendar.focusedDate = this._value;
@@ -448,7 +451,8 @@ export class DatePickerElement extends HTMLElement {
     this._open = true;
     input.setAttribute("aria-expanded", "true");
     button.setAttribute("aria-expanded", "true");
-    const position = () => reposition(this, panel, { placement: "bottom-start", distance: 4, shiftPadding: 8 });
+    const position = () =>
+      reposition(this, panel, { placement: "bottom-start", distance: 4, shiftPadding: 8 });
     position();
     this._stopTracking = autoUpdate(this, panel, position);
     queueMicrotask(() => calendar.focusGrid());

@@ -29,7 +29,7 @@ constrained.dateState = (date) => ({
       ? "Ouverture exceptionnelle"
       : [0, 6].includes(dates.dayOfWeek(date))
         ? "Cabinet fermé"
-        : "Disponible"
+        : "Disponible",
 });
 
 const start = document.getElementById("start-picker");
@@ -49,16 +49,22 @@ const availability = document.getElementById("availability");
 availability.source = async ({ start, end }, { signal }) => {
   await new Promise((resolve, reject) => {
     const timer = setTimeout(resolve, 80);
-    signal.addEventListener("abort", () => {
-      clearTimeout(timer);
-      reject(new DOMException("Aborted", "AbortError"));
-    }, { once: true });
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
   });
   const states = {};
   for (let date = start; dates.compareDates(date, end) <= 0; date = dates.addDays(date, 1)) {
     const day = Number(date.slice(8, 10));
-    if (day % 3 === 0) states[date] = { morning: true, afternoon: true, description: "Disponible matin et après-midi" };
-    else if (day % 2 === 0) states[date] = { morning: true, afternoon: false, description: "Disponible le matin" };
+    if (day % 3 === 0)
+      states[date] = { morning: true, afternoon: true, description: "Disponible matin et après-midi" };
+    else if (day % 2 === 0)
+      states[date] = { morning: true, afternoon: false, description: "Disponible le matin" };
   }
   return { dates: states };
 };
@@ -76,7 +82,7 @@ const anchor = document.getElementById("agenda-anchor");
 let anchorDate = anchor.dataset.date;
 mini.dateState = (date) => ({
   description: date === anchorDate ? "Date affichée dans l’agenda" : "Naviguer à cette date",
-  anchor: date === anchorDate
+  anchor: date === anchorDate,
 });
 mini.renderDay = (date) => (Number(date.slice(8, 10)) % 5 === 0 ? "•" : "");
 mini.addEventListener("dateactivate", (event) => {

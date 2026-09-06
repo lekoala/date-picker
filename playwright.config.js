@@ -16,11 +16,11 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:4173",
     headless: true,
-    trace: "retain-on-failure"
+    trace: "retain-on-failure",
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } }
-  ]
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+  ],
 });

@@ -35,7 +35,7 @@ export class CalendarModel {
     const day = Number(this.focused.slice(8, 10)) || 1;
     const next = addMonths(`${target}-01`, 0);
     const candidate = addDays(next, Math.max(0, day - 1));
-    this.focused = monthKey(candidate) === target ? candidate : addDays(shiftMonth(target, 1) + "-01", -1);
+    this.focused = monthKey(candidate) === target ? candidate : addDays(`${shiftMonth(target, 1)}-01`, -1);
     this.display = target;
     return this.display;
   }

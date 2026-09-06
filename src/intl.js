@@ -20,7 +20,9 @@ function digitMap(locale) {
 
 /** @param {string} text @param {string} locale */
 function normalizeDigits(text, locale) {
-  let result = String(text || "").replace(BIDI, "").trim();
+  let result = String(text || "")
+    .replace(BIDI, "")
+    .trim();
   for (const [local, ascii] of digitMap(locale)) result = result.split(local).join(ascii);
   return result;
 }
@@ -51,7 +53,9 @@ export function formatMonthYear(value, locale = "") {
 export function monthNames(locale = "", style = "long") {
   const resolved = resolveLocale(locale);
   const formatter = new Intl.DateTimeFormat(resolved, { month: style, timeZone: "UTC" });
-  return Array.from({ length: 12 }, (_, index) => formatter.format(toIntlDate(`2026-${String(index + 1).padStart(2, "0")}-15`)));
+  return Array.from({ length: 12 }, (_, index) =>
+    formatter.format(toIntlDate(`2026-${String(index + 1).padStart(2, "0")}-15`)),
+  );
 }
 
 /**

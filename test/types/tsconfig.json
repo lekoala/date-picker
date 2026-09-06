@@ -6,9 +6,8 @@
     "lib": ["es2022", "dom", "dom.iterable"],
     "strict": true,
     "noEmit": true,
-    "baseUrl": "../..",
     "paths": {
-      "@lekoala/date-picker": ["dist/types/index.d.ts"]
+      "@lekoala/date-picker": ["../../dist/types/index.d.ts"]
     }
   },
   "include": ["consumer.ts"]

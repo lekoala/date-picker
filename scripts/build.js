@@ -13,7 +13,7 @@ async function bundle(entry, outfile, minify, options = {}) {
     target: "browser",
     format: "iife",
     minify,
-    ...options
+    ...options,
   });
   if (!result.success) {
     for (const log of result.logs) console.error(log);
@@ -32,7 +32,7 @@ const cssResult = await Bun.build({
   entrypoints: ["src/date-picker.css"],
   outdir: "dist",
   naming: "date-picker.min.css",
-  minify: true
+  minify: true,
 });
 if (!cssResult.success) {
   for (const log of cssResult.logs) console.error(log);

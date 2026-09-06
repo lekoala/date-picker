@@ -86,7 +86,8 @@ export function compareDates(a, b) {
 /** @param {string} value @param {number} amount */
 export function addDays(value, amount) {
   const parsed = parseDate(value);
-  if (!parsed || !Number.isInteger(amount)) throw new TypeError("addDays() expects a date and integer amount");
+  if (!parsed || !Number.isInteger(amount))
+    throw new TypeError("addDays() expects a date and integer amount");
   const date = toUTCDate(parsed);
   date.setUTCDate(date.getUTCDate() + amount);
   return fromUTCDate(date);
@@ -95,7 +96,8 @@ export function addDays(value, amount) {
 /** @param {string} value @param {number} amount */
 export function addMonths(value, amount) {
   const parsed = parseDate(value);
-  if (!parsed || !Number.isInteger(amount)) throw new TypeError("addMonths() expects a date and integer amount");
+  if (!parsed || !Number.isInteger(amount))
+    throw new TypeError("addMonths() expects a date and integer amount");
   const absoluteMonth = parsed.year * 12 + (parsed.month - 1) + amount;
   const year = Math.floor(absoluteMonth / 12);
   const monthIndex = ((absoluteMonth % 12) + 12) % 12;
@@ -107,7 +109,8 @@ export function addMonths(value, amount) {
 /** @param {string} value @param {number} amount */
 export function addYears(value, amount) {
   const parsed = parseDate(value);
-  if (!parsed || !Number.isInteger(amount)) throw new TypeError("addYears() expects a date and integer amount");
+  if (!parsed || !Number.isInteger(amount))
+    throw new TypeError("addYears() expects a date and integer amount");
   const year = parsed.year + amount;
   const day = Math.min(parsed.day, daysInMonth(year, parsed.month));
   return toISODate(year, parsed.month, day);
@@ -140,7 +143,8 @@ export function dayOfWeek(value) {
 
 /** @param {string} value @param {number} firstDay */
 export function startOfWeek(value, firstDay = 1) {
-  if (!Number.isInteger(firstDay) || firstDay < 0 || firstDay > 6) throw new RangeError("firstDay must be 0..6");
+  if (!Number.isInteger(firstDay) || firstDay < 0 || firstDay > 6)
+    throw new RangeError("firstDay must be 0..6");
   const offset = (dayOfWeek(value) - firstDay + 7) % 7;
   return addDays(value, -offset);
 }

@@ -48,5 +48,8 @@ test("weekends can be disabled without disappearing from keyboard navigation", a
   await expect(saturday).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#constrained")).not.toHaveAttribute("value", "2026-09-05");
-  await expect(page.locator('#constrained .dp-day[data-date="2026-09-12"]')).not.toHaveAttribute("aria-disabled", "true");
+  await expect(page.locator('#constrained .dp-day[data-date="2026-09-12"]')).not.toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
 });

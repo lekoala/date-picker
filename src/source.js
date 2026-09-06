@@ -5,9 +5,10 @@
  * @returns {Map<string, Record<string, unknown>>}
  */
 export function normalizeDateStates(payload) {
-  const raw = payload && typeof payload === "object" && !Array.isArray(payload) && "dates" in payload
-    ? /** @type {{dates:unknown}} */ (payload).dates
-    : payload;
+  const raw =
+    payload && typeof payload === "object" && !Array.isArray(payload) && "dates" in payload
+      ? /** @type {{dates:unknown}} */ (payload).dates
+      : payload;
   const map = new Map();
   if (Array.isArray(raw)) {
     for (const item of raw) {
@@ -34,7 +35,10 @@ export function createFetchSource(url, options = {}) {
   return {
     /** @param {{start:string,end:string}} range @param {{signal?:AbortSignal}} [context] */
     async load(range, context = {}) {
-      const target = new URL(String(url), typeof document !== "undefined" ? document.baseURI : "http://localhost/");
+      const target = new URL(
+        String(url),
+        typeof document !== "undefined" ? document.baseURI : "http://localhost/",
+      );
       const params = options.params ? options.params(range) : range;
       for (const [key, value] of Object.entries(params)) target.searchParams.set(key, String(value));
       const response = await fetch(target, { signal: context.signal });

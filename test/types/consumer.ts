@@ -1,11 +1,11 @@
 import {
   CalendarModel,
-  DateCalendarElement,
-  DatePickerElement,
   createDateAdapter,
   createFetchSource,
+  DateCalendarElement,
+  DatePickerElement,
   dates,
-  linkDateRange
+  linkDateRange,
 } from "@lekoala/date-picker";
 
 const calendar = new DateCalendarElement();
