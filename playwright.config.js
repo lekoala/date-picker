@@ -11,11 +11,11 @@ export default defineConfig({
   reporter: "list",
   webServer: {
     command: "node test/server.js",
-    port: 4173,
+    port: 4859,
     reuseExistingServer: true,
   },
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: "http://127.0.0.1:4859",
     headless: true,
     trace: "retain-on-failure",
   },

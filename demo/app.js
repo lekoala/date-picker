@@ -78,16 +78,19 @@ availability.renderDay = (_date, state) => {
 };
 
 const mini = document.getElementById("mini");
-const anchor = document.getElementById("agenda-anchor");
-let anchorDate = anchor.dataset.date;
+const agenda = document.getElementById("agenda");
+let anchorDate = agenda.getAttribute("date");
 mini.dateState = (date) => ({
   description: date === anchorDate ? "Date affichée dans l’agenda" : "Naviguer à cette date",
   anchor: date === anchorDate,
 });
 mini.renderDay = (date) => (Number(date.slice(8, 10)) % 5 === 0 ? "•" : "");
 mini.addEventListener("dateactivate", (event) => {
-  anchorDate = event.detail.date;
-  anchor.dataset.date = anchorDate;
-  anchor.textContent = anchorDate;
+  agenda.gotoDate(event.detail.date);
+});
+agenda.addEventListener("calendar:datechange", (event) => {
+  anchorDate = event.detail.date.toString();
+  mini.display = anchorDate.slice(0, 7);
+  mini.focusedDate = anchorDate;
   mini.render();
 });

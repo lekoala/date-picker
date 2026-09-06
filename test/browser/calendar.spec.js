@@ -28,9 +28,9 @@ test("arrow keys move focus; Enter activates and selects", async ({ page }) => {
   await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-11");
 });
 
-test("selection=none emits navigation without acquiring a value", async ({ page }) => {
+test("selection=none navigates a real calendar-view without acquiring a value", async ({ page }) => {
   await page.click('#mini .dp-day[data-date="2026-09-10"]');
-  await expect(page.locator("#agenda-anchor")).toHaveAttribute("data-date", "2026-09-10");
+  await expect(page.locator("#agenda")).toHaveAttribute("date", "2026-09-10");
   await expect(page.locator("#mini")).not.toHaveAttribute("value", /.+/);
 });
 
@@ -38,7 +38,7 @@ test("outside-month days remain activatable in the mini calendar", async ({ page
   const outside = page.locator('#mini .dp-day[data-date="2026-08-31"]');
   await expect(outside).toHaveAttribute("data-outside-month", "true");
   await outside.click();
-  await expect(page.locator("#agenda-anchor")).toHaveAttribute("data-date", "2026-08-31");
+  await expect(page.locator("#agenda")).toHaveAttribute("date", "2026-08-31");
 });
 
 test("weekends can be disabled without disappearing from keyboard navigation", async ({ page }) => {

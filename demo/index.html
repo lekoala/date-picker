@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>@lekoala/date-picker prototype</title>
   <link rel="stylesheet" href="../src/date-picker.css">
+  <script src="/node_modules/@lekoala/calendar/dist/calendar.standalone.min.js"></script>
   <style>
     :root { font-family: system-ui, sans-serif; color-scheme: light dark; }
     body { max-width: 76rem; margin: 0 auto; padding: 2rem; }
@@ -22,7 +23,8 @@
     .availability { display: inline-flex; gap: 2px; }
     .availability i { inline-size: .32rem; block-size: .32rem; border-radius: 50%; background: currentColor; }
     .mini-wrap { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: start; }
-    .fake-agenda { min-height: 11rem; padding: 1rem; border: 1px dashed color-mix(in srgb, CanvasText 30%, Canvas); border-radius: .6rem; }
+    .calendar-agenda { min-block-size: 16rem; padding: .6rem; border: 1px dashed color-mix(in srgb, CanvasText 30%, Canvas); border-radius: .6rem; }
+    .calendar-agenda calendar-view { min-block-size: 14rem; }
     code { font-size: .85em; }
     @media (max-width: 42rem) { body { padding: 1rem; } .range, .mini-wrap { grid-template-columns: 1fr; } }
   </style>
@@ -85,14 +87,12 @@
     </section>
 
     <section class="card" style="grid-column: 1 / -1;">
-      <h2>6. Mini calendar navigator</h2>
-      <p>Month/year changes only the mini calendar. Activating a day navigates the external anchor.</p>
+      <h2>6. Mini calendar → @lekoala/calendar</h2>
+      <p><code>dateactivate</code> navigates a real <code>&lt;calendar-view&gt;</code>; the agenda anchors the mini display back.</p>
       <div class="mini-wrap">
         <date-calendar id="mini" display="2026-09" selection="none" fixed-weeks show-week-numbers></date-calendar>
-        <div class="fake-agenda">
-          <strong>External calendar anchor</strong>
-          <output id="agenda-anchor" data-date="2026-09-03">2026-09-03</output>
-          <p>The mini calendar has no selected value. It only emits <code>dateactivate</code>.</p>
+        <div class="calendar-agenda">
+          <calendar-view id="agenda" view="month" date="2026-09-03"></calendar-view>
         </div>
       </div>
     </section>

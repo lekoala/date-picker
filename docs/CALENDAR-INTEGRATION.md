@@ -2,6 +2,8 @@
 
 The mini calendar is intentionally a consumer of the date-picker package, not a feature duplicated inside the scheduling engine.
 
+The live integration lives in `demo/index.html` (card 6): a real `<calendar-view view="month">` is wired to the mini calendar. `@lekoala/calendar` (and its `temporal-polyfill` peer) are dev dependencies used by the demo only.
+
 `@lekoala/calendar` already exposes the right navigation seam:
 
 ```js
@@ -60,13 +62,9 @@ That distinction mirrors the showcase rule: navigation policy and booking policy
 
 ## Shared month math
 
-Both packages currently expose month-week derivation. The target direction should be one implementation rather than two drifting versions.
+Both packages expose month-week derivation. They stay **deliberately duplicated**, each owning its own contract:
 
-This prototype intentionally gives `dates.getMonthWeeks()` the same important contract used by the scheduler:
+- `@lekoala/calendar` owns Temporal-based math (`Temporal.PlainDate`).
+- `@lekoala/date-picker` owns civil string math (`dates.getMonthWeeks()`, `YYYY-MM-DD`).
 
-- full civil weeks;
-- configurable first day;
-- 4–6 rows;
-- no forced six-row padding.
-
-Before publishing 0.1, decide which package owns the tiny shared civil-date helpers (or whether they stay duplicated but contract-tested). Do not create a circular dependency between the date picker and scheduler.
+This keeps the two packages dependency-free from each other: a circular dependency between a picker and a scheduler would cost more than a few duplicated lines. `dates.getMonthWeeks()` keeps the scheduler's important contract (full civil weeks, configurable first day, 4–6 rows, no forced padding) so both stay interchangeable for the mini-calendar seam. A future shared `@lekoala/date-math` package is possible, but only as a separate proposal; it must not introduce a circular dependency.
