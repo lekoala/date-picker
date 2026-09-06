@@ -94,12 +94,22 @@ A feature should clearly serve at least one documented use case in `docs/USE_CAS
 
 Interaction quirks (focus/popover/click re-entrancy, engine differences) are proven with small scripts, not with throwaway inline code that stays in the session.
 
-Keep reusable probes in `scripts/helpers/`:
+Keep reusable probes in `scripts/helpers/` and **use them whenever a quirk needs a quick repro before writing a spec**:
 
 ```bash
-bun scripts/helpers/probe.mjs /test/fixtures/focus.html "document.getElementById('focus-picker').value"
+# state snapshot on load
+bun scripts/helpers/probe.mjs /test/fixtures/focus.html "document.getElementById('focus-date').value"
+
+# multi-step interaction: the expression may be async and awaited
+bun scripts/helpers/probe.mjs /test/fixtures/focus.html "(async () => {
+  document.getElementById('focus-date').focus();
+  await new Promise(r => setTimeout(r, 100));
+  document.querySelector('#focus-picker .dp-day').click();
+  await new Promise(r => setTimeout(r, 50));
+  return document.getElementById('focus-picker').value;
+})()"
 ```
 
-Probe prints the expression result, `document.activeElement`, every `[popover]` open state, plus console/page errors. `scripts/helpers/server.js` starts the static server on a free port for manual checks. `PROBE_HEADED=1` opens a visible window.
+The probe prints the expression result, `document.activeElement`, every `[popover]` open state, and console/page errors. It starts its own static server on a free port, so it never collides with a running Playwright run. `scripts/helpers/server.js` exports `startServer()`/`freePort()` for ad-hoc scripts that need more than one step. Set `PROBE_HEADED=1` for a visible window.
 
-When a probe proves a behavior, either turn it into a browser spec or delete it — probes never ship. Verify an engine-quirk fix on all engines before committing.
+Workflow: reproduce with the probe → fix → re-probe → promote the proven behavior into a browser spec or delete it. Probes never ship. Verify an engine-quirk fix on all engines before committing.
