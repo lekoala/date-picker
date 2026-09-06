@@ -21,6 +21,25 @@ test("picker opens a dialog popover and focuses one grid cell", async ({ page })
   await expect(page.locator("#simple-picker .dp-picker-panel")).toBeHidden();
 });
 
+test("Tab reaches the trigger, month/year controls and the single grid tab stop", async ({ page }) => {
+  await page.locator("#simple-date").focus();
+  await expect(page.locator("#simple-picker .dp-picker-panel")).toBeVisible();
+  await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toHaveCount(1);
+
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#simple-picker .dp-picker-button")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#simple-picker .dp-month-select")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#simple-picker .dp-year-select")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#simple-picker .dp-prev")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#simple-picker .dp-next")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
+});
+
 test("typing a locale date commits the ISO value", async ({ page }) => {
   await page.fill("#simple-date", "10/09/2026");
   await page.locator("#simple-date").blur();

@@ -96,11 +96,8 @@ Cross-check our coverage against the Open UI datepicker research: <https://open-
 - `isDateDisabled` (same seam name as ours), hidden-input ISO submission, `formatLongDate`-style cell labels ("17 November 2020"), month/year announced on change, and a real `table[role="grid"]` with a single roving tab stop — all mirrored in this package.
 - **Differs from us on the canonical model**: its `dateAdapter` and events work with `Date` objects (`valueAsDate`). That is the exact `Date`-object tradeoff our canonical `YYYY-MM-DD` strings avoid.
 - **Differs on modality**: it ships a modal dialog with overlay and an explicit close button, while our popup intentionally stays non-modal (`aria-modal` absent). `docs/ACCESSIBILITY.md` still holds the open question of going modal on small/touch surfaces.
-- **Tab wrap-around**: Duet cycles focus back to the first focusable element inside the dialog. Our non-modal popup lets Tab leave the picker; whether to wrap inside the open popover is undecided.
+- **Tab wrap-around**: Duet cycles focus back to the first focusable element inside the dialog. Our non-modal popup lets Tab leave the picker — decided, documented in `docs/ACCESSIBILITY.md`.
 - **Opening focus target**: Duet moves focus to the first (month) select on open; we focus the grid — a deliberate divergence (ArrowDown / trigger button enter the grid).
 - **Deferred alignments**: Duet's touch gestures and modified mobile interface map to our explicit "swipe gestures" deferral.
 
-Open actions while the prototypes are still cheap:
-
-- verify that `@lekoala/floating` actually flips `bottom-start` upward near a viewport/overflow edge (Duet exposes a `direction` prop for this);
-- decide and document the Tab focus contract for the open non-modal popover.
+Resolved without further work: popover flipping near an edge is handled by `@lekoala/floating`, so no `direction`-style prop is needed; the open-popover `Tab` contract is decide-and-document only (see above), not code.

@@ -41,6 +41,54 @@ test("arrow keys move focus; Enter activates and selects", async ({ page }) => {
   await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-11");
 });
 
+test("Home and End move focus to week boundaries without selecting", async ({ page }) => {
+  const selected = page.locator('#inline .dp-day[data-date="2026-09-10"]');
+  await selected.focus();
+
+  await page.keyboard.press("Home");
+  await expect(page.locator('#inline .dp-day[data-date="2026-09-07"]')).toHaveAttribute("tabindex", "0");
+  await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
+
+  await page.keyboard.press("End");
+  await expect(page.locator('#inline .dp-day[data-date="2026-09-13"]')).toHaveAttribute("tabindex", "0");
+  await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
+});
+
+test("PageUp/PageDown move focus across months and years without selecting", async ({ page }) => {
+  const selected = page.locator('#inline .dp-day[data-date="2026-09-10"]');
+  await selected.focus();
+
+  await page.keyboard.press("PageUp");
+  await expect(page.locator("#inline")).toHaveAttribute("display", "2026-08");
+  await expect(page.locator('#inline .dp-day[data-date="2026-08-10"]')).toHaveAttribute("tabindex", "0");
+  await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
+
+  await page.keyboard.press("PageDown");
+  await expect(page.locator("#inline")).toHaveAttribute("display", "2026-09");
+  await expect(page.locator('#inline .dp-day[data-date="2026-09-10"]')).toHaveAttribute("tabindex", "0");
+  await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
+
+  await page.keyboard.press("Shift+PageUp");
+  await expect(page.locator("#inline")).toHaveAttribute("display", "2025-09");
+  await expect(page.locator('#inline .dp-day[data-date="2025-09-10"]')).toHaveAttribute("tabindex", "0");
+  await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
+
+  await page.keyboard.press("Shift+PageDown");
+  await expect(page.locator("#inline")).toHaveAttribute("display", "2026-09");
+  await expect(page.locator('#inline .dp-day[data-date="2026-09-10"]')).toHaveAttribute("tabindex", "0");
+  await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
+});
+
+test("Space activates the focused day", async ({ page }) => {
+  const selected = page.locator('#inline .dp-day[data-date="2026-09-10"]');
+  await selected.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator('#inline .dp-day[data-date="2026-09-11"]')).toHaveAttribute("tabindex", "0");
+  await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
+  await page.keyboard.press("Space");
+  await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-11");
+});
+
 test("selection=none navigates a real calendar-view without acquiring a value", async ({ page }) => {
   await page.click('#mini .dp-day[data-date="2026-09-10"]');
   await expect(page.locator("#agenda")).toHaveAttribute("date", "2026-09-10");

@@ -85,6 +85,8 @@ Close behavior:
 - Escape closes;
 - outside pointer activation closes.
 
+While the popover is open, `Tab` is **not** trapped: focus leaves the popover to the next focusable element in the page. The popup is non-modal (`aria-modal` absent, the rest of the page stays interactive), so capturing the focus the way a modal dialog does would be incoherent — `Escape` remains the predictable way to close and return focus to the field. This deliberately diverges from Duet Date Picker's internal Tab wrap-around.
+
 Before 0.1 we should decide, based on AT testing, whether the popup should remain a non-modal dialog/combobox popup or move to a genuinely modal interaction on small/touch screens.
 
 ## Validation

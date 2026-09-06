@@ -44,6 +44,29 @@ test.describe("form lifecycle and ownership", () => {
     await expect(page.locator("#reset-date")).toHaveValue("06/09/2026");
   });
 
+  test("impossible then valid manual input updates native validity without a stale error", async ({ page }) => {
+    await page.fill("#reset-date", "99/99/2026");
+    await page.locator("#reset-date").blur();
+
+    const invalid = await page.evaluate(() => {
+      const input = /** @type {HTMLInputElement} */ (document.getElementById("reset-date"));
+      return { valid: input.checkValidity(), message: input.validationMessage };
+    });
+    expect(invalid.valid).toBe(false);
+    expect(invalid.message.length).toBeGreaterThan(0);
+
+    await page.fill("#reset-date", "12/09/2026");
+    await page.locator("#reset-date").blur();
+    await expect(page.locator("#reset-picker")).toHaveAttribute("value", "2026-09-12");
+
+    const valid = await page.evaluate(() => {
+      const input = /** @type {HTMLInputElement} */ (document.getElementById("reset-date"));
+      return { valid: input.checkValidity(), message: input.validationMessage };
+    });
+    expect(valid.valid).toBe(true);
+    expect(valid.message).toBe("");
+  });
+
   test("changing input.defaultValue drives the next reset", async ({ page }) => {
     await page.evaluate(() => {
       document.getElementById("reset-date").defaultValue = "20/09/2026";
