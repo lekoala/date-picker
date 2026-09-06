@@ -2,7 +2,7 @@
 
 Small, native-first date picker and inline calendar primitives.
 
-> Prototype status: the architecture and interaction contracts are intentional; names and styling are still free to move before `0.1.0`.
+> Prototype status: the interaction contract, event names and styling surface are frozen — see [docs/DECISIONS.md](docs/DECISIONS.md). The internal DOM and class names remain free to move until `0.1.0`.
 
 This project fills the gap between a normal editable date field and a full scheduling calendar. A plain date input remains the right answer for simple CMS/editing forms. This component becomes useful when a date has context: availability, disabled days, annotations, remote state, start/end relationships, or a mini calendar that navigates another view.
 
@@ -203,6 +203,7 @@ Deliberately out of scope for the first release:
 - [Architecture](docs/ARCHITECTURE.md)
 - [Decisions](docs/DECISIONS.md)
 - [API](docs/API.md)
+- [Accessibility checklist](docs/AT-CHECKLIST.md)
 - [Use cases](docs/USE_CASES.md)
 - [Accessibility](docs/ACCESSIBILITY.md)
 - [Testing](docs/TESTING.md)

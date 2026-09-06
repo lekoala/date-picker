@@ -19,18 +19,18 @@
 
 ## P1 — harden before 0.1
 
-- run TypeScript 7/Biome/Bun checks in the actual repo;
-- run Playwright on all engines;
-- manual AT test pass;
-- add a real `@lekoala/calendar` mini-calendar integration demo;
-- validate Popover behavior inside `<dialog>` and nested app surfaces;
-- test form reset, disabled toggles and dynamic name/form ownership;
-- decide exact event naming (`dateactivate` vs namespaced alternatives);
-- decide whether `selection="none"` is the final public spelling;
-- decide public styling tokens/class names;
-- add custom-elements manifest once names stabilize;
-- add package/generated-artifact checks like `@lekoala/combobox`;
-- commit `bun.lock` and freeze installs in CI.
+- [x] run TypeScript 7/Biome/Bun checks in the actual repo;
+- [x] run Playwright on all engines;
+- [x] manual AT checklist and record ([docs/AT-CHECKLIST.md](AT-CHECKLIST.md)); a human pass still to be logged there;
+- [x] add a real `@lekoala/calendar` mini-calendar integration demo;
+- [x] validate Popover behavior inside `<dialog>` and nested app surfaces;
+- [x] test form reset, disabled toggles and dynamic name/form ownership;
+- [x] decide exact event naming — flat `dateactivate` etc. ([DECISIONS.md](DECISIONS.md), D1);
+- [x] decide whether `selection="none"` is the final public spelling — yes (D2);
+- [x] decide public styling tokens/class names — `--dp-*` public, `.dp-*` internal (D3);
+- [x] add custom-elements manifest once names stabilize — `custom-elements.json`;
+- [x] add package/generated-artifact checks like `@lekoala/combobox`;
+- [x] commit `bun.lock` and freeze installs in CI.
 
 ## P2 — real-world migration
 

@@ -1,6 +1,6 @@
 # API
 
-The API is intentionally small and still provisional while the prototype is exercised against real forms and the calendar showcase.
+The public surface — flat event names, `selection` values, `--dp-*` styling tokens and the `dateactivate`/`renderDay()` seams — is frozen in [DECISIONS.md](DECISIONS.md). Everything else stays internal and free to move before `0.1.0`.
 
 ## `<date-calendar>`
 
