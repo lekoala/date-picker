@@ -11,4 +11,8 @@ export default {
   unavailableDate: "Cette date n’est pas disponible",
   formatHint: "Format",
   week: "Semaine",
+  rangeStart: "Début de la plage",
+  rangeInRange: "Dans la plage",
+  rangeEnd: "Fin de la plage",
+  rangeSingle: "Plage d’un jour",
 };

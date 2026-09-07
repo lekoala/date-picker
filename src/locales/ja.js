@@ -11,4 +11,8 @@ export default {
   unavailableDate: "この日付は利用できません",
   formatHint: "形式",
   week: "週",
+  rangeStart: "範囲の開始",
+  rangeInRange: "範囲内",
+  rangeEnd: "範囲の終了",
+  rangeSingle: "1日の範囲",
 };

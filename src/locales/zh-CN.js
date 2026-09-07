@@ -11,4 +11,8 @@ export default {
   unavailableDate: "此日期不可用",
   formatHint: "格式",
   week: "周",
+  rangeStart: "范围开始",
+  rangeInRange: "范围内",
+  rangeEnd: "范围结束",
+  rangeSingle: "一天的区间",
 };

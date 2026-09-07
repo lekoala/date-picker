@@ -49,7 +49,7 @@ Use Formidable/Flatpickr cases as migration fixtures:
 These should require a separate proposal, not opportunistic growth:
 
 - time picker / datetime picker;
-- single-grid visual range selection;
+- single-grid visual **selection** interaction (the band itself is core presentation via `calendar.highlightedRange`);
 - month-as-value picker;
 - multi-date;
 - recurrence;
@@ -82,7 +82,7 @@ Cross-check our coverage against the Open UI datepicker research: <https://open-
 | `weeknumber` | contract boundary | `show-week-numbers` (U3). |
 | `custom weeks` | no | only the `first-day` attribute; no custom week rendering. |
 | `range` | external | `linkDateRange()` between two pickers (U5). |
-| `range selected` | deferred | single-grid range selection needs its own proposal. |
+| `range selected` | deferred | selection interaction needs its own proposal; `highlightedRange` covers band presentation only. |
 | `range presets` | deferred | application-owned. |
 | `date-time picker` | deferred | time/datetime is explicitly out of scope. |
 | `side by side` | deferred | maps to "multiple visible months". |

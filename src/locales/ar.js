@@ -11,4 +11,8 @@ export default {
   unavailableDate: "هذا التاريخ غير متاح",
   formatHint: "التنسيق",
   week: "الأسبوع",
+  rangeStart: "بداية النطاق",
+  rangeInRange: "داخل النطاق",
+  rangeEnd: "نهاية النطاق",
+  rangeSingle: "نطاق يوم واحد",
 };

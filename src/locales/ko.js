@@ -11,4 +11,8 @@ export default {
   unavailableDate: "이 날짜는 사용할 수 없습니다",
   formatHint: "형식",
   week: "주",
+  rangeStart: "범위 시작",
+  rangeInRange: "범위 내",
+  rangeEnd: "범위 끝",
+  rangeSingle: "하루 범위",
 };

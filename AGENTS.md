@@ -145,6 +145,7 @@ Use `--scenario important` when you want one command that covers the main forced
 - `constrained-disabled.png` — constrained calendar with disabled-day styling.
 - `constrained-disabled-focus.png` — the disabled day with keyboard focus.
 - `picker-open.png` — the picker card with the popup open.
+- `range-band.png` — highlighted range band with start, in-range and end cells.
 
 Use `bun run shot:forced-colors:important:dark` for the same bundle under `forced-colors: active` plus `prefers-color-scheme: dark`. It writes to `tmp/forced-colors-important-dark/`.
 

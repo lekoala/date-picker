@@ -11,4 +11,8 @@ export default {
   unavailableDate: "Эта дата недоступна",
   formatHint: "Формат",
   week: "Неделя",
+  rangeStart: "Начало диапазона",
+  rangeInRange: "Внутри диапазона",
+  rangeEnd: "Конец диапазона",
+  rangeSingle: "Однодневный диапазон",
 };

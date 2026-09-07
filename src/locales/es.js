@@ -11,4 +11,8 @@ export default {
   unavailableDate: "Esta fecha no está disponible",
   formatHint: "Formato",
   week: "Semana",
+  rangeStart: "Inicio del rango",
+  rangeInRange: "Dentro del rango",
+  rangeEnd: "Fin del rango",
+  rangeSingle: "Rango de un día",
 };

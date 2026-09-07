@@ -18,7 +18,11 @@ The public surface — flat event names, `selection` values, `--dp-*` styling to
 | `fixed-weeks`       | boolean          | false              | Render six rows; date math itself stays 4–6. |
 | `show-week-numbers` | boolean          | false              | Show ISO week numbers.                       |
 
-`focusedDate` is a property (`YYYY-MM-DD`) rather than a reflected attribute.
+`focusedDate` and `highlightedRange` are properties rather than reflected attributes.
+
+### `highlightedRange`
+
+Presentation-only range band. It never changes `value`, `selection` or `focusedDate`. It accepts an ordered `{ start, end }` pair of `YYYY-MM-DD` values; `end` may be empty (range in progress), and a `start === end` range renders both endpoints with a dedicated label. `null` and `{ start: "", end: "" }` reset the band. Inverted ranges and `{ start: "", end: "…" }` throw a `TypeError` — the property never reorders or guesses. Styled spans render `data-range-start="true"`, `data-in-range="true"`, `data-range-end="true"` and extend each day's `aria-label` accordingly.
 
 ### Callback properties
 
@@ -176,6 +180,18 @@ const cleanup = linkDateRange(startPicker, endPicker);
 ```
 
 Keeps effective start/end bounds synchronized and revalidates both inputs. Returns an idempotent-style cleanup function (call once in the current prototype).
+
+## `normalizeRange` and `rangePosition`
+
+```js
+import { normalizeRange, rangePosition } from "@lekoala/date-picker";
+
+normalizeRange({ start: "2026-09-10", end: "2026-09-15" }); // { start, end }
+normalizeRange(null); // { start: "", end: "" }
+rangePosition("2026-09-12", range); // "start" | "in" | "end" | "single" | ""
+```
+
+`normalizeRange` validates an ordered displayable range and never reorders: an inversion or an `end` without a `start` throws. `rangePosition` classifies one day within a displayable range (see [`highlightedRange`](#highlightedrange)).
 
 ## `createDateAdapter(locale)`
 

@@ -32,6 +32,18 @@ constrained.dateState = (date) => ({
         : "Disponible",
 });
 
+const stayCalendar = document.getElementById("stay-calendar");
+const stayState = document.getElementById("stay-state");
+let stayRange = { start: "", end: "" };
+stayCalendar.addEventListener("dateactivate", (event) => {
+  const { date } = event.detail;
+  if (!stayRange.start || stayRange.end) stayRange = { start: date, end: "" };
+  else if (dates.compareDates(date, stayRange.start) < 0) stayRange = { start: date, end: "" };
+  else stayRange = { start: stayRange.start, end: date };
+  stayCalendar.highlightedRange = stayRange;
+  stayState.textContent = `highlightedRange: ${stayRange.start || "—"} → ${stayRange.end || "…"}`;
+});
+
 const start = document.getElementById("start-picker");
 const end = document.getElementById("end-picker");
 const rangeState = document.getElementById("range-state");

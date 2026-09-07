@@ -11,6 +11,10 @@ export const DEFAULT_MESSAGES = {
   unavailableDate: "This date is unavailable",
   formatHint: "Format",
   week: "Week",
+  rangeStart: "Range start",
+  rangeInRange: "Inside range",
+  rangeEnd: "Range end",
+  rangeSingle: "Range of one day",
 };
 
 let defaults = { ...DEFAULT_MESSAGES };

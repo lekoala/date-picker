@@ -49,6 +49,8 @@ Examples:
 
 This is what lets the same `<date-calendar>` power both a date picker and the mini-calendar beside `@lekoala/calendar`.
 
+`highlightedRange` is a separate, strictly explanatory concept: it paints a band over rendered cells (`data-range-start` / `data-in-range` / `data-range-end`) without touching `display`, `focusedDate`, activation or `value`. The picker, an inline calendar or an app-owned controller can attach a range for display; the band is validated by `normalizeRange()` (ordered, never reordered) so the presentation never represents a range the model would contest. The business range (which may be temporarily inverted or in progress) stays in whichever controller owns it and is only forwarded to `highlightedRange` when it is displayable.
+
 ## 3. True month math vs presentation
 
 `dates.getMonthWeeks()` returns the true civil weeks that cover a month: 4, 5 or 6 full rows.

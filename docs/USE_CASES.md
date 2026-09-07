@@ -96,6 +96,21 @@ Acceptance:
 - Escape closes the picker and restores a sensible focus target;
 - month/year selects remain normal native controls.
 
+## U9 — Two fields, one shared calendar
+
+A form has two editable date fields (arrival/departure) that share a single calendar surface inside one picker popup.
+
+Acceptance:
+
+- each field stays independently editable and localized, with its own hidden ISO value for submission;
+- opening from a bound targets that bound: selecting a first date commits it, moves the active endpoint to the other bound without closing, and a second selection commits and closes;
+- a preloaded range shows the band on open and is never reordered;
+- month/year navigation and arrow-key focus never mutate either bound;
+- an inverted range (start after end) keeps both entered values and surfaces an order error on the bound that was just modified; changing either side revalidates both;
+- form reset restores both fields in one resync;
+- a stale async availability response arriving after the active endpoint changed never commits a value or closes the popup;
+- only the bounds are validated; per-night availability stays application-owned.
+
 ## Not a use case for this package
 
 Do not grow the API to cover these without a separate design:

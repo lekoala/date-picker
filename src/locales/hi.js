@@ -11,4 +11,8 @@ export default {
   unavailableDate: "यह तारीख़ उपलब्ध नहीं है",
   formatHint: "प्रारूप",
   week: "सप्ताह",
+  rangeStart: "सीमा आरंभ",
+  rangeInRange: "सीमा के अंदर",
+  rangeEnd: "सीमा अंत",
+  rangeSingle: "एक दिन की सीमा",
 };

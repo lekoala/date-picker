@@ -74,6 +74,10 @@
             },
             {
               "kind": "getter",
+              "name": "highlightedRange"
+            },
+            {
+              "kind": "getter",
               "name": "fixedWeeks"
             },
             {

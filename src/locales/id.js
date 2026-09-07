@@ -11,4 +11,8 @@ export default {
   unavailableDate: "Tanggal ini tidak tersedia",
   formatHint: "Format",
   week: "Minggu",
+  rangeStart: "Awal rentang",
+  rangeInRange: "Dalam rentang",
+  rangeEnd: "Akhir rentang",
+  rangeSingle: "Rentang satu hari",
 };

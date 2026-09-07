@@ -10,6 +10,7 @@ import {
   shiftMonth,
   todayISO,
 } from "./date.js";
+import { normalizeRange, rangePosition } from "./date-range.js";
 import { formatLongDate, formatMonthYear, monthNames, resolveLocale, weekdayNames } from "./intl.js";
 import { getDefaultMessages } from "./messages.js";
 import { normalizeDateStates } from "./source.js";
@@ -37,6 +38,31 @@ function yearOf(month) {
   return Number(month.slice(0, 4));
 }
 
+/** @param {"" | "start" | "in" | "end" | "single"} position */
+function rangeAttributes(position) {
+  switch (position) {
+    case "single":
+      return ' data-range-start="true" data-range-end="true"';
+    case "start":
+      return ' data-range-start="true"';
+    case "end":
+      return ' data-range-end="true"';
+    case "in":
+      return ' data-in-range="true"';
+    default:
+      return "";
+  }
+}
+
+/** @param {"" | "start" | "in" | "end" | "single"} position */
+function rangeLabelKey(position) {
+  if (position === "single") return "rangeSingle";
+  if (position === "start") return "rangeStart";
+  if (position === "end") return "rangeEnd";
+  if (position === "in") return "rangeInRange";
+  return "";
+}
+
 /**
  * Public inline calendar primitive.
  *
@@ -44,6 +70,7 @@ function yearOf(month) {
  * - display: month being rendered (YYYY-MM)
  * - focusedDate: roving keyboard target (YYYY-MM-DD)
  * - value: selected date (YYYY-MM-DD or empty)
+ * - highlightedRange: presentation-only range band (never touches the other state)
  * - dateactivate: user explicitly activated one date
  */
 /** @typedef {{start:string,end:string}} DateRange */
@@ -87,6 +114,8 @@ export class DateCalendarElement extends HTMLElement {
     this._renderDay = null;
     /** @type {DateDisabledPredicate | null} */
     this._isDateDisabled = null;
+    /** @type {DateRange} */
+    this._highlightedRange = { start: "", end: "" };
     this._messages = getDefaultMessages();
     this._onClick = this._onClick.bind(this);
     this._onChange = this._onChange.bind(this);
@@ -205,6 +234,18 @@ export class DateCalendarElement extends HTMLElement {
 
   set selection(value) {
     this.setAttribute("selection", value === "none" ? "none" : "single");
+  }
+
+  /** @public */
+  get highlightedRange() {
+    return { ...this._highlightedRange };
+  }
+
+  set highlightedRange(value) {
+    const next = normalizeRange(value);
+    if (next.start === this._highlightedRange.start && next.end === this._highlightedRange.end) return;
+    this._highlightedRange = next;
+    if (this._connected) this.render();
   }
 
   /** @public */
@@ -692,15 +733,18 @@ export class DateCalendarElement extends HTMLElement {
             const selected = this.value === date;
             const focused = this.focusedDate === date;
             const isToday = date === today;
+            const position = rangePosition(date, this._highlightedRange);
+            const rangeLabel = rangeLabelKey(position);
             const description = typeof state.description === "string" ? state.description : "";
             const label = [
               formatLongDate(date, locale),
               description,
+              rangeLabel ? this._messages[rangeLabel] : "",
               state.disabled ? this._messages.unavailable : "",
             ]
               .filter(Boolean)
               .join(". ");
-            return `<td class="dp-day" data-date="${date}"${outside ? ' data-outside-month="true"' : ""}${isToday ? ' data-today="true" aria-current="date"' : ""}${selected ? ' data-selected="true" aria-selected="true"' : ""}${state.disabled ? ' data-disabled="true" aria-disabled="true"' : ""} tabindex="${focused ? "0" : "-1"}" aria-label="${escapeHtml(label)}"><span class="dp-day-number" aria-hidden="true">${Number(date.slice(8, 10))}</span><span class="dp-day-extra" aria-hidden="true"></span></td>`;
+            return `<td class="dp-day" data-date="${date}"${outside ? ' data-outside-month="true"' : ""}${isToday ? ' data-today="true" aria-current="date"' : ""}${selected ? ' data-selected="true" aria-selected="true"' : ""}${rangeAttributes(position)}${state.disabled ? ' data-disabled="true" aria-disabled="true"' : ""} tabindex="${focused ? "0" : "-1"}" aria-label="${escapeHtml(label)}"><span class="dp-day-number" aria-hidden="true">${Number(date.slice(8, 10))}</span><span class="dp-day-extra" aria-hidden="true"></span></td>`;
           })
           .join("");
         return `<tr>${weekNumber}${cells}</tr>`;

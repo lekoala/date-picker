@@ -11,4 +11,8 @@ export default {
   unavailableDate: "Deze datum is niet beschikbaar",
   formatHint: "Formaat",
   week: "Week",
+  rangeStart: "Begin van bereik",
+  rangeInRange: "Binnen bereik",
+  rangeEnd: "Einde van bereik",
+  rangeSingle: "Bereik van één dag",
 };

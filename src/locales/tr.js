@@ -11,4 +11,8 @@ export default {
   unavailableDate: "Bu tarih uygun değil",
   formatHint: "Biçim",
   week: "Hafta",
+  rangeStart: "Aralık başlangıcı",
+  rangeInRange: "Aralık içinde",
+  rangeEnd: "Aralık sonu",
+  rangeSingle: "Tek günlük aralık",
 };

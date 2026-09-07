@@ -103,6 +103,169 @@ test("outside-month days remain activatable in the mini calendar", async ({ page
   await expect(page.locator("#agenda")).toHaveAttribute("date", "2026-08-31");
 });
 
+test("highlightedRange paints start, in-range and end cells without touching state", async ({ page }) => {
+  await page.evaluate(() => {
+    const calendar = document.getElementById("stay-calendar");
+    calendar.highlightedRange = { start: "2026-09-10", end: "2026-09-15" };
+  });
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
+    "data-range-start",
+    "true",
+  );
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-12"]')).toHaveAttribute(
+    "data-in-range",
+    "true",
+  );
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-15"]')).toHaveAttribute(
+    "data-range-end",
+    "true",
+  );
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-16"]')).not.toHaveAttribute(
+    "data-range-end",
+    /.+/,
+  );
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-13"]')).toHaveAttribute(
+    "aria-label",
+    /Dans la plage/,
+  );
+  await expect(page.locator("#stay-calendar")).not.toHaveAttribute("value", /.+/);
+  await expect(page.locator("#stay-calendar")).not.toHaveAttribute("selection", "single");
+});
+
+test("highlightedRange accepts a start-only range and rejects inversions", async ({ page }) => {
+  await page.evaluate(() => {
+    const calendar = document.getElementById("stay-calendar");
+    calendar.highlightedRange = { start: "2026-09-10", end: "" };
+  });
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
+    "data-range-start",
+    "true",
+  );
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-11"]')).not.toHaveAttribute(
+    "data-in-range",
+    /.+/,
+  );
+  const rejected = await page.evaluate(() => {
+    const calendar = document.getElementById("stay-calendar");
+    try {
+      calendar.highlightedRange = { start: "2026-09-20", end: "2026-09-15" };
+      return false;
+    } catch (error) {
+      return error instanceof TypeError;
+    }
+  });
+  expect(rejected).toBe(true);
+});
+
+test("a single-day highlightedRange renders both endpoints with a dedicated label", async ({ page }) => {
+  await page.evaluate(() => {
+    const calendar = document.getElementById("stay-calendar");
+    calendar.highlightedRange = { start: "2026-09-10", end: "2026-09-10" };
+  });
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
+    "data-range-start",
+    "true",
+  );
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
+    "data-range-end",
+    "true",
+  );
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
+    "aria-label",
+    /Plage d’un jour/,
+  );
+});
+
+test("forced colors keep a highlighted range band visually distinct", async ({ page, browserName }) => {
+  test.skip(
+    browserName !== "chromium",
+    "forced-colors visual assertions follow the Chromium capture pipeline",
+  );
+  await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
+  await page.evaluate(() => {
+    const calendar = document.getElementById("stay-calendar");
+    calendar.highlightedRange = { start: "2026-09-10", end: "2026-09-15" };
+  });
+
+  const styles = await page.evaluate(() => {
+    const read = (selector) => {
+      const element = document.querySelector(selector);
+      if (!(element instanceof HTMLElement)) return null;
+      const style = getComputedStyle(element);
+      return {
+        borderColor: style.borderTopColor,
+        borderWidth: style.borderTopWidth,
+        fontWeight: style.fontWeight,
+      };
+    };
+    const readAfter = (selector) => {
+      const element = document.querySelector(selector);
+      if (!(element instanceof HTMLElement)) return null;
+      const after = getComputedStyle(element, "::after");
+      return {
+        content: after.content,
+        backgroundColor: after.backgroundColor,
+        height: after.blockSize || after.height,
+      };
+    };
+    return {
+      start: read('#stay-calendar .dp-day[data-date="2026-09-10"]'),
+      end: read('#stay-calendar .dp-day[data-date="2026-09-15"]'),
+      middle: readAfter('#stay-calendar .dp-day[data-date="2026-09-12"]'),
+    };
+  });
+
+  expect(styles.start).not.toBeNull();
+  expect(styles.end).not.toBeNull();
+  expect(styles.middle).not.toBeNull();
+  expect(styles.start.borderWidth).toBe("2px");
+  expect(styles.end.borderWidth).toBe("2px");
+  expect(styles.start.borderColor).toBe(styles.end.borderColor);
+  expect(styles.start.borderColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(styles.start.fontWeight).toBe("700");
+  expect(styles.middle.content).toBe('""');
+  expect(styles.middle.height).toBe("1px");
+  expect(styles.middle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+});
+
+test("constrained forced-colors endpoints inside a range keep readable contrast", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(
+    browserName !== "chromium",
+    "forced-colors visual assertions follow the Chromium capture pipeline",
+  );
+  await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
+  await page.evaluate(() => {
+    const calendar = document.getElementById("stay-calendar");
+    calendar.highlightedRange = { start: "2026-09-10", end: "2026-09-10" };
+  });
+  const endpoint = await page.evaluate(() => {
+    const element = document.querySelector('#stay-calendar .dp-day[data-date="2026-09-10"]');
+    if (!(element instanceof HTMLElement)) return null;
+    const style = getComputedStyle(element);
+    return { borderWidth: style.borderTopWidth, fontWeight: style.fontWeight };
+  });
+  expect(endpoint).not.toBeNull();
+  expect(endpoint.borderWidth).toBe("2px");
+  expect(endpoint.fontWeight).toBe("700");
+});
+
+test("inline range demo paints the band across two activations", async ({ page }) => {
+  await page.click('#stay-calendar .dp-day[data-date="2026-09-10"]');
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
+    "data-range-start",
+    "true",
+  );
+  await page.click('#stay-calendar .dp-day[data-date="2026-09-15"]');
+  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-12"]')).toHaveAttribute(
+    "data-in-range",
+    "true",
+  );
+  await expect(page.locator("#stay-state")).toContainText("2026-09-10 → 2026-09-15");
+});
+
 test("constraints disable prev/next and dim them visually", async ({ page }) => {
   const prev = page.locator("#constrained .dp-prev");
   const next = page.locator("#constrained .dp-next");

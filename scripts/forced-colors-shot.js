@@ -68,6 +68,12 @@ const SCENARIOS = {
       setup:
         "(async () => { document.querySelector('#simple-picker .dp-picker-button')?.click(); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); return document.querySelector('#simple-picker .dp-picker-panel')?.matches(':popover-open') ?? false; })()",
     },
+    {
+      name: "range-band",
+      selector: "#stay-calendar",
+      setup:
+        "(async () => { const calendar = document.querySelector('#stay-calendar'); calendar.highlightedRange = { start: '2026-09-10', end: '2026-09-15' }; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); return calendar.querySelector('[data-range-start]') !== null; })()",
+    },
   ],
 };
 
