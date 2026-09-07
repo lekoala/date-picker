@@ -15,4 +15,6 @@ export default {
   rangeInRange: "范围内",
   rangeEnd: "范围结束",
   rangeSingle: "一天的区间",
+  rangeOrderStart: "开始日期必须早于或等于结束日期",
+  rangeOrderEnd: "结束日期必须晚于或等于开始日期",
 };

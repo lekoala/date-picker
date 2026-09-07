@@ -96,8 +96,18 @@
       <output id="stay-state">cliquez une date de début puis une date de fin</output>
     </section>
 
+    <section class="card">
+      <h2>7. Shared range picker</h2>
+      <p>Un seul calendrier alimenté par deux champs éditables ; ouvre depuis « Arrivée » définit la borne active.</p>
+      <date-picker id="stay-picker" range locale="fr-BE">
+        <input id="stay-start" data-range-start name="arrival" aria-label="Arrivée">
+        <input id="stay-end" data-range-end name="departure" aria-label="Départ">
+      </date-picker>
+      <output id="stay-picker-state">range: — → —</output>
+    </section>
+
     <section class="card" style="grid-column: 1 / -1;">
-      <h2>7. Mini calendar → @lekoala/calendar</h2>
+      <h2>8. Mini calendar → @lekoala/calendar</h2>
       <p><code>dateactivate</code> navigates a real <code>&lt;calendar-view&gt;</code>; the agenda anchors the mini display back.</p>
       <div class="mini-wrap">
         <date-calendar id="mini" display="2026-09" selection="none" fixed-weeks show-week-numbers></date-calendar>

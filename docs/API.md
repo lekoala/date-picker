@@ -173,6 +173,43 @@ await picker.validate();
 
 Calendar selection also dispatches normal bubbling `input` and `change` events on the visible input.
 
+## `<date-picker range>` — shared range surface
+
+```html
+<date-picker range>
+  <input data-range-start name="arrival" aria-label="Arrival">
+  <input data-range-end name="departure" aria-label="Departure">
+</date-picker>
+```
+
+Two editable fields share one calendar popup. The mode is fixed at connect time (`range` attribute + both marked direct child inputs); switching single/range at runtime is not supported in V1.
+
+### Strict API
+
+- `range` — atomic get/set of `{ start, end }` (canonical `YYYY-MM-DD`). The setter validates through `normalizeRange` (ISO-only, ordered; inverted throws) and applies both bounds, the visible fields and both hidden fields **before** one `rangechange` event — no intermediate new-start/old-end state is observable.
+- `value` — `undefined` in range mode; assigning throws a `TypeError`.
+- `input` — `undefined` in range mode; the authored inputs remain the consumer-facing fields.
+- `startValue` / `endValue` — deferred; do not exist yet.
+
+Each field keeps its own name, hidden ISO input and validation. There is no `rangeDrop`-style polymorphic pair.
+
+### `rangechange`
+
+```js
+picker.addEventListener("rangechange", (event) => {
+  console.log(event.detail); // { start, end } — may be incomplete or inverted
+});
+```
+
+The business range may be temporarily incomplete or inverted; `calendar.highlightedRange` only ever receives a displayable (ordered) range.
+
+### Interaction
+
+- Opening through a field targets that bound (`activeEndpoint`). Picking from `start` commits it, moves the endpoint to `end` without closing, and a second pick commits and closes. Opening from `end` never touches `start`; a date before `start` is refused (`dateinvalid`, nothing changes).
+- The shared trigger opens the last active bound, else `start`; it never auto-switches to a `readonly`/`disabled` bound.
+- Typing stays independent per field. Moving `start` past `end` keeps both values and flags the *modified* bound with `rangeOrderStart`; fixing either side revalidates both. Parse/source errors are never cleared by cross-bound revalidation.
+- A stale availability response resolving after the active endpoint changed (or after a newer selection) never commits; a field focus that switches the endpoint invalidates in-flight activations.
+
 ## `linkDateRange(start, end)`
 
 ```js

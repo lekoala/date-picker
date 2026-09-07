@@ -15,4 +15,6 @@ export default {
   rangeInRange: "सीमा के अंदर",
   rangeEnd: "सीमा अंत",
   rangeSingle: "एक दिन की सीमा",
+  rangeOrderStart: "प्रारंभ अंत से पहले या उसके बराबर होना चाहिए",
+  rangeOrderEnd: "अंत प्रारंभ के बाद या उसके बराबर होना चाहिए",
 };

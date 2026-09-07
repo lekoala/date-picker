@@ -15,4 +15,6 @@ export default {
   rangeInRange: "Binnen bereik",
   rangeEnd: "Einde van bereik",
   rangeSingle: "Bereik van één dag",
+  rangeOrderStart: "Begin moet voor of op einde liggen",
+  rangeOrderEnd: "Einde moet na of op begin liggen",
 };

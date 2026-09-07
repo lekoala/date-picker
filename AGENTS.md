@@ -37,7 +37,8 @@ Keep pure logic out of custom element classes:
 - `intl.js` — formatting/parsing;
 - `calendar-model.js` — state transitions;
 - `source.js` — source normalization/fetch adapter;
-- `date-range.js` — cross-picker relationship;
+- `date-range.js` — cross-picker relationship + range state machine;
+- `date-field.js` — single editable field ownership (input, hidden ISO, text commit);
 - `date-calendar.js` — DOM/grid interaction;
 - `date-picker.js` — input/popup composition.
 
@@ -69,7 +70,10 @@ The source shape is data-oriented. Do not hard-code application URL/query conven
 
 ## Range
 
-Start/end coupling stays external. Do not add sibling selectors or `rangeStart/rangeEnd` branches inside `DatePickerElement`.
+Two product shapes cover the range cases:
+
+- `date-picker[range]` with `[data-range-start]`/`[data-range-end]` inputs shares ONE calendar surface. Each input is wrapped by a `DateFieldController` and the pair is driven by the `DateRangeController` in `date-range.js`. `DatePickerElement` stays a shell: range rules live in the controllers, not as `rangeStart`/`rangeEnd` branches in the class. `value` stays undefined/throws in range mode; `range` is the atomic API and the calendar shows only a displayable (ordered) range via `highlightedRange`.
+- `linkDateRange(start, end)` keeps the external relationship for two independent pickers (U5).
 
 ## Language
 

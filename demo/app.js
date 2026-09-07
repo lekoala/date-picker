@@ -44,6 +44,15 @@ stayCalendar.addEventListener("dateactivate", (event) => {
   stayState.textContent = `highlightedRange: ${stayRange.start || "—"} → ${stayRange.end || "…"}`;
 });
 
+const stayPicker = document.getElementById("stay-picker");
+const stayPickerState = document.getElementById("stay-picker-state");
+function updateStayPicker() {
+  const range = stayPicker.range || { start: "", end: "" };
+  stayPickerState.textContent = `range: ${range.start || "—"} → ${range.end || "—"}`;
+}
+stayPicker.addEventListener("rangechange", updateStayPicker);
+updateStayPicker();
+
 const start = document.getElementById("start-picker");
 const end = document.getElementById("end-picker");
 const rangeState = document.getElementById("range-state");

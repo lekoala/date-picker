@@ -15,4 +15,6 @@ export default {
   rangeInRange: "範囲内",
   rangeEnd: "範囲の終了",
   rangeSingle: "1日の範囲",
+  rangeOrderStart: "開始は終了以前である必要があります",
+  rangeOrderEnd: "終了は開始以降である必要があります",
 };

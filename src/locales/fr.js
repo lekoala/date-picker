@@ -15,4 +15,6 @@ export default {
   rangeInRange: "Dans la plage",
   rangeEnd: "Fin de la plage",
   rangeSingle: "Plage d’un jour",
+  rangeOrderStart: "Le début doit être antérieur ou égal à la fin",
+  rangeOrderEnd: "La fin doit être postérieure ou égale au début",
 };

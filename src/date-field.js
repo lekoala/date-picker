@@ -24,6 +24,7 @@ export class DateFieldController {
     this.hidden = null;
     /** Current canonical value (YYYY-MM-DD or ""). */
     this.canonical = "";
+    this._dirty = false;
     this._commitId = 0;
     this._originalName = input.getAttribute("name") || "";
     /** @type {MutationObserver | null} */
@@ -110,10 +111,16 @@ export class DateFieldController {
     this._commitId++;
   }
 
+  /** Whether the user edited the visible text since the last application. */
+  get isDirty() {
+    return this._dirty;
+  }
+
   /** Live text input: the raw text no longer matches the canonical value, so
    * the hidden ISO must not submit it. */
   handleInput() {
     const input = this.input;
+    this._dirty = true;
     this.dirty();
     if (this.hidden) this.hidden.value = "";
     const text = input.value.trim();
@@ -167,9 +174,21 @@ export class DateFieldController {
     const next = value || "";
     if (next && !isDate(next)) throw new TypeError(`Invalid date-picker value: ${next}`);
     this.canonical = next;
+    this._dirty = false;
     if (this.hidden) this.hidden.value = next;
     if (options.format !== false) this.input.value = next ? this.adapter.format(next) : "";
     this.input.setCustomValidity("");
+  }
+
+  /** @returns {Promise<boolean>} */
+  async validate() {
+    const input = this.input;
+    if (!input.value.trim()) {
+      input.setCustomValidity("");
+      return input.checkValidity();
+    }
+    await this.commit();
+    return input.checkValidity();
   }
 
   /** Restore value from `input.defaultValue` (native form reset). */

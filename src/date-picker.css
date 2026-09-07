@@ -213,6 +213,18 @@ date-picker > input:not([type="hidden"]) {
   min-inline-size: 0;
 }
 
+date-picker[range] > input:not([type="hidden"]) {
+  grid-column: 1;
+}
+
+date-picker[range] > input[data-range-start] {
+  grid-row: 1;
+}
+
+date-picker[range] > input[data-range-end] {
+  grid-row: 2;
+}
+
 .dp-picker-button {
   grid-column: 2;
   min-inline-size: 2.5rem;
@@ -226,6 +238,10 @@ date-picker > input:not([type="hidden"]) {
   color: var(--dp-fg);
   font: inherit;
   cursor: pointer;
+}
+
+date-picker[range] > .dp-picker-button {
+  grid-row: 1 / span 2;
 }
 
 .dp-picker-panel[popover] {

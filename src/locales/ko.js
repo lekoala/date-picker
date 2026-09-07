@@ -15,4 +15,6 @@ export default {
   rangeInRange: "범위 내",
   rangeEnd: "범위 끝",
   rangeSingle: "하루 범위",
+  rangeOrderStart: "시작은 종료와 같거나 이전이어야 합니다",
+  rangeOrderEnd: "종료는 시작과 같거나 이후이어야 합니다",
 };

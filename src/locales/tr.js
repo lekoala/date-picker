@@ -15,4 +15,6 @@ export default {
   rangeInRange: "Aralık içinde",
   rangeEnd: "Aralık sonu",
   rangeSingle: "Tek günlük aralık",
+  rangeOrderStart: "Başlangıç, bitişten önce veya eşit olmalı",
+  rangeOrderEnd: "Bitiş, başlangıçtan sonra veya eşit olmalı",
 };

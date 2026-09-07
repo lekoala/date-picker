@@ -45,6 +45,65 @@ export function rangePosition(date, range) {
   return "";
 }
 
+/**
+ * Pure two-bound state machine for the shared-calendar range picker. Covers
+ * start/end state and the active-endpoint transition rules; it knows nothing
+ * about DOM, popups or async availability.
+ *
+ * Interaction contract (U9):
+ * - opening through a field targets that bound;
+ * - activating through `end` never touches `start` and a date before `start`
+ *   is refused;
+ * - activating through `start` commits `start`, moves the active endpoint to
+ *   `end` and leaves the popup open for the second selection.
+ *
+ * The business range may be temporarily incomplete or inverted; it is the
+ * coordinator's job to forward only a displayable range to
+ * `calendar.highlightedRange`.
+ */
+export class DateRangeController {
+  constructor() {
+    /** @type {"" | "start" | "end"} */
+    this.activeEndpoint = "";
+    this.start = "";
+    this.end = "";
+  }
+
+  /** @returns {{start:string, end:string}} */
+  get range() {
+    return { start: this.start, end: this.end };
+  }
+
+  /** Whether both bounds exist and are ordered (start <= end). */
+  get complete() {
+    return Boolean(this.start && this.end && compareDates(this.end, this.start) >= 0);
+  }
+
+  /** @param {"" | "start" | "end"} endpoint */
+  focus(endpoint) {
+    this.activeEndpoint = endpoint;
+  }
+
+  /**
+   * Process one grid activation through the active endpoint.
+   * @param {string} date
+   * @returns {{status: "pending" | "complete" | "refused", endpoint: "start" | "end"}}
+   */
+  activate(date) {
+    if (!isDate(date)) throw new TypeError(`Invalid range activation: ${date}`);
+    if (this.activeEndpoint === "end") {
+      if (this.start && compareDates(date, this.start) < 0) {
+        return { status: "refused", endpoint: "end" };
+      }
+      this.end = date;
+      return { status: this.start ? "complete" : "pending", endpoint: "end" };
+    }
+    this.start = date;
+    this.activeEndpoint = "end";
+    return { status: "pending", endpoint: "start" };
+  }
+}
+
 /** @param {string} a @param {string} b */
 function later(a, b) {
   if (!a) return b;
@@ -71,8 +130,8 @@ export function linkDateRange(start, end) {
   const baseEndMin = end.min;
 
   const sync = () => {
-    const startValue = isDate(start.value) ? start.value : "";
-    const endValue = isDate(end.value) ? end.value : "";
+    const startValue = typeof start.value === "string" && isDate(start.value) ? start.value : "";
+    const endValue = typeof end.value === "string" && isDate(end.value) ? end.value : "";
     end.min = later(baseEndMin, startValue);
     start.max = earlier(baseStartMax, endValue);
     void start.validate();

@@ -15,4 +15,6 @@ export default {
   rangeInRange: "Внутри диапазона",
   rangeEnd: "Конец диапазона",
   rangeSingle: "Однодневный диапазон",
+  rangeOrderStart: "Начало должно быть раньше или равно концу",
+  rangeOrderEnd: "Конец должен быть позже или равен началу",
 };

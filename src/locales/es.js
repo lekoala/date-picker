@@ -15,4 +15,6 @@ export default {
   rangeInRange: "Dentro del rango",
   rangeEnd: "Fin del rango",
   rangeSingle: "Rango de un día",
+  rangeOrderStart: "El inicio debe ser anterior o igual al final",
+  rangeOrderEnd: "El final debe ser posterior o igual al inicio",
 };

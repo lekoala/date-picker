@@ -15,4 +15,6 @@ export default {
   rangeInRange: "W zakresie",
   rangeEnd: "Koniec zakresu",
   rangeSingle: "Zakres jednodniowy",
+  rangeOrderStart: "Początek musi być przed lub równy końcowi",
+  rangeOrderEnd: "Koniec musi być po lub równy początkowi",
 };

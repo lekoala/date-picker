@@ -245,6 +245,10 @@
             },
             {
               "kind": "getter",
+              "name": "range"
+            },
+            {
+              "kind": "getter",
               "name": "locale"
             },
             {
@@ -301,7 +305,13 @@
               "name": "close"
             },
             {
+              "name": "dateinvalid"
+            },
+            {
               "name": "open"
+            },
+            {
+              "name": "rangechange"
             },
             {
               "name": "valuechange"

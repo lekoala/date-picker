@@ -15,4 +15,6 @@ export default {
   rangeInRange: "Dalam rentang",
   rangeEnd: "Akhir rentang",
   rangeSingle: "Rentang satu hari",
+  rangeOrderStart: "Mulai harus sebelum atau sama dengan akhir",
+  rangeOrderEnd: "Akhir harus sesudah atau sama dengan mulai",
 };

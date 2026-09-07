@@ -1,7 +1,8 @@
 import { autoUpdate, reposition } from "@lekoala/floating";
-import { isDate, monthKey, todayISO } from "./date.js";
+import { compareDates, isDate, monthKey, todayISO } from "./date.js";
 import { DateCalendarElement } from "./date-calendar.js";
 import { DateFieldController } from "./date-field.js";
+import { DateRangeController, normalizeRange } from "./date-range.js";
 import { createDateAdapter, formatLongDate, resolveLocale } from "./intl.js";
 import { getDefaultMessages } from "./messages.js";
 
@@ -19,10 +20,22 @@ export class DatePickerElement extends HTMLElement {
     this._input = null;
     /** @type {DateFieldController | null} */
     this._field = null;
+    /** @type {DateFieldController[] | null} */
+    this._fields = null;
+    /** @type {DateRangeController | null} */
+    this._range = null;
+    this._orderTags = new Set();
+    /** @type {"" | "start" | "end"} */
+    this._lastFocusEndpoint = "";
+    this._rangeCommitId = 0;
+    /** Map of clicked/keyboard-activated grid dates to the generation at click
+     * time (range mode supersession/stale protection). @type {Map<string, number>} */
+    this._pendingIntents = new Map();
     this._button = null;
     this._panel = null;
     this._calendar = null;
     this._originalDescribedBy = "";
+    this._rangeOriginalDescribedBy = ["", ""];
     this._formatHint = null;
     this._generatedPlaceholder = false;
     this._controller = null;
@@ -40,8 +53,20 @@ export class DatePickerElement extends HTMLElement {
     this._isDateDisabled = null;
   }
 
+  _rangeMode() {
+    return this.hasAttribute("range") && Boolean(this._range);
+  }
+
   connectedCallback() {
     if (this._connected) return;
+    if (this.hasAttribute("range")) {
+      this._connectRange();
+      return;
+    }
+    this._connectSingle();
+  }
+
+  _connectSingle() {
     const input = this.querySelector(":scope > input:not([type=hidden])");
     if (!(input instanceof HTMLInputElement)) {
       console.warn("<date-picker> expects a direct child text input");
@@ -77,21 +102,68 @@ export class DatePickerElement extends HTMLElement {
     }
   }
 
+  _connectRange() {
+    const startInput = this.querySelector(":scope > input[data-range-start]");
+    const endInput = this.querySelector(":scope > input[data-range-end]");
+    if (!(startInput instanceof HTMLInputElement) || !(endInput instanceof HTMLInputElement)) {
+      console.warn(
+        "<date-picker range> expects direct child inputs marked [data-range-start] and [data-range-end]",
+      );
+      return;
+    }
+    this._connected = true;
+    this._input = null;
+    this._fields = [
+      new DateFieldController(startInput, { messages: this._messages, locale: this.locale }),
+      new DateFieldController(endInput, { messages: this._messages, locale: this.locale }),
+    ];
+    this._range = new DateRangeController();
+    this._rangeOriginalDescribedBy = [
+      startInput.getAttribute("aria-describedby") || "",
+      endInput.getAttribute("aria-describedby") || "",
+    ];
+    for (const field of this._fields) {
+      field.onAttributesChanged = () => this._syncRangeFields();
+      field.confirm = (date) => this._confirmDate(date);
+      field.setupFormValue();
+    }
+    this._build(endInput);
+    this._setRangeAria();
+    this._syncRangeFields();
+    this._bindRange();
+    this._syncCalendarOptions();
+
+    const adapter = this._adapter();
+    const initialStart = isDate(startInput.value) ? startInput.value : adapter.parse(startInput.value);
+    const initialEnd = isDate(endInput.value) ? endInput.value : adapter.parse(endInput.value);
+    this._setRange(initialStart || "", initialEnd || "", { emit: false });
+    if (startInput.value.trim() && !isDate(initialStart))
+      startInput.setCustomValidity(this._messages.invalidDate);
+    if (endInput.value.trim() && !isDate(initialEnd)) endInput.setCustomValidity(this._messages.invalidDate);
+
+    if (this._fields[0].hidden) this._fields[0].hidden.defaultValue = this._range.start;
+    if (this._fields[1].hidden) this._fields[1].hidden.defaultValue = this._range.end;
+    if (startInput.getAttribute("value") == null && startInput.defaultValue === "") {
+      startInput.defaultValue = startInput.value;
+    }
+    if (endInput.getAttribute("value") == null && endInput.defaultValue === "") {
+      endInput.defaultValue = endInput.value;
+    }
+  }
+
   disconnectedCallback() {
     this._connected = false;
     this.hide(false);
     this._controller?.abort();
     this._controller = null;
-    this._field?.teardown();
-    this._field = null;
-    if (this._input) {
-      if (this._originalDescribedBy) this._input.setAttribute("aria-describedby", this._originalDescribedBy);
-      else this._input.removeAttribute("aria-describedby");
-      this._input.removeAttribute("role");
-      this._input.removeAttribute("aria-haspopup");
-      this._input.removeAttribute("aria-expanded");
-      this._input.removeAttribute("aria-controls");
+    if (this._rangeMode()) {
+      for (const field of this._fields || []) this._teardownField(field);
+      this._fields = null;
+      this._range = null;
+    } else {
+      this._teardownField(this._field);
     }
+    this._field = null;
     this._button?.remove();
     this._panel?.remove();
     this._formatHint?.remove();
@@ -101,10 +173,27 @@ export class DatePickerElement extends HTMLElement {
     this._formatHint = null;
   }
 
+  /** @param {DateFieldController | null} field */
+  _teardownField(field) {
+    if (!field) return;
+    const input = field.input;
+    const original = this._fields?.includes(field)
+      ? this._rangeOriginalDescribedBy[this._fields?.indexOf(field) ?? 0] || ""
+      : this._originalDescribedBy;
+    field.teardown();
+    if (original) input.setAttribute("aria-describedby", original);
+    else input.removeAttribute("aria-describedby");
+    input.removeAttribute("role");
+    input.removeAttribute("aria-haspopup");
+    input.removeAttribute("aria-expanded");
+    input.removeAttribute("aria-controls");
+  }
+
   /** @param {string} name @param {string|null} oldValue @param {string|null} newValue */
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this._connected || this._reflecting || oldValue === newValue) return;
     if (name === "value") {
+      if (this._rangeMode()) return;
       if (!newValue || isDate(newValue))
         this._setValue(newValue || "", { emit: false, format: true, reflect: false });
       return;
@@ -117,7 +206,7 @@ export class DatePickerElement extends HTMLElement {
 
   /** @public */
   get input() {
-    return this._input;
+    return this._rangeMode() ? undefined : this._input;
   }
 
   /** @public */
@@ -127,12 +216,26 @@ export class DatePickerElement extends HTMLElement {
 
   /** @public */
   get value() {
-    return this._value;
+    return this._rangeMode() ? undefined : this._value;
   }
 
   set value(value) {
+    if (this._rangeMode()) {
+      throw new TypeError("value is not available in range mode; use range");
+    }
     if (value && !isDate(value)) throw new TypeError(`Invalid date-picker value: ${value}`);
     this._setValue(value || "", { emit: false, format: true });
+  }
+
+  /** @public */
+  get range() {
+    return this._rangeMode() && this._range ? { ...this._range.range } : undefined;
+  }
+
+  set range(value) {
+    if (!this._rangeMode()) throw new TypeError("range is only available on <date-picker range>");
+    const { start, end } = normalizeRange(value);
+    this._setRange(start, end);
   }
 
   /** @public */
@@ -190,6 +293,7 @@ export class DatePickerElement extends HTMLElement {
   set messages(value) {
     this._messages = { ...getDefaultMessages(), ...(value || {}) };
     if (this._calendar) this._calendar.messages = this._messages;
+    for (const field of this._fields || []) field.setMessages(this._messages);
     this._field?.setMessages(this._messages);
     this._refreshButtonLabel();
     void this.validate();
@@ -239,7 +343,7 @@ export class DatePickerElement extends HTMLElement {
   }
 
   _adapter() {
-    return this._field?.adapter ?? createDateAdapter(this.locale);
+    return this._field?.adapter ?? this._fields?.[0]?.adapter ?? createDateAdapter(this.locale);
   }
 
   _setupFormValue() {
@@ -256,8 +360,35 @@ export class DatePickerElement extends HTMLElement {
     if (this._open && (input.disabled || input.readOnly)) this.hide(false);
   }
 
-  _build() {
-    const input = this._input;
+  _syncRangeFields() {
+    if (!this._fields) return;
+    for (const field of this._fields) field.syncInputState();
+    const active = this._range?.activeEndpoint === "end" ? 1 : 0;
+    const disabled = this._fields.every((field) => field.input.disabled || field.input.readOnly);
+    if (this._button) this._button.disabled = disabled;
+    if (this._open && (this._fields[active]?.input.disabled || this._fields[active]?.input.readOnly)) {
+      this.hide(false);
+    }
+  }
+
+  _setRangeAria() {
+    if (!this._fields || !this._panel || !this._formatHint) return;
+    for (const field of this._fields) {
+      const input = field.input;
+      const describedBy = [this._rangeOriginalDescribedBy[this._fields.indexOf(field)], this._formatHint.id]
+        .filter(Boolean)
+        .join(" ");
+      input.setAttribute("aria-describedby", describedBy);
+      input.setAttribute("role", "combobox");
+      input.setAttribute("aria-haspopup", "dialog");
+      input.setAttribute("aria-expanded", "false");
+      input.setAttribute("aria-controls", this._panel.id);
+    }
+  }
+
+  /** @param {HTMLInputElement} [anchorInput] */
+  _build(anchorInput) {
+    const input = anchorInput || this._input;
     if (!input) return;
     const panelId = `${this._id}-panel`;
     const hintId = `${this._id}-format`;
@@ -295,13 +426,15 @@ export class DatePickerElement extends HTMLElement {
     this._calendar = calendar;
     this._formatHint = hint;
 
-    this._originalDescribedBy = input.getAttribute("aria-describedby") || "";
-    const describedBy = [this._originalDescribedBy, hintId].filter(Boolean).join(" ");
-    input.setAttribute("aria-describedby", describedBy);
-    input.setAttribute("role", "combobox");
-    input.setAttribute("aria-haspopup", "dialog");
-    input.setAttribute("aria-expanded", "false");
-    input.setAttribute("aria-controls", panelId);
+    if (!this._rangeMode()) {
+      this._originalDescribedBy = input.getAttribute("aria-describedby") || "";
+      const describedBy = [this._originalDescribedBy, hintId].filter(Boolean).join(" ");
+      input.setAttribute("aria-describedby", describedBy);
+      input.setAttribute("role", "combobox");
+      input.setAttribute("aria-haspopup", "dialog");
+      input.setAttribute("aria-expanded", "false");
+      input.setAttribute("aria-controls", panelId);
+    }
     this._refreshLocale();
     this._refreshButtonLabel();
   }
@@ -342,19 +475,7 @@ export class DatePickerElement extends HTMLElement {
     input.addEventListener(
       "keydown",
       (event) => {
-        if (event.key === "ArrowDown" || (event.altKey && event.key === "ArrowDown")) {
-          event.preventDefault();
-          if (this._open) {
-            // Chromium drops script-initiated focus changes made during keydown
-            // dispatch; defer to a macrotask so the grid can take keyboard focus.
-            setTimeout(() => this._calendar?.focusGrid(), 0);
-          } else {
-            this.show();
-          }
-        } else if (event.key === "Escape" && this._open) {
-          event.preventDefault();
-          this.hide(false);
-        }
+        this._onFieldKeyDown("", event);
       },
       { signal },
     );
@@ -420,17 +541,173 @@ export class DatePickerElement extends HTMLElement {
       },
       { capture: true, signal },
     );
-    this.addEventListener(
-      "keydown",
+    this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
+  }
+
+  _bindRange() {
+    const button = this._button;
+    const calendar = this._calendar;
+    if (!this._fields || !button || !calendar) return;
+    const controller = new AbortController();
+    this._controller = controller;
+    const { signal } = controller;
+
+    for (const [index, field] of this._fields.entries()) {
+      const endpoint = index === 1 ? "end" : "start";
+      field.input.addEventListener("input", () => field.handleInput(), { signal });
+      field.input.addEventListener("change", () => void this._commitFieldText(endpoint), { signal });
+      field.input.addEventListener("blur", () => void this._commitFieldText(endpoint), { signal });
+      field.input.addEventListener(
+        "focus",
+        (event) => this._onFieldFocus(endpoint, /** @type {FocusEvent} */ (event)),
+        { signal },
+      );
+      field.input.addEventListener("keydown", (event) => this._onFieldKeyDown(endpoint, event), { signal });
+    }
+    button.addEventListener(
+      "click",
       (event) => {
-        if (event.key === "Escape" && this._open) {
-          event.preventDefault();
-          event.stopPropagation();
-          this.hide(true);
+        if (this._open) {
+          if (event.detail === 0) {
+            setTimeout(() => this._calendar?.focusGrid(), 0);
+            return;
+          }
+          this.hide(false);
+          return;
         }
+        this.show();
       },
       { signal },
     );
+    // Record grid-activation intent synchronously (click or Enter/Space). The
+    // picker only commits a dateactivate whose generation still matches, so a
+    // response that resolves after the active endpoint changed (or after a
+    // newer activation) is dropped without touching either bound.
+    calendar.addEventListener("click", (event) => this._captureGridIntent(event), { capture: true, signal });
+    calendar.addEventListener("keydown", (event) => this._captureGridIntent(event), {
+      capture: true,
+      signal,
+    });
+    calendar.addEventListener(
+      "dateactivate",
+      (event) => {
+        const custom = /** @type {CustomEvent} */ (event);
+        const date = custom.detail?.date;
+        if (!isDate(date)) return;
+        queueMicrotask(() => {
+          if (custom.defaultPrevented || !this._connected || !this._range) return;
+          const pending = this._pendingIntents.get(date);
+          // A response is dropped when the active endpoint changed, the popup
+          // closed or a newer activation superseded this one.
+          if (pending === undefined || pending !== this._rangeCommitId) return;
+          this._pendingIntents.delete(date);
+          const result = this._range.activate(date);
+          if (result.status === "refused") {
+            this._calendar?.dispatchEvent(
+              new CustomEvent("dateinvalid", {
+                detail: { date, state: this._calendar.getDateState(date) },
+                bubbles: true,
+              }),
+            );
+            return;
+          }
+          this._setBound(result.endpoint, date, { emit: true });
+          if (result.status === "complete") {
+            this.hide(false);
+            this._focusField(result.endpoint);
+          }
+        });
+      },
+      { signal },
+    );
+    calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
+    this.ownerDocument.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (!this._open || event.composedPath().includes(this)) return;
+        this.hide(false);
+      },
+      { capture: true, signal },
+    );
+    this.ownerDocument.addEventListener(
+      "reset",
+      (event) => {
+        const form = event.target;
+        if (form instanceof HTMLFormElement && this._fields && form === this._fields[0].input.form) {
+          this.hide(false);
+          queueMicrotask(() => {
+            if (!event.defaultPrevented) this._restoreRangeDefault();
+          });
+        }
+      },
+      { capture: true, signal },
+    );
+    this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
+  }
+
+  /** @param {"" | "start" | "end"} endpoint @param {KeyboardEvent} event */
+  _onFieldKeyDown(endpoint, event) {
+    if (event.key === "ArrowDown" || (event.altKey && event.key === "ArrowDown")) {
+      event.preventDefault();
+      if (this._rangeMode() && endpoint) {
+        this._lastFocusEndpoint = endpoint;
+        this._range?.focus(endpoint);
+      }
+      if (this._open) {
+        // Chromium drops script-initiated focus changes made during keydown
+        // dispatch; defer to a macrotask so the grid can take keyboard focus.
+        setTimeout(() => this._calendar?.focusGrid(), 0);
+      } else {
+        this.show();
+      }
+    } else if (event.key === "Escape" && this._open) {
+      event.preventDefault();
+      this.hide(false);
+    }
+  }
+
+  /** @param {"" | "start" | "end"} endpoint @param {FocusEvent} event */
+  _onFieldFocus(endpoint, event) {
+    if (!this._rangeMode() || !endpoint) return;
+    const switched = endpoint !== this._range?.activeEndpoint;
+    this._lastFocusEndpoint = endpoint;
+    this._range?.focus(endpoint);
+    if (switched) {
+      // A late calendar activation targeting the previous endpoint must not
+      // commit after the intent moved to the other bound.
+      this._rangeCommitId++;
+      this._pendingIntents.clear();
+    }
+    if (!this.openOnFocus || this._suppressFocusOpen) return;
+    const related = event.relatedTarget;
+    if (related instanceof Node && this.contains(related)) return;
+    if (!this._open) this.show({ moveFocus: false });
+  }
+
+  /** Record range-mode grid activation intent (click or keyboard) so a stale,
+   * late-confirmed dateactivate can be recognized and dropped. Each new grid
+   * activation supersedes every earlier pending one.
+   * @param {Event} event */
+  _captureGridIntent(event) {
+    if (!this._rangeMode() || !this._range) return;
+    if (event.type === "keydown") {
+      const key = /** @type {KeyboardEvent} */ (event).key;
+      if (key !== "Enter" && key !== " ") return;
+    }
+    if (!(event.target instanceof Element)) return;
+    const cell = event.target.closest(".dp-day[data-date]");
+    const date = cell?.getAttribute("data-date") || "";
+    if (!isDate(date)) return;
+    this._pendingIntents.set(date, ++this._rangeCommitId);
+  }
+
+  /** @param {KeyboardEvent} event */
+  _onEscape(event) {
+    if (event.key === "Escape" && this._open) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.hide(true);
+    }
   }
 
   _syncCalendarOptions() {
@@ -445,14 +722,30 @@ export class DatePickerElement extends HTMLElement {
     calendar.dateState = this._dateState;
     calendar.renderDay = this._renderDay;
     calendar.isDateDisabled = this._isDateDisabled;
-    if (this._value) calendar.value = this._value;
+    if (!this._rangeMode() && this._value) calendar.value = this._value;
     if (panel) panel.setAttribute("aria-label", this._messages.calendar);
   }
 
   _refreshLocale() {
-    const field = this._field;
     const hint = this._formatHint;
-    if (!field || !hint) return;
+    if (!hint) return;
+    if (this._rangeMode() && this._fields) {
+      this._fields[0].setLocale(this.locale);
+      this._fields[1].setLocale(this.locale);
+      hint.textContent = `${this._messages.formatHint}: ${this._fields[0].placeholder}`;
+      for (const [index, field] of this._fields.entries()) {
+        if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholder) {
+          field.input.placeholder = field.placeholder;
+          this._generatedPlaceholder = true;
+        }
+        const canonical = index === 1 ? this._range?.end || "" : this._range?.start || "";
+        if (canonical) field.input.value = field.format(canonical);
+      }
+      this._refreshButtonLabel();
+      return;
+    }
+    const field = this._field;
+    if (!field) return;
     field.setLocale(this.locale);
     hint.textContent = `${this._messages.formatHint}: ${field.placeholder}`;
     if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholder) {
@@ -465,8 +758,23 @@ export class DatePickerElement extends HTMLElement {
 
   _refreshButtonLabel() {
     if (!this._button) return;
+    if (this._rangeMode()) {
+      this._refreshRangeButtonLabel();
+      return;
+    }
     const prefix = this._value ? this._messages.changeDate : this._messages.chooseDate;
     const suffix = this._value ? `, ${formatLongDate(this._value, this.locale)}` : "";
+    this._button.setAttribute("aria-label", `${prefix}${suffix}`);
+  }
+
+  _refreshRangeButtonLabel() {
+    if (!this._button || !this._range) return;
+    const { start, end } = this._range;
+    const hasRange = Boolean(start && end);
+    const prefix = hasRange ? this._messages.changeDate : this._messages.chooseDate;
+    const suffix = hasRange
+      ? `, ${formatLongDate(start, this.locale)} – ${formatLongDate(end, this.locale)}`
+      : "";
     this._button.setAttribute("aria-label", `${prefix}${suffix}`);
   }
 
@@ -500,36 +808,8 @@ export class DatePickerElement extends HTMLElement {
     }
   }
 
-  _restoreDefault() {
-    const field = this._field;
-    if (!field) return;
-    const value = field.restoreDefault();
-    this._setValue(value, { emit: false, format: true });
-    if (this._calendar) {
-      if (this._value) {
-        this._calendar.display = monthKey(this._value);
-        this._calendar.focusedDate = this._value;
-      } else {
-        this._calendar.display = monthKey(todayISO());
-        this._calendar.focusedDate = todayISO();
-      }
-    }
-    void this.validate();
-  }
-
-  _focusInput() {
-    // focus() must not run synchronously from a keydown handler (Chromium drops
-    // focus changes there) and must not re-open the popover under the default
-    // open-on-focus. Deferring keeps _suppressFocusOpen active for the call.
-    this._suppressFocusOpen = true;
-    setTimeout(() => {
-      this._input?.focus();
-      this._suppressFocusOpen = false;
-    }, 0);
-  }
-
   /**
-   * Calendar-backed availability gate injected into the field controller.
+   * Calendar-backed availability gate injected into the field controllers.
    * A cancelled or failed source load confirms nothing: do not fill the
    * submitted ISO field nor treat the date as available.
    * @param {string} date @returns {Promise<{ok: boolean, message?: string}>}
@@ -549,14 +829,205 @@ export class DatePickerElement extends HTMLElement {
   async _commitText(emit) {
     const field = this._field;
     if (!field) return false;
+    if (!field.isDirty) return false;
     const result = await field.commit();
     if (result.status === "stale" || result.status === "invalid") return false;
     this._setValue(result.value || "", { emit, format: result.status === "ok" });
     return true;
   }
 
+  /** @param {"start" | "end"} which */
+  async _commitFieldText(which) {
+    const fields = this._fields;
+    if (!fields) return false;
+    const index = which === "end" ? 1 : 0;
+    const field = fields[index];
+    if (!field?.isDirty) return false;
+    const result = await field.commit();
+    if (result.status === "stale") return false;
+    if (result.status === "invalid") {
+      this._orderTags.delete(index);
+      return false;
+    }
+    this._setBound(which, result.value || "", { emit: true, format: result.status === "ok" });
+    return true;
+  }
+
+  /** @param {"start" | "end"} which @param {string} value
+   * @param {{emit?:boolean, format?:boolean}} [options] @returns {boolean} */
+  _setBound(which, value, options = {}) {
+    if (!this._range) return false;
+    const fields = this._fields;
+    if (!fields) return false;
+    const index = which === "end" ? 1 : 0;
+    const field = fields[index];
+    if (!field) return false;
+    const next = value || "";
+    // The range model may already hold the target (a calendar activation moved
+    // it), so change detection reads the field canonical, not the model.
+    const previous = field.canonical;
+    field.setCanonical(next, { format: options.format !== false });
+    if (which === "end") this._range.end = next;
+    else this._range.start = next;
+    const changed = previous !== next;
+    if (changed) {
+      this._syncHighlight();
+      this._refreshRangeButtonLabel();
+      this._emitRangeChange();
+      if (options.emit) {
+        field.input.dispatchEvent(new Event("input", { bubbles: true }));
+        field.input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+    this._revalidateRange(which);
+    return changed;
+  }
+
+  /** Atomic pair update: canonical + visible + hidden before one event.
+   * @param {string} start @param {string} end @param {{emit?:boolean, format?:boolean}} [options] */
+  _setRange(start, end, options = {}) {
+    if (!this._range || !this._fields) return;
+    this._range.start = start || "";
+    this._range.end = end || "";
+    this._fields[0].setCanonical(start || "", { format: options.format !== false });
+    this._fields[1].setCanonical(end || "", { format: options.format !== false });
+    this._syncHighlight();
+    this._refreshRangeButtonLabel();
+    this._revalidateRange("start");
+    this._revalidateRange("end");
+    if (options.emit !== false) this._emitRangeChange();
+  }
+
+  /** @param {"start" | "end"} which */
+  _boundCanonical(which) {
+    return this._range ? (which === "end" ? this._range.end : this._range.start) : "";
+  }
+
+  _emitRangeChange() {
+    if (!this._range) return;
+    this.dispatchEvent(new CustomEvent("rangechange", { detail: { ...this._range.range }, bubbles: true }));
+  }
+
+  /** Forward only a displayable range to the calendar band. An inverted or
+   * start-less business range shows no misleading band. */
+  _syncHighlight() {
+    if (!this._calendar || !this._range) return;
+    const { start, end } = this._range;
+    if (!start) {
+      this._calendar.highlightedRange = { start: "", end: "" };
+      return;
+    }
+    if (end && compareDates(end, start) < 0) {
+      this._calendar.highlightedRange = { start, end: "" };
+    } else {
+      this._calendar.highlightedRange = { start, end };
+    }
+  }
+
+  /**
+   * Cross-bound validity: the order error is attributed to the bound that was
+   * just modified; the other bound only loses a stale order error, never its
+   * independent parse/source validity.
+   * @param {"start" | "end"} which
+   */
+  _revalidateRange(which) {
+    if (!this._fields || !this._range) return;
+    const { start, end } = this._range;
+    const inverted = Boolean(start && end && compareDates(end, start) < 0);
+    const bounds = ["start", "end"];
+    for (const bound of bounds) {
+      const index = bound === "end" ? 1 : 0;
+      const input = this._fields[index].input;
+      const message = bound === "end" ? this._messages.rangeOrderEnd : this._messages.rangeOrderStart;
+      const shouldHaveOrder = inverted && bound === which;
+      if (shouldHaveOrder) {
+        input.setCustomValidity(message);
+        this._orderTags.add(index);
+      } else if (this._orderTags.has(index)) {
+        input.setCustomValidity("");
+        this._orderTags.delete(index);
+      }
+    }
+  }
+
+  _restoreDefault() {
+    const field = this._field;
+    if (!field) return;
+    const value = field.restoreDefault();
+    this._setValue(value, { emit: false, format: true });
+    if (this._calendar) {
+      if (this._value) {
+        this._calendar.display = monthKey(this._value);
+        this._calendar.focusedDate = this._value;
+      } else {
+        this._calendar.display = monthKey(todayISO());
+        this._calendar.focusedDate = todayISO();
+      }
+    }
+    void this.validate();
+  }
+
+  _restoreRangeDefault() {
+    if (!this._fields) return;
+    const start = this._fields[0].restoreDefault();
+    const end = this._fields[1].restoreDefault();
+    this._setRange(start, end);
+    if (this._calendar) {
+      const target = this._range?.start || todayISO();
+      this._calendar.display = monthKey(target);
+      this._calendar.focusedDate = target;
+    }
+    void this.validate();
+  }
+
+  /** @param {"start" | "end"} which */
+  _focusField(which) {
+    const index = which === "end" ? 1 : 0;
+    const input = this._fields?.[index]?.input;
+    if (!input) return;
+    this._suppressFocusOpen = true;
+    setTimeout(() => {
+      input.focus();
+      this._suppressFocusOpen = false;
+    }, 0);
+  }
+
+  _focusInput() {
+    // focus() must not run synchronously from a keydown handler (Chromium drops
+    // focus changes there) and must not re-open the popover under the default
+    // open-on-focus. Deferring keeps _suppressFocusOpen active for the call.
+    this._suppressFocusOpen = true;
+    setTimeout(() => {
+      this._input?.focus();
+      this._suppressFocusOpen = false;
+    }, 0);
+  }
+
+  /** @returns {"" | "start" | "end"} */
+  _resolveRangeEndpoint() {
+    if (!this._fields) return "";
+    const preferred = this._lastFocusEndpoint || "start";
+    const preferredIndex = preferred === "end" ? 1 : 0;
+    if (!this._fields[preferredIndex].input.disabled && !this._fields[preferredIndex].input.readOnly) {
+      return preferred;
+    }
+    const alternative = preferred === "end" ? "start" : "end";
+    const alternativeIndex = alternative === "end" ? 1 : 0;
+    if (!this._fields[alternativeIndex].input.disabled && !this._fields[alternativeIndex].input.readOnly) {
+      return alternative;
+    }
+    return "";
+  }
+
   /** @public */
   async validate() {
+    if (this._rangeMode()) {
+      if (!this._fields) return true;
+      for (const field of this._fields) await field.validate();
+      this._revalidateRange("start");
+      this._revalidateRange("end");
+      return this._fields.every((field) => field.input.checkValidity());
+    }
     const input = this._field?.input;
     if (!input) return true;
     if (!input.value.trim()) {
@@ -571,22 +1042,42 @@ export class DatePickerElement extends HTMLElement {
   show(options = {}) {
     const panel = this._panel;
     const calendar = this._calendar;
-    const input = this._input;
     const button = this._button;
-    if (!panel || !calendar || !input || !button || this._open || input.disabled || input.readOnly) return;
-    const target = this._value || this._adapter().parse(input.value) || todayISO();
-    calendar.display = monthKey(target);
-    calendar.focusedDate = target;
+    if (!panel || !calendar || !button || this._open) return;
+    if (this._rangeMode()) {
+      const endpoint = this._resolveRangeEndpoint();
+      if (!endpoint) return;
+      this._range?.focus(endpoint);
+      this._rangeCommitId++;
+      this._pendingIntents.clear();
+      const target = this._boundCanonical(endpoint) || todayISO();
+      calendar.display = monthKey(target);
+      calendar.focusedDate = target;
+      this._lastFocusEndpoint = endpoint;
+    } else {
+      const input = this._input;
+      if (!input || input.disabled || input.readOnly) return;
+      const target = this._value || this._adapter().parse(input.value) || todayISO();
+      calendar.display = monthKey(target);
+      calendar.focusedDate = target;
+    }
     panel.showPopover();
     this._open = true;
-    input.setAttribute("aria-expanded", "true");
-    button.setAttribute("aria-expanded", "true");
+    this._setExpanded(true);
     const position = () =>
       reposition(this, panel, { placement: "bottom-start", distance: 4, shiftPadding: 8 });
     position();
     this._stopTracking = autoUpdate(this, panel, position);
     if (options.moveFocus !== false) queueMicrotask(() => calendar.focusGrid());
     this.dispatchEvent(new Event("open", { bubbles: true }));
+  }
+
+  /** @param {boolean} expanded */
+  _setExpanded(expanded) {
+    const value = expanded ? "true" : "false";
+    this._input?.setAttribute("aria-expanded", value);
+    this._button?.setAttribute("aria-expanded", value);
+    for (const field of this._fields || []) field.input.setAttribute("aria-expanded", value);
   }
 
   /** @public @param {boolean} [restoreFocus] */
@@ -600,8 +1091,9 @@ export class DatePickerElement extends HTMLElement {
       // Already hidden by the UA.
     }
     this._open = false;
-    this._input?.setAttribute("aria-expanded", "false");
-    this._button?.setAttribute("aria-expanded", "false");
+    this._setExpanded(false);
+    this._rangeCommitId++;
+    this._pendingIntents.clear();
     if (restoreFocus) this._focusInput();
     this.dispatchEvent(new Event("close", { bubbles: true }));
   }

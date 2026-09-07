@@ -15,4 +15,6 @@ export default {
   rangeInRange: "Inside range",
   rangeEnd: "Range end",
   rangeSingle: "Range of one day",
+  rangeOrderStart: "Start must be on or before end",
+  rangeOrderEnd: "End must be on or after start",
 };

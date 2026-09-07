@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+<link rel="stylesheet" href="/src/date-picker.css">
+<style>
+  body { font-family: system-ui, sans-serif; }
+  .field { display: grid; gap: 0.35rem; inline-size: 18rem; margin-block: 0.75rem; }
+</style>
+
+<form id="range-form">
+  <label class="field" for="start-date">
+    Arrivée
+    <date-picker id="range-picker" range locale="fr-BE">
+      <input id="start-date" data-range-start name="arrival" value="2026-09-10">
+      <input id="end-date" data-range-end name="departure" value="2026-09-15">
+    </date-picker>
+  </label>
+</form>
+
+<script type="module">
+import "/src/define.js";
+
+window.__fail = false;
+window.__hang = false;
+
+// Abortable source: available on demand (__fail), or pending until cancelled
+// or released (__hang). Proves a stale or failed range activation never commits.
+window.__source = async ({ start, end }, { signal }) => {
+  const key = `${start}/${end}`;
+  if (window.__hang) {
+    // Pause until `window.__hang` clears, so a test can hold a month's
+    // availability pending and then release it at the right moment.
+    return new Promise((resolve, reject) => {
+      const timer = setInterval(() => {
+        if (!window.__hang) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 10);
+      signal.addEventListener(
+        "abort",
+        () => {
+          clearInterval(timer);
+          reject(new DOMException("Aborted", "AbortError"));
+        },
+        { once: true },
+      );
+    });
+  }
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, 20);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+  if (window.__fail) throw new Error(`backend unavailable ${key}`);
+  return { dates: {} };
+};
+
+window.__events = [];
+const picker = document.getElementById("range-picker");
+for (const name of ["rangechange", "dateinvalid", "dateactivate"]) {
+  picker.addEventListener(name, (event) => {
+    window.__events.push(
+      `${name}:${event.detail?.date || ""}:${event.detail?.start || ""}:${event.detail?.end || ""}`,
+    );
+  });
+}
+picker.source = window.__source;
+</script>

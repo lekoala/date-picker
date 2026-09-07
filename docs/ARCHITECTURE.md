@@ -153,9 +153,13 @@ The picker does not implement:
 
 The popup remains in authored DOM, preserving inherited locale/theme/density context.
 
-## 9. Range relationships stay external
+## 9. Range relationships
 
-`linkDateRange(start, end)` applies a relationship between two ordinary pickers:
+Two product shapes cover the range cases, and both keep range rules outside the classes:
+
+`<date-picker range>` shares **one** calendar surface between two editable fields. Each input is owned by a `DateFieldController` (parsing, hidden ISO, commit/stale protection); the pair is driven by `DateRangeController` in `date-range.js`, which owns the active-endpoint transitions and the start/end state. `DatePickerElement` remains a shell: it coordinates DOM/popup/focus only. `value` is unavailable in range mode and `range` is the atomic pair API; inverted or incomplete business ranges are never forwarded to `highlightedRange`, which stays presentation-only.
+
+`linkDateRange(start, end)` keeps the external relationship for two visually separate pickers:
 
 ```text
 end.min = max(authorMin, start.value)
@@ -163,8 +167,6 @@ start.max = min(authorMax, end.value)
 ```
 
 It does not auto-correct values. If a new start date makes the current end invalid, the end input becomes invalid and the user decides what value replaces it.
-
-A future `<date-range>` wrapper can be built on this primitive without changing picker internals.
 
 ## 10. Keep the class small
 

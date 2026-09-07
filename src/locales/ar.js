@@ -15,4 +15,6 @@ export default {
   rangeInRange: "داخل النطاق",
   rangeEnd: "نهاية النطاق",
   rangeSingle: "نطاق يوم واحد",
+  rangeOrderStart: "يجب أن تكون البداية قبل النهاية أو مساوية لها",
+  rangeOrderEnd: "يجب أن تكون النهاية بعد البداية أو مساوية لها",
 };

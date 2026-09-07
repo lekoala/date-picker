@@ -27,6 +27,16 @@ end.value = "2026-09-15";
 const cleanup = linkDateRange(start, end);
 cleanup();
 
+const rangePicker = document.createElement("date-picker") as DatePickerElement;
+const range = rangePicker.range;
+if (range) {
+  const ordered: boolean = range.start <= range.end;
+  void ordered;
+}
+rangePicker.range = { start: "2026-09-10", end: "2026-09-15" };
+const valueIsUndefined: string | undefined = rangePicker.value;
+void valueIsUndefined;
+
 const model = new CalendarModel({ value: "2026-09-10" });
 model.navigateMonth(1);
 

@@ -15,4 +15,6 @@ export default {
   rangeInRange: "Im Bereich",
   rangeEnd: "Bereichsende",
   rangeSingle: "Eintägiger Bereich",
+  rangeOrderStart: "Start muss vor oder am Ende liegen",
+  rangeOrderEnd: "Ende muss nach oder am Start liegen",
 };

@@ -81,7 +81,7 @@ Cross-check our coverage against the Open UI datepicker research: <https://open-
 | `custom cells` | contract boundary | `renderDay()` only; cells stay component-owned (D3). |
 | `weeknumber` | contract boundary | `show-week-numbers` (U3). |
 | `custom weeks` | no | only the `first-day` attribute; no custom week rendering. |
-| `range` | external | `linkDateRange()` between two pickers (U5). |
+| `range` | core | `<date-picker range>` two-field shared surface (U9); `linkDateRange()` stays external (U5). |
 | `range selected` | deferred | selection interaction needs its own proposal; `highlightedRange` covers band presentation only. |
 | `range presets` | deferred | application-owned. |
 | `date-time picker` | deferred | time/datetime is explicitly out of scope. |
