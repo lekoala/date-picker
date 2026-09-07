@@ -79,7 +79,7 @@ export class DateCalendarElement extends HTMLElement {
     this._loadedRanges = new Set();
     this._loadController = null;
     this._loadingKey = "";
-    /** @type {Promise<void> | null} */
+    /** @type {Promise<"loaded" | "cancelled" | "failed"> | null} */
     this._loadingPromise = null;
     /** @type {DateStateResolver | null} */
     this._dateState = null;
@@ -376,18 +376,19 @@ export class DateCalendarElement extends HTMLElement {
     }
   }
 
-  /** @public Ensure source state exists for the month containing a typed/selected date. @param {string} date */
+  /** @public Ensure source state exists for the month containing a typed/selected date.
+   * @param {string} date @returns {Promise<boolean>} */
   async ensureDate(date) {
-    if (!isDate(date) || !this._source) return;
-    await this._loadDisplay(monthKey(date), false);
+    if (!isDate(date) || !this._source) return true;
+    return (await this._loadDisplay(monthKey(date), false)) === "loaded";
   }
 
-  /** @param {string} display @param {boolean} [rerender] */
+  /** @param {string} display @param {boolean} [rerender] @returns {Promise<"loaded" | "cancelled" | "failed">} */
   async _loadDisplay(display, rerender = true) {
-    if (!this._source) return;
+    if (!this._source) return "loaded";
     const range = this._range(display);
     const key = `${range.start}/${range.end}`;
-    if (this._loadedRanges.has(key)) return;
+    if (this._loadedRanges.has(key)) return "loaded";
     if (key === this._loadingKey && this._loadingPromise) return this._loadingPromise;
     this._loadController?.abort();
     const controller = new AbortController();
@@ -401,14 +402,16 @@ export class DateCalendarElement extends HTMLElement {
         const loader = typeof source === "function" ? source : source?.load?.bind(source);
         if (!loader) throw new TypeError("Date source must be a function or expose load(range, { signal })");
         const payload = await loader(range, { signal: controller.signal });
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted) return "cancelled";
         for (const [date, state] of normalizeDateStates(payload)) this._sourceStates.set(date, state);
         this._loadedRanges.add(key);
         this.dispatchEvent(new CustomEvent("dateloadend", { detail: range, bubbles: true }));
         if (rerender && this._connected && monthKey(this.display) === monthKey(display)) this.render(false);
+        return "loaded";
       } catch (error) {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted) return "cancelled";
         this.dispatchEvent(new CustomEvent("dateloaderror", { detail: { ...range, error }, bubbles: true }));
+        return "failed";
       } finally {
         if (this._loadController === controller) {
           this._loadController = null;
@@ -462,6 +465,7 @@ export class DateCalendarElement extends HTMLElement {
     const next = this._clamp(date);
     const previousDisplay = this.display;
     const previousFocused = this._model.focused;
+    const moveFocus = options.moveFocus !== false;
     this._model.setFocused(next);
     this._reflect("display", this._model.display);
     if (previousDisplay !== this.display) {
@@ -469,20 +473,20 @@ export class DateCalendarElement extends HTMLElement {
       this._emitDisplayChange();
     } else if (this._connected && previousFocused !== this._model.focused) {
       // Same month: no full render, just move the roving tabindex.
-      this._moveFocusDom(previousFocused, this._model.focused);
+      this._moveFocusDom(previousFocused, this._model.focused, moveFocus);
     }
-    if (options.moveFocus !== false) queueMicrotask(() => this.focusGrid());
+    if (moveFocus) queueMicrotask(() => this.focusGrid());
   }
 
-  /** @param {string} previous @param {string} next */
-  _moveFocusDom(previous, next) {
+  /** @param {string} previous @param {string} next @param {boolean} [moveFocus] */
+  _moveFocusDom(previous, next, moveFocus = true) {
     const prevCell = previous ? this.querySelector(`.dp-day[data-date="${CSS.escape(previous)}"]`) : null;
     const nextCell = this.querySelector(`.dp-day[data-date="${CSS.escape(next)}"]`);
     if (prevCell instanceof HTMLElement) prevCell.tabIndex = -1;
     if (nextCell instanceof HTMLElement) {
       nextCell.tabIndex = 0;
-      nextCell.focus();
-    } else {
+      if (moveFocus) nextCell.focus();
+    } else if (moveFocus) {
       this.focusGrid();
     }
   }
@@ -516,10 +520,11 @@ export class DateCalendarElement extends HTMLElement {
   /** @param {string} date @returns {Promise<boolean>} */
   async _activate(date) {
     // Guarantee remote state before deciding: a date clicked before the
-    // source resolves must not be treated as available.
-    await this.ensureDate(date);
+    // source resolves must not be treated as available, and a cancelled or
+    // failed load must not authorize it either.
+    const confirmed = await this.ensureDate(date);
     const state = this.getDateState(date);
-    if (state.disabled) {
+    if (!confirmed || state.disabled) {
       this.dispatchEvent(new CustomEvent("dateinvalid", { detail: { date, state }, bubbles: true }));
       return false;
     }

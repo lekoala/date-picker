@@ -290,6 +290,7 @@ export class DatePickerElement extends HTMLElement {
       this._hiddenInput.disabled = input.disabled;
     }
     if (this._button) this._button.disabled = input.disabled || input.readOnly;
+    if (this._open && (input.disabled || input.readOnly)) this.hide(false);
   }
 
   _build() {
@@ -431,6 +432,7 @@ export class DatePickerElement extends HTMLElement {
         // defer the commit so preventDefault() is actually respected.
         queueMicrotask(() => {
           if (custom.defaultPrevented || !this._connected) return;
+          if (this._input?.disabled || this._input?.readOnly) return;
           this._commitId++;
           this._setValue(date, { emit: true, format: true });
           this.hide(false);
@@ -598,8 +600,15 @@ export class DatePickerElement extends HTMLElement {
     }
     const display = monthKey(parsed);
     if (calendar.display !== display) calendar.display = display;
-    await calendar.ensureDate(parsed);
+    const confirmed = await calendar.ensureDate(parsed);
     if (commitId !== this._commitId) return false;
+    if (!confirmed) {
+      // A cancelled or failed source load confirms nothing: do not fill the
+      // submitted ISO field nor treat the date as available.
+      if (this._hiddenInput) this._hiddenInput.value = "";
+      input.setCustomValidity(this._messages.unavailableDate);
+      return false;
+    }
     const state = calendar.getDateState(parsed);
     if (state.disabled) {
       if (this._hiddenInput) this._hiddenInput.value = "";

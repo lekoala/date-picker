@@ -64,6 +64,7 @@ Keep explicit tests for these regressions:
 10. Typed and clicked dates resolve the same disabled state.
 11. Start/end linkage never silently changes sibling values.
 12. Exactly one grid cell has `tabindex="0"`.
+13. A failed or cancelled source load never authorizes activation or validation.
 
 ## CI
 

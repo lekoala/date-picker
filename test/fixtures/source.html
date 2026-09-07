@@ -1,0 +1,61 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+<link rel="stylesheet" href="/src/date-picker.css">
+<style>
+  body { font-family: system-ui, sans-serif; }
+  .field { display: grid; gap: 0.35rem; inline-size: 16rem; margin-block: 0.75rem; }
+</style>
+
+<date-calendar id="source-cal" value="2026-09-10" locale="fr-BE"></date-calendar>
+
+<label class="field" for="source-date">
+  Source en ligne
+  <date-picker id="source-picker" value="2026-09-06" locale="fr-BE">
+    <input id="source-date" name="source-field">
+  </date-picker>
+</label>
+
+<script type="module">
+import "/src/define.js";
+
+window.__fail = true;
+window.__hang = false;
+
+// Abortable source: ready on demand (__fail), or pending until cancelled
+// (__hang). The fixtures prove a failed or a stale load never authorizes a date.
+window.__source = async ({ start, end }, { signal }) => {
+  const key = `${start}/${end}`;
+  if (window.__hang) {
+    return new Promise((resolve, reject) => {
+      signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    });
+  }
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, 20);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+  if (window.__fail) throw new Error(`backend unavailable ${key}`);
+  return { dates: {} };
+};
+
+window.__events = [];
+for (const id of ["source-cal", "source-picker"]) {
+  const element = document.getElementById(id);
+  for (const name of ["dateloaderror", "dateinvalid", "dateactivate", "datechange"]) {
+    element.addEventListener(name, (event) => {
+      window.__events.push(`${id}:${name}:${event.detail?.date || event.detail?.value || ""}`);
+    });
+  }
+}
+
+document.getElementById("source-cal").source = window.__source;
+document.getElementById("source-picker").source = window.__source;
+</script>

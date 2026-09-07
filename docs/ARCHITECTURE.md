@@ -109,6 +109,8 @@ The range is inclusive and covers the cells actually rendered for that month. Wi
 
 Navigation cancels superseded loads using `AbortController`. Results are normalized to a map keyed by date.
 
+A load reports three outcomes: `loaded`, `cancelled` and `failed`. A cancelled or failed load never authorizes a date: `ensureDate()` returns `false` and both cell activation and typed picker validation refuse the date until a later load confirms it. `dateloaderror` keeps observing the failure; the loader error is never swallowed silently on the validation path.
+
 Supported response shapes:
 
 ```js

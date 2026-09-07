@@ -118,6 +118,23 @@ test.describe("form lifecycle and ownership", () => {
     await expect(page.locator("#ro-picker .dp-picker-panel")).toBeVisible();
   });
 
+  test("readonly while open closes the popover and stays closed", async ({ page }) => {
+    await page.click("#ro-picker .dp-picker-button");
+    await expect(page.locator("#ro-picker .dp-picker-panel")).toBeVisible();
+    await page.click("#readonly-toggle");
+    await expect(page.locator("#ro-picker .dp-picker-panel")).toBeHidden();
+    await expect(page.locator("#ro-picker")).toHaveJSProperty("open", false);
+    expect(await page.locator("#ro-picker .dp-picker-button").isDisabled()).toBe(true);
+  });
+
+  test("disabling the input while open closes the popover", async ({ page }) => {
+    await page.click("#toggle-picker .dp-picker-button");
+    await expect(page.locator("#toggle-picker .dp-picker-panel")).toBeVisible();
+    await page.click("#disable-toggle");
+    await expect(page.locator("#toggle-picker .dp-picker-panel")).toBeHidden();
+    await expect(page.locator("#toggle-picker")).toHaveJSProperty("open", false);
+  });
+
   test("clearing an optional field clears the canonical value and emits valuechange", async ({ page }) => {
     await page.evaluate(() => {
       window.__valueChanges = 0;

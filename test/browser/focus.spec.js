@@ -23,6 +23,23 @@ test.describe("open-on-focus contract", () => {
     await expect(page.locator("#focus-picker .dp-day[tabindex='0']")).not.toBeFocused();
   });
 
+  test("moving focusedDate keeps physical focus in the input and moves the tab stop", async ({ page }) => {
+    await page.focus("#focus-date");
+    await expect(page.locator("#focus-picker .dp-picker-panel")).toBeVisible();
+    await page.evaluate(() => {
+      document.getElementById("focus-picker").calendar.focusedDate = "2026-09-12";
+    });
+    await expect(page.locator("#focus-date")).toBeFocused();
+    await expect(page.locator('#focus-picker .dp-day[data-date="2026-09-12"]')).toHaveAttribute(
+      "tabindex",
+      "0",
+    );
+    await expect(page.locator('#focus-picker .dp-day[data-date="2026-09-06"]')).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+  });
+
   test("ArrowDown from the input moves focus into the grid", async ({ page }) => {
     await page.focus("#focus-date");
     await expect(page.locator("#focus-picker .dp-picker-panel")).toBeVisible();
