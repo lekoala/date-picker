@@ -127,7 +127,6 @@ test("typing start past end keeps both values and flags the modified bound", asy
   await page.locator("#stay-start").blur();
   await expect(page.locator("#stay-start")).toHaveValue("20/09/2026");
   await expect(page.locator("#stay-end")).toHaveValue("15/09/2026");
-
   const before = await page.evaluate(() => ({
     start: document.getElementById("stay-start").validationMessage,
     end: document.getElementById("stay-end").validationMessage,
@@ -157,4 +156,30 @@ test("typing start past end keeps both values and flags the modified bound", asy
     "data-range-end",
     "true",
   );
+});
+
+test("picking start with an uneditable end closes and never edits the end", async ({ page }) => {
+  await page.evaluate(() => {
+    document.getElementById("stay-end").readOnly = true;
+  });
+  await page.locator("#stay-start").focus();
+  await expect(page.locator("#stay-picker .dp-picker-panel")).toBeVisible();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await expect(page.locator("#stay-picker")).toHaveJSProperty("open", false);
+  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
+  await expect(page.locator("#stay-end")).toHaveValue("");
+  await expect(page.locator("#stay-start")).toBeFocused();
+  const range = await page.evaluate(() => document.getElementById("stay-picker").range);
+  expect(range).toEqual({ start: "2026-09-10", end: "" });
+});
+
+test("Escape after the first selection restores focus to the active bound", async ({ page }) => {
+  await page.locator("#stay-start").focus();
+  await expect(page.locator("#stay-picker .dp-picker-panel")).toBeVisible();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await expect(page.locator("#stay-picker")).toHaveJSProperty("open", true);
+  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#stay-picker")).toHaveJSProperty("open", false);
+  await expect(page.locator("#stay-end")).toBeFocused();
 });

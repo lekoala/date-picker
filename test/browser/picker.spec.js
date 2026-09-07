@@ -85,3 +85,20 @@ test("range linkage updates reciprocal effective bounds", async ({ page }) => {
   });
   await expect(page.locator("#end-picker")).toHaveAttribute("min", "2026-09-12");
 });
+
+test("explicit validate rechecks constraints on an already-selected value", async ({ page }) => {
+  await expect(page.locator("#simple-picker")).toHaveAttribute("value", "2026-09-06");
+  await page.evaluate(() => {
+    document.getElementById("simple-picker").min = "2026-09-20";
+  });
+  const invalid = await page.evaluate(() => document.getElementById("simple-picker").validate());
+  expect(invalid).toBe(false);
+  const message = await page.evaluate(() => document.getElementById("simple-date").validationMessage);
+  expect(message.trim()).not.toBe("");
+  await page.evaluate(() => {
+    document.getElementById("simple-picker").min = "";
+  });
+  const valid = await page.evaluate(() => document.getElementById("simple-picker").validate());
+  expect(valid).toBe(true);
+  await expect(page.locator("#simple-picker")).toHaveAttribute("value", "2026-09-06");
+});

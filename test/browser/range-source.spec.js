@@ -24,6 +24,58 @@ test("form reset restores both bounds with a single rangechange", async ({ page 
   expect(after - before).toBe(1);
 });
 
+test("a pending typed commit never overwrites a newer atomic range assignment", async ({ page }) => {
+  await page.locator("#start-date").focus();
+  await expect(page.locator("#range-picker .dp-picker-panel")).toBeVisible();
+  await page.evaluate(() => {
+    window.__hang = true;
+  });
+  await page.fill("#start-date", "15/10/2026");
+  await page.locator("#start-date").blur();
+  await page.evaluate(() => {
+    document.getElementById("range-picker").range = { start: "2026-09-20", end: "2026-09-25" };
+  });
+  await page.evaluate(() => {
+    window.__hang = false;
+  });
+  await page.waitForTimeout(300);
+
+  await expect(page.locator("#start-date")).toHaveValue("20/09/2026");
+  await expect(page.locator("#end-date")).toHaveValue("25/09/2026");
+  const range = await page.evaluate(() => document.getElementById("range-picker").range);
+  expect(range).toEqual({ start: "2026-09-20", end: "2026-09-25" });
+  await expect(page.locator('#range-picker input[type="hidden"][name="arrival"]')).toHaveValue("2026-09-20");
+  await expect(page.locator('#range-picker input[type="hidden"][name="departure"]')).toHaveValue(
+    "2026-09-25",
+  );
+  const events = await page.evaluate(() => window.__events);
+  expect(events.some((entry) => entry.startsWith("rangechange") && entry.includes("2026-10-15"))).toBe(false);
+});
+
+test("range validate applies a recovered availability and keeps values coherent", async ({ page }) => {
+  await page.evaluate(() => {
+    document.getElementById("range-picker").min = "2026-09-12";
+  });
+  const invalid = await page.evaluate(() => document.getElementById("range-picker").validate());
+  expect(invalid).toBe(false);
+  const message = await page.evaluate(() => document.getElementById("start-date").validationMessage);
+  expect(message.trim()).not.toBe("");
+
+  await page.evaluate(() => {
+    document.getElementById("range-picker").min = "";
+  });
+  const valid = await page.evaluate(() => document.getElementById("range-picker").validate());
+  expect(valid).toBe(true);
+  await expect(page.locator("#start-date")).toHaveValue("10/09/2026");
+  await expect(page.locator("#end-date")).toHaveValue("15/09/2026");
+  await expect(page.locator('#range-picker input[type="hidden"][name="arrival"]')).toHaveValue("2026-09-10");
+  await expect(page.locator('#range-picker input[type="hidden"][name="departure"]')).toHaveValue(
+    "2026-09-15",
+  );
+  const range = await page.evaluate(() => document.getElementById("range-picker").range);
+  expect(range).toEqual({ start: "2026-09-10", end: "2026-09-15" });
+});
+
 test("disabling the active bound while open closes the popover", async ({ page }) => {
   await page.locator("#start-date").focus();
   await expect(page.locator("#range-picker .dp-picker-panel")).toBeVisible();

@@ -601,7 +601,11 @@ export class DatePickerElement extends HTMLElement {
           // closed or a newer activation superseded this one.
           if (pending === undefined || pending !== this._rangeCommitId) return;
           this._pendingIntents.delete(date);
-          const result = this._range.activate(date);
+          const result = this._range.activate(date, (which) => {
+            const index = which === "end" ? 1 : 0;
+            const field = this._fields?.[index];
+            return field != null && !field.input.disabled && !field.input.readOnly;
+          });
           if (result.status === "refused") {
             this._calendar?.dispatchEvent(
               new CustomEvent("dateinvalid", {
@@ -611,8 +615,8 @@ export class DatePickerElement extends HTMLElement {
             );
             return;
           }
-          this._setBound(result.endpoint, date, { emit: true });
-          if (result.status === "complete") {
+          this._setBound(result.endpoint, date, { emit: true, user: true });
+          if (result.close || result.status === "complete") {
             this.hide(false);
             this._focusField(result.endpoint);
           }
@@ -825,11 +829,13 @@ export class DatePickerElement extends HTMLElement {
     return { ok: true };
   }
 
-  /** @param {boolean} emit */
-  async _commitText(emit) {
+  /** @param {boolean} emit @param {{force?: boolean}} [options] */
+  async _commitText(emit, options = {}) {
     const field = this._field;
     if (!field) return false;
-    if (!field.isDirty) return false;
+    // Blur/change skip untouched text; explicit validation must recheck the
+    // current value against the latest constraints regardless of dirtiness.
+    if (!options.force && !field.isDirty) return false;
     const result = await field.commit();
     if (result.status === "stale" || result.status === "invalid") return false;
     this._setValue(result.value || "", { emit, format: result.status === "ok" });
@@ -849,12 +855,12 @@ export class DatePickerElement extends HTMLElement {
       this._orderTags.delete(index);
       return false;
     }
-    this._setBound(which, result.value || "", { emit: true, format: result.status === "ok" });
+    this._setBound(which, result.value || "", { emit: true, user: true, format: result.status === "ok" });
     return true;
   }
 
   /** @param {"start" | "end"} which @param {string} value
-   * @param {{emit?:boolean, format?:boolean}} [options] @returns {boolean} */
+   * @param {{emit?:boolean, format?:boolean, user?:boolean}} [options] @returns {boolean} */
   _setBound(which, value, options = {}) {
     if (!this._range) return false;
     const fields = this._fields;
@@ -862,6 +868,9 @@ export class DatePickerElement extends HTMLElement {
     const index = which === "end" ? 1 : 0;
     const field = fields[index];
     if (!field) return false;
+    // User initiated picks must respect disabled/readonly bounds; reset,
+    // explicit validation and programmatic assignments keep their own path.
+    if (options.user === true && (field.input.disabled || field.input.readOnly)) return false;
     const next = value || "";
     // The range model may already hold the target (a calendar activation moved
     // it), so change detection reads the field canonical, not the model.
@@ -1022,11 +1031,21 @@ export class DatePickerElement extends HTMLElement {
   /** @public */
   async validate() {
     if (this._rangeMode()) {
-      if (!this._fields) return true;
-      for (const field of this._fields) await field.validate();
+      const fields = this._fields;
+      if (!fields) return true;
+      // One owner for values: each commit result is applied centrally so the
+      // field controller, hidden ISO, range model and events stay coherent.
+      // Empty text flows through commit()'s "clear" outcome, not an early exit.
+      for (const [index, field] of fields.entries()) {
+        const result = await field.commit();
+        if (result.status === "ok" || result.status === "clear") {
+          const which = index === 1 ? "end" : "start";
+          this._setBound(which, result.value || "", { format: result.status === "ok" });
+        }
+      }
       this._revalidateRange("start");
       this._revalidateRange("end");
-      return this._fields.every((field) => field.input.checkValidity());
+      return fields.every((field) => field.input.checkValidity());
     }
     const input = this._field?.input;
     if (!input) return true;
@@ -1034,7 +1053,7 @@ export class DatePickerElement extends HTMLElement {
       input.setCustomValidity("");
       return input.checkValidity();
     }
-    await this._commitText(false);
+    await this._commitText(false, { force: true });
     return input.checkValidity();
   }
 
@@ -1094,7 +1113,28 @@ export class DatePickerElement extends HTMLElement {
     this._setExpanded(false);
     this._rangeCommitId++;
     this._pendingIntents.clear();
-    if (restoreFocus) this._focusInput();
+    if (restoreFocus) {
+      if (this._rangeMode()) {
+        const endpoint = this._restoreFocusEndpoint();
+        if (endpoint) this._focusField(endpoint);
+      } else {
+        this._focusInput();
+      }
+    }
     this.dispatchEvent(new Event("close", { bubbles: true }));
+  }
+
+  /** The bound to restore focus to after closing a range popup: the active
+   * endpoint first (it moved after the first selection), then the next
+   * focusable bound.
+   * @returns {"" | "start" | "end"} */
+  _restoreFocusEndpoint() {
+    const active = this._range?.activeEndpoint || "";
+    if (active) {
+      const index = active === "end" ? 1 : 0;
+      const field = this._fields?.[index];
+      if (field && !field.input.disabled && !field.input.readOnly) return active;
+    }
+    return this._resolveRangeEndpoint();
   }
 }

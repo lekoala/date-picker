@@ -86,19 +86,33 @@ export class DateRangeController {
 
   /**
    * Process one grid activation through the active endpoint.
+   *
+   * `editable(bound)` reports whether a bound can receive a user pick. It
+   * guards every commit and the `start -> end` transition: when the next bound
+   * is uneditable the returned result carries `close: true` instead of leaving
+   * the popup targeting a bound that can never change. `status: "complete"`
+   * stays reserved for an actually ordered pair.
    * @param {string} date
-   * @returns {{status: "pending" | "complete" | "refused", endpoint: "start" | "end"}}
+   * @param {(bound: "start" | "end") => boolean} [editable]
+   * @returns {{status: "pending" | "complete" | "refused", endpoint: "start" | "end", close?: boolean}}
    */
-  activate(date) {
+  activate(date, editable = () => true) {
     if (!isDate(date)) throw new TypeError(`Invalid range activation: ${date}`);
     if (this.activeEndpoint === "end") {
       if (this.start && compareDates(date, this.start) < 0) {
         return { status: "refused", endpoint: "end" };
       }
+      if (!editable("end")) return { status: "refused", endpoint: "end" };
       this.end = date;
       return { status: this.start ? "complete" : "pending", endpoint: "end" };
     }
+    if (!editable("start")) return { status: "refused", endpoint: "start" };
     this.start = date;
+    if (!editable("end")) {
+      // The range stays incomplete but must close: the next bound cannot
+      // receive the complementary pick.
+      return { status: "pending", endpoint: "start", close: true };
+    }
     this.activeEndpoint = "end";
     return { status: "pending", endpoint: "start" };
   }

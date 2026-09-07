@@ -173,22 +173,14 @@ export class DateFieldController {
   setCanonical(value, options = {}) {
     const next = value || "";
     if (next && !isDate(next)) throw new TypeError(`Invalid date-picker value: ${next}`);
+    // A programmatic/coordinator application supersedes any in-flight text
+    // commit, so an older pending result can never overwrite a newer value.
+    this.dirty();
     this.canonical = next;
     this._dirty = false;
     if (this.hidden) this.hidden.value = next;
     if (options.format !== false) this.input.value = next ? this.adapter.format(next) : "";
     this.input.setCustomValidity("");
-  }
-
-  /** @returns {Promise<boolean>} */
-  async validate() {
-    const input = this.input;
-    if (!input.value.trim()) {
-      input.setCustomValidity("");
-      return input.checkValidity();
-    }
-    await this.commit();
-    return input.checkValidity();
   }
 
   /** Restore value from `input.defaultValue` (native form reset). */
