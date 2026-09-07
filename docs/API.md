@@ -190,6 +190,19 @@ adapter.parse("06/09/2026");     // 2026-09-06
 
 ISO input is accepted as a fallback even when the locale display is different.
 
+## Locales
+
+Control-message dictionaries ship per locale and can be attached through the `messages` property:
+
+```js
+import fr from "@lekoala/date-picker/locales/fr";
+calendar.messages = fr;
+```
+
+Available tags: `ar`, `de`, `en`, `es`, `fr`, `hi`, `id`, `it`, `ja`, `ko`, `nl`, `pl`, `pt-BR`, `pt-PT`, `ru`, `tr`, `zh-CN`. `en` mirrors the built-in defaults.
+
+Only the short control labels (choose/change date, month/year names, grid heading, validation messages, format hint, week heading) are locale data. Everything locale-shaped on screen — month/weekday names, the editable pattern and placeholder, parsing and digit normalization — comes from `Intl` via the `locale` attribute, so a dictionary is never required for a new language to display correctly.
+
 ## `dates`
 
 Pure helpers are exported as a namespace:

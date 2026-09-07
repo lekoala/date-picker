@@ -1,0 +1,14 @@
+export default {
+  chooseDate: "Выберите дату",
+  changeDate: "Изменить дату",
+  previousMonth: "Предыдущий месяц",
+  nextMonth: "Следующий месяц",
+  month: "Месяц",
+  year: "Год",
+  calendar: "Выберите дату",
+  unavailable: "Недоступно",
+  invalidDate: "Введите корректную дату",
+  unavailableDate: "Эта дата недоступна",
+  formatHint: "Формат",
+  week: "Неделя",
+};

@@ -1,0 +1,14 @@
+export default {
+  chooseDate: "Datum auswählen",
+  changeDate: "Datum ändern",
+  previousMonth: "Vorheriger Monat",
+  nextMonth: "Nächster Monat",
+  month: "Monat",
+  year: "Jahr",
+  calendar: "Datum auswählen",
+  unavailable: "Nicht verfügbar",
+  invalidDate: "Gültiges Datum eingeben",
+  unavailableDate: "Dieses Datum ist nicht verfügbar",
+  formatHint: "Format",
+  week: "Woche",
+};

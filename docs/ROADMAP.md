@@ -38,7 +38,7 @@ Use Formidable/Flatpickr cases as migration fixtures:
 
 - remote enable/disable payload;
 - date markers/events → metadata/decoration;
-- French/Spanish locale;
+- French/Spanish locale → shipped locale message dictionaries (`ar`, `de`, `en`, `es`, `fr`, `hi`, `id`, `it`, `ja`, `ko`, `nl`, `pl`, `pt-BR`, `pt-PT`, `ru`, `tr`, `zh-CN`);
 - initial canonical values;
 - inline calendar;
 - linked start/end fields;

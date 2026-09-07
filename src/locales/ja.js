@@ -1,0 +1,14 @@
+export default {
+  chooseDate: "日付を選択",
+  changeDate: "日付を変更",
+  previousMonth: "前の月",
+  nextMonth: "次の月",
+  month: "月",
+  year: "年",
+  calendar: "日付を選択",
+  unavailable: "利用できません",
+  invalidDate: "有効な日付を入力してください",
+  unavailableDate: "この日付は利用できません",
+  formatHint: "形式",
+  week: "週",
+};

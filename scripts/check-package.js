@@ -9,6 +9,7 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 
 const npmCommand = process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "npm";
 const npmArgs =
@@ -28,6 +29,8 @@ const [result] = JSON.parse(raw.slice(start, end + 1));
 const paths = result.files.map((f) => f.path);
 const has = (p) => paths.includes(p);
 const hasPrefix = (prefix) => paths.some((p) => p.startsWith(prefix));
+
+const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 
 const errors = [];
 
@@ -63,6 +66,23 @@ for (const p of mustInclude) {
   }
 }
 
+// Every shipped locale must be reachable through an `exports` subpath, and
+// every `./locales/*` subpath must resolve to a real source file.
+const localeFiles = paths.filter((p) => p.startsWith("src/locales/") && p.endsWith(".js"));
+for (const p of localeFiles) {
+  const tag = path.basename(p, ".js");
+  if (!pkg.exports[`./locales/${tag}`]) {
+    errors.push(`src/locales/${tag}.js has no exports subpath ./locales/${tag}`);
+  }
+}
+const localeSubpaths = Object.keys(pkg.exports).filter((k) => k.startsWith("./locales/"));
+for (const subpath of localeSubpaths) {
+  const tag = subpath.slice("./locales/".length);
+  if (!localeFiles.includes(`src/locales/${tag}.js`)) {
+    errors.push(`exports["${subpath}"] has no matching src/locales/${tag}.js`);
+  }
+}
+
 for (const prefix of ["src/", "dist/types/"]) {
   if (!hasPrefix(prefix)) {
     errors.push(`missing files under ${prefix}`);
@@ -74,8 +94,6 @@ for (const prefix of ["test/", "demo/", "scripts/", ".github/", ".temp/"]) {
     errors.push(`unexpected dev files under ${prefix}`);
   }
 }
-
-const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 
 function collectExportTargets(entry) {
   if (typeof entry === "string") {
