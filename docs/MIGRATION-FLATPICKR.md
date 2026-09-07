@@ -4,21 +4,21 @@ This prototype was scoped against the existing `FlatpickrInput` wrapper rather t
 
 ## Directly covered
 
-| Existing need | New direction |
-| --- | --- |
-| canonical `Y-m-d` value | `date-picker.value` / hidden form value `YYYY-MM-DD` |
-| localized pretty display | `Intl` numeric adapter while staying editable |
-| `minDate` / `maxDate` | `min` / `max` |
-| disable callback | `isDateDisabled(date)` |
-| dynamic enable/disable | source state + `dateState()` |
-| `configUrl` on navigation | abortable `source.load({start,end}, {signal})` |
-| bars/events on dates | source metadata + `renderDay()` + accessible `description` |
-| inline calendar | `<date-calendar>` |
-| previous/next month | calendar methods/buttons |
-| direct month/year choice | native month/year selects |
-| start/end relation | `linkDateRange(start, end)` |
-| locale | `Intl` locale + small control-message dictionaries |
-| value-changed hook | `valuechange` / native input+change events |
+| Existing need             | New direction                                              |
+|---------------------------|------------------------------------------------------------|
+| canonical `Y-m-d` value   | `date-picker.value` / hidden form value `YYYY-MM-DD`       |
+| localized pretty display  | `Intl` numeric adapter while staying editable              |
+| `minDate` / `maxDate`     | `min` / `max`                                              |
+| disable callback          | `isDateDisabled(date)`                                     |
+| dynamic enable/disable    | source state + `dateState()`                               |
+| `configUrl` on navigation | abortable `source.load({start,end}, {signal})`             |
+| bars/events on dates      | source metadata + `renderDay()` + accessible `description` |
+| inline calendar           | `<date-calendar>`                                          |
+| previous/next month       | calendar methods/buttons                                   |
+| direct month/year choice  | native month/year selects                                  |
+| start/end relation        | `linkDateRange(start, end)`                                |
+| locale                    | `Intl` locale + small control-message dictionaries         |
+| value-changed hook        | `valuechange` / native input+change events                 |
 
 ## The display-format change is intentional
 

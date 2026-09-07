@@ -29,6 +29,7 @@ export class DatePickerElement extends HTMLElement {
     this._stopTracking = null;
     this._open = false;
     this._suppressFocusOpen = false;
+    this._commitId = 0;
     this._messages = getDefaultMessages();
     /** @type {any} */
     this._source = null;
@@ -51,6 +52,7 @@ export class DatePickerElement extends HTMLElement {
     this._input = input;
     this._setupFormValue();
     this._build();
+    this._syncInputState();
     this._bind();
     this._syncCalendarOptions();
 
@@ -61,10 +63,16 @@ export class DatePickerElement extends HTMLElement {
     else if (!input.value) this._setValue("", { emit: false, format: false });
     else input.setCustomValidity(this._messages.invalidDate);
 
-    // Native form reset restores these defaultValues, then _restoreDefault()
-    // recommits the canonical value from them.
-    input.defaultValue = input.value;
+    // Native form reset restores control defaultValues, then _restoreDefault()
+    // recommits the canonical value from them. Never redefine an author-provided
+    // input.defaultValue here: the next reset must use the native default (which
+    // the app may change). Only when enhancement itself supplies the initial
+    // text (picker value attr, no input value attr) does that text become the
+    // default to restore.
     if (this._hiddenInput) this._hiddenInput.defaultValue = this._value;
+    if (input.getAttribute("value") == null && input.defaultValue === "") {
+      input.defaultValue = input.value;
+    }
   }
 
   disconnectedCallback() {
@@ -74,7 +82,8 @@ export class DatePickerElement extends HTMLElement {
     this._controller = null;
     this._attributeObserver?.disconnect();
     this._attributeObserver = null;
-    if (this._input && this._originalName) this._input.setAttribute("name", this._originalName);
+    const hiddenName = this._hiddenInput?.getAttribute("name") || this._originalName;
+    if (this._input && hiddenName) this._input.setAttribute("name", hiddenName);
     if (this._input) {
       if (this._originalDescribedBy) this._input.setAttribute("aria-describedby", this._originalDescribedBy);
       else this._input.removeAttribute("aria-describedby");
@@ -195,6 +204,7 @@ export class DatePickerElement extends HTMLElement {
   set source(value) {
     this._source = value || null;
     if (this._calendar) this._calendar.source = this._source;
+    if (this._connected) void this.validate();
   }
 
   /** @public @returns {any} */
@@ -205,6 +215,7 @@ export class DatePickerElement extends HTMLElement {
   set dateState(value) {
     this._dateState = typeof value === "function" ? value : null;
     if (this._calendar) this._calendar.dateState = this._dateState;
+    if (this._connected) void this.validate();
   }
 
   /** @public @returns {any} */
@@ -225,6 +236,7 @@ export class DatePickerElement extends HTMLElement {
   set isDateDisabled(value) {
     this._isDateDisabled = typeof value === "function" ? value : null;
     if (this._calendar) this._calendar.isDateDisabled = this._isDateDisabled;
+    if (this._connected) void this.validate();
   }
 
   _adapter() {
@@ -235,21 +247,49 @@ export class DatePickerElement extends HTMLElement {
     const input = this._input;
     if (!input) return;
     this._originalName = input.getAttribute("name") || "";
-    if (!this._originalName) return;
-    const hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.name = this._originalName;
-    if (input.hasAttribute("form")) hidden.setAttribute("form", input.getAttribute("form") || "");
-    hidden.disabled = input.disabled;
-    input.removeAttribute("name");
-    input.insertAdjacentElement("afterend", hidden);
-    this._hiddenInput = hidden;
-    this._attributeObserver = new MutationObserver(() => {
-      if (!this._input) return;
-      if (this._hiddenInput) this._hiddenInput.disabled = this._input.disabled;
-      if (this._button) this._button.disabled = this._input.disabled || this._input.readOnly;
+    if (this._originalName) {
+      const hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = this._originalName;
+      if (input.hasAttribute("form")) hidden.setAttribute("form", input.getAttribute("form") || "");
+      hidden.disabled = input.disabled;
+      hidden.value = this._value;
+      input.removeAttribute("name");
+      input.insertAdjacentElement("afterend", hidden);
+      this._hiddenInput = hidden;
+    }
+    this._attributeObserver = new MutationObserver(() => this._syncInputState());
+    this._attributeObserver.observe(input, {
+      attributes: true,
+      attributeFilter: ["disabled", "readonly", "name", "form"],
     });
-    this._attributeObserver.observe(input, { attributes: true, attributeFilter: ["disabled", "readonly"] });
+  }
+
+  _syncInputState() {
+    const input = this._input;
+    if (!input) return;
+    // The hidden canonical field owns submission: a dynamic input name moves
+    // to the hidden field and is stripped from the visible input, so the
+    // payload never contains both the localized text and the ISO value.
+    const name = input.getAttribute("name") || "";
+    if (name) {
+      if (!this._hiddenInput) {
+        const hidden = document.createElement("input");
+        hidden.type = "hidden";
+        hidden.value = this._value;
+        input.insertAdjacentElement("afterend", hidden);
+        this._hiddenInput = hidden;
+      }
+      if (this._hiddenInput) this._hiddenInput.name = name;
+      input.removeAttribute("name");
+    }
+    if (this._hiddenInput) {
+      if (input.hasAttribute("form"))
+        this._hiddenInput.setAttribute("form", input.getAttribute("form") || "");
+      else this._hiddenInput.removeAttribute("form");
+      this._hiddenInput.disabled = input.disabled;
+    }
+    if (this._button) this._button.disabled = input.disabled || input.readOnly;
   }
 
   _build() {
@@ -311,7 +351,23 @@ export class DatePickerElement extends HTMLElement {
     this._controller = controller;
     const { signal } = controller;
 
-    input.addEventListener("input", () => input.setCustomValidity(""), { signal });
+    input.addEventListener(
+      "input",
+      () => {
+        // Raw text is no longer the validated canonical value: the old ISO
+        // must never submit (requestSubmit/FormData can bypass blur/change).
+        this._commitId++;
+        if (this._hiddenInput) this._hiddenInput.value = "";
+        const text = input.value.trim();
+        if (!text) {
+          input.setCustomValidity("");
+          return;
+        }
+        const canonical = this._value ? this._adapter().format(this._value) : "";
+        input.setCustomValidity(text === canonical ? "" : this._messages.invalidDate);
+      },
+      { signal },
+    );
     input.addEventListener("change", () => void this._commitText(false), { signal });
     input.addEventListener("blur", () => void this._commitText(false), { signal });
     input.addEventListener(
@@ -371,12 +427,19 @@ export class DatePickerElement extends HTMLElement {
         const custom = /** @type {CustomEvent} */ (event);
         const date = custom.detail?.date;
         if (!isDate(date)) return;
-        this._setValue(date, { emit: true, format: true });
-        this.hide(false);
-        this._focusInput();
+        // The app listener on <date-picker> runs after this during bubbling;
+        // defer the commit so preventDefault() is actually respected.
+        queueMicrotask(() => {
+          if (custom.defaultPrevented || !this._connected) return;
+          this._commitId++;
+          this._setValue(date, { emit: true, format: true });
+          this.hide(false);
+          this._focusInput();
+        });
       },
       { signal },
     );
+    calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
     this.ownerDocument.addEventListener(
       "pointerdown",
       (event) => {
@@ -390,10 +453,12 @@ export class DatePickerElement extends HTMLElement {
       (event) => {
         const form = event.target;
         if (form instanceof HTMLFormElement && this._input && form === this._input.form) {
-          // The reset event fires before the control values are restored;
-          // re-derive the canonical value once the reset has applied.
+          // The reset event fires before the control values are restored and
+          // is cancelable; only resync when the reset actually applies.
           this.hide(false);
-          queueMicrotask(() => this._restoreDefault());
+          queueMicrotask(() => {
+            if (!event.defaultPrevented) this._restoreDefault();
+          });
         }
       },
       { capture: true, signal },
@@ -432,7 +497,7 @@ export class DatePickerElement extends HTMLElement {
     const hint = this._formatHint;
     if (!input || !hint) return;
     const adapter = this._adapter();
-    hint.textContent = `Format: ${adapter.placeholder}`;
+    hint.textContent = `${this._messages.formatHint}: ${adapter.placeholder}`;
     if (!input.hasAttribute("placeholder") || this._generatedPlaceholder) {
       input.placeholder = adapter.placeholder;
       this._generatedPlaceholder = true;
@@ -516,22 +581,28 @@ export class DatePickerElement extends HTMLElement {
     const input = this._input;
     const calendar = this._calendar;
     if (!input || !calendar) return false;
+    const commitId = ++this._commitId;
     const text = input.value.trim();
     if (!text) {
+      if (commitId !== this._commitId) return false;
       this._setValue("", { emit, format: false });
       input.setCustomValidity("");
       return true;
     }
     const parsed = this._adapter().parse(text);
     if (!parsed) {
+      if (commitId !== this._commitId) return false;
+      if (this._hiddenInput) this._hiddenInput.value = "";
       input.setCustomValidity(this._messages.invalidDate);
       return false;
     }
     const display = monthKey(parsed);
     if (calendar.display !== display) calendar.display = display;
     await calendar.ensureDate(parsed);
+    if (commitId !== this._commitId) return false;
     const state = calendar.getDateState(parsed);
     if (state.disabled) {
+      if (this._hiddenInput) this._hiddenInput.value = "";
       input.setCustomValidity(this._messages.unavailableDate);
       return false;
     }

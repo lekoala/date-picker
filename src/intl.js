@@ -31,6 +31,7 @@ function normalizeDigits(text, locale) {
 export function formatLongDate(value, locale = "") {
   const resolved = resolveLocale(locale);
   return new Intl.DateTimeFormat(resolved, {
+    calendar: "gregory",
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -43,6 +44,7 @@ export function formatLongDate(value, locale = "") {
 export function formatMonthYear(value, locale = "") {
   const resolved = resolveLocale(locale);
   return new Intl.DateTimeFormat(resolved, {
+    calendar: "gregory",
     year: "numeric",
     month: "long",
     timeZone: "UTC",
@@ -52,7 +54,7 @@ export function formatMonthYear(value, locale = "") {
 /** @param {string} [locale] @param {"long"|"short"} [style] */
 export function monthNames(locale = "", style = "long") {
   const resolved = resolveLocale(locale);
-  const formatter = new Intl.DateTimeFormat(resolved, { month: style, timeZone: "UTC" });
+  const formatter = new Intl.DateTimeFormat(resolved, { calendar: "gregory", month: style, timeZone: "UTC" });
   return Array.from({ length: 12 }, (_, index) =>
     formatter.format(toIntlDate(`2026-${String(index + 1).padStart(2, "0")}-15`)),
   );
@@ -65,7 +67,11 @@ export function monthNames(locale = "", style = "long") {
  */
 export function weekdayNames(locale = "", firstDay = 1, style = "short") {
   const resolved = resolveLocale(locale);
-  const formatter = new Intl.DateTimeFormat(resolved, { weekday: style, timeZone: "UTC" });
+  const formatter = new Intl.DateTimeFormat(resolved, {
+    calendar: "gregory",
+    weekday: style,
+    timeZone: "UTC",
+  });
   // 2026-01-04 is a Sunday.
   const sunday = toIntlDate("2026-01-04");
   return Array.from({ length: 7 }, (_, index) => {
@@ -87,6 +93,7 @@ function escapeRegExp(value) {
 export function createDateAdapter(locale = "") {
   const resolved = resolveLocale(locale);
   const formatter = new Intl.DateTimeFormat(resolved, {
+    calendar: "gregory",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

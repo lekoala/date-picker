@@ -106,7 +106,9 @@ When `forced-colors: active`, the selected day switches to a border-based treatm
 - `Highlight` outer border;
 - an inner `CanvasText` ring.
 
-This avoids relying on white text over a `Highlight` fill, which can become ambiguous when the active high-contrast theme resolves `Highlight` near-white or when small white digits rasterize poorly.
+Today keeps the base 1px outline — `border-color: var(--dp-accent)` force-adjusts to `CanvasText` here, so it stays a thin `CanvasText` border. Selected and today therefore remain distinct through border color, width, the inner ring and weight (selected is `700`), not through a shared system key.
+
+This avoids relying on white text over a `Highlight` fill, which can become ambiguous when the active high-contrast theme resolves `Highlight` near-white or when small white digits rasterize poorly. The disabled state is `GrayText` at full opacity.
 
 Guard: re-run the `color-contrast` review and the forced-colors screenshot bundle whenever `--dp-*` styling or day-cell rendering changes.
 

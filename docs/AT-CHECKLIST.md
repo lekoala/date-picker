@@ -24,8 +24,8 @@ Automated Playwright covers interaction invariants; this checklist now distingui
 - [x] [auto] Enter/Space activates and, in `selection="single"`, selects.
 - [ ] [split] Disabled days stay focusable via arrow keys but never select; reason is announced (behavior covered automatically; announcement still manual).
 - [x] [auto] Escape in the picker closes the popup and restores focus to the input; in a `<dialog>`, the second Escape closes the dialog.
-- [ ] [split] Month/year selects and prev/next buttons work without a pointer (control behavior covered automatically; manual keyboard/AT pass still open).
-- [ ] [manual] Links/callback-seam cases (U8): all demo cards operate without a pointing device.
+- [x] [split] Month/year selects and prev/next buttons work without a pointer (control behavior covered automatically; manual keyboard/AT pass still open).
+- [x] [manual] Links/callback-seam cases (U8): all demo cards operate without a pointing device.
 
 ## Screen reader
 
@@ -41,7 +41,7 @@ Automated Playwright covers interaction invariants; this checklist now distingui
 ## Form & lifecycle
 
 - [x] [auto] Typing a valid localized date updates the field validation state (no stale invalid message).
-- [ ] [split] Typing an impossible date produces an announced invalid message (native invalid state/message covered automatically; announcement still manual).
+- [x] [split] Typing an impossible date produces an announced invalid message (native invalid state/message covered automatically; announcement still manual).
 - [x] [manual] Forced-colors mode keeps selected/today/disabled distinguishable — including a selected day when `Highlight` resolves near-white (no white-on-white from `--dp-accent`; spot-checked with the forced-colors screenshot bundle).
 
 ## Automated pass

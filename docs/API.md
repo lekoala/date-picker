@@ -6,17 +6,17 @@ The public surface — flat event names, `selection` values, `--dp-*` styling to
 
 ### Attributes / properties
 
-| Name | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| `value` | `YYYY-MM-DD` | `""` | Selected date. |
-| `display` | `YYYY-MM` | value/today month | Month being rendered. |
-| `min` | `YYYY-MM-DD` | `""` | Earliest activatable date. |
-| `max` | `YYYY-MM-DD` | `""` | Latest activatable date. |
-| `first-day` | `0..6` | `1` | First weekday; Sunday=0, Monday=1. |
-| `locale` | BCP 47 string | document/navigator | `Intl` locale. |
-| `selection` | `single \| none` | `single` | Whether accepted activation updates `value`. |
-| `fixed-weeks` | boolean | false | Render six rows; date math itself stays 4–6. |
-| `show-week-numbers` | boolean | false | Show ISO week numbers. |
+| Name                | Type             | Default            | Meaning                                      |
+|---------------------|------------------|--------------------|----------------------------------------------|
+| `value`             | `YYYY-MM-DD`     | `""`               | Selected date.                               |
+| `display`           | `YYYY-MM`        | value/today month  | Month being rendered.                        |
+| `min`               | `YYYY-MM-DD`     | `""`               | Earliest activatable date.                   |
+| `max`               | `YYYY-MM-DD`     | `""`               | Latest activatable date.                     |
+| `first-day`         | `0..6`           | `1`                | First weekday; Sunday=0, Monday=1.           |
+| `locale`            | BCP 47 string    | document/navigator | `Intl` locale.                               |
+| `selection`         | `single \| none` | `single`           | Whether accepted activation updates `value`. |
+| `fixed-weeks`       | boolean          | false              | Render six rows; date math itself stays 4–6. |
+| `show-week-numbers` | boolean          | false              | Show ISO week numbers.                       |
 
 `focusedDate` is a property (`YYYY-MM-DD`) rather than a reflected attribute.
 

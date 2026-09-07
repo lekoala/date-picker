@@ -88,6 +88,7 @@ bun run test:browser
 bun run build
 ```
 
+No need to lint before formatting - you can always apply formatting, this saves one call.
 Source remains JavaScript with JSDoc + TypeScript `checkJs`, matching `@lekoala/combobox`.
 
 ## Before expanding scope

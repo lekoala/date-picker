@@ -84,7 +84,13 @@ mini.dateState = (date) => ({
   description: date === anchorDate ? "Date affichée dans l’agenda" : "Naviguer à cette date",
   anchor: date === anchorDate,
 });
-mini.renderDay = (date) => (Number(date.slice(8, 10)) % 5 === 0 ? "•" : "");
+mini.renderDay = (date) => {
+  if (Number(date.slice(8, 10)) % 5 !== 0) return "";
+  const span = document.createElement("span");
+  span.className = "availability";
+  span.append(document.createElement("i"));
+  return span;
+};
 mini.addEventListener("dateactivate", (event) => {
   agenda.gotoDate(event.detail.date);
 });

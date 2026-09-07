@@ -9,4 +9,6 @@ export default {
   unavailable: "Indisponible",
   invalidDate: "Saisissez une date valide",
   unavailableDate: "Cette date n’est pas disponible",
+  formatHint: "Format",
+  week: "Semaine",
 };

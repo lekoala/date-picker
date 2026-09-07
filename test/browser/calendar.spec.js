@@ -5,7 +5,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("fixed weeks is presentation while the inline calendar keeps one roving tab stop", async ({ page }) => {
-  await page.selectOption("#inline .dp-year-select", "2021");
+  await page.fill("#inline .dp-year-input", "2021");
+  await page.locator("#inline .dp-year-input").blur();
   await page.selectOption("#inline .dp-month-select", "02");
   await expect(page.locator("#inline .dp-day")).toHaveCount(42);
   await expect(page.locator('#inline .dp-day[tabindex="0"]')).toHaveCount(1);
@@ -129,7 +130,10 @@ test("forced colors keep selected, today and disabled days visually distinct", a
   page,
   browserName,
 }) => {
-  test.skip(browserName !== "chromium", "forced-colors visual assertions follow the Chromium capture pipeline");
+  test.skip(
+    browserName !== "chromium",
+    "forced-colors visual assertions follow the Chromium capture pipeline",
+  );
   await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
 
   const styles = await page.evaluate(() => {
@@ -162,7 +166,10 @@ test("forced colors keep selected, today and disabled days visually distinct", a
   expect(styles.selected.borderWidth).toBe("2px");
   expect(styles.selected.beforeBorderWidth).toBe("1px");
   expect(styles.selected.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
-  expect(styles.selected.borderColor).toBe(styles.today.borderColor);
+  expect(styles.selected.borderColor).not.toBe(styles.today.borderColor);
+  expect(styles.selected.borderWidth).not.toBe(styles.today.borderWidth);
+  expect(styles.today.borderWidth).toBe("1px");
+  expect(styles.today.borderColor).not.toBe("rgba(0, 0, 0, 0)");
   expect(styles.selected.color).toBe(styles.selected.beforeBorderColor);
   expect(styles.disabled.opacity).toBe("1");
   expect(styles.disabled.color).not.toBe(styles.selected.color);

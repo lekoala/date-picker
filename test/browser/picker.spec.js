@@ -31,7 +31,7 @@ test("Tab reaches the trigger, month/year controls and the single grid tab stop"
   await page.keyboard.press("Tab");
   await expect(page.locator("#simple-picker .dp-month-select")).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.locator("#simple-picker .dp-year-select")).toBeFocused();
+  await expect(page.locator("#simple-picker .dp-year-input")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.locator("#simple-picker .dp-prev")).toBeFocused();
   await page.keyboard.press("Tab");

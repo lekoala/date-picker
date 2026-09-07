@@ -9,6 +9,8 @@ export const DEFAULT_MESSAGES = {
   unavailable: "Unavailable",
   invalidDate: "Enter a valid date",
   unavailableDate: "This date is unavailable",
+  formatHint: "Format",
+  week: "Week",
 };
 
 let defaults = { ...DEFAULT_MESSAGES };

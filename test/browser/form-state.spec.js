@@ -44,7 +44,9 @@ test.describe("form lifecycle and ownership", () => {
     await expect(page.locator("#reset-date")).toHaveValue("06/09/2026");
   });
 
-  test("impossible then valid manual input updates native validity without a stale error", async ({ page }) => {
+  test("impossible then valid manual input updates native validity without a stale error", async ({
+    page,
+  }) => {
     await page.fill("#reset-date", "99/99/2026");
     await page.locator("#reset-date").blur();
 
@@ -156,8 +158,8 @@ test.describe("form lifecycle and ownership", () => {
       document.getElementById("reset-date").name = "renamed";
     });
     await page.click("#submit-btn");
-    // The canonical hidden field keeps name="date"; the late reassignment adds
-    // the visible local value back into the payload as a second field.
-    await expect(page.locator("#demo-out")).toHaveText("renamed=06%2F09%2F2026&date=2026-09-06");
+    // The hidden canonical field takes the new name; the visible input is
+    // stripped of name so the payload holds a single ISO value.
+    await expect(page.locator("#demo-out")).toHaveText("renamed=2026-09-06");
   });
 });
