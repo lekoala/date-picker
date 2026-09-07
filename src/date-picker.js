@@ -1,6 +1,7 @@
 import { autoUpdate, reposition } from "@lekoala/floating";
 import { isDate, monthKey, todayISO } from "./date.js";
 import { DateCalendarElement } from "./date-calendar.js";
+import { DateFieldController } from "./date-field.js";
 import { createDateAdapter, formatLongDate, resolveLocale } from "./intl.js";
 import { getDefaultMessages } from "./messages.js";
 
@@ -16,20 +17,18 @@ export class DatePickerElement extends HTMLElement {
     this._reflecting = false;
     this._value = "";
     this._input = null;
-    this._hiddenInput = null;
+    /** @type {DateFieldController | null} */
+    this._field = null;
     this._button = null;
     this._panel = null;
     this._calendar = null;
-    this._originalName = "";
     this._originalDescribedBy = "";
     this._formatHint = null;
     this._generatedPlaceholder = false;
     this._controller = null;
-    this._attributeObserver = null;
     this._stopTracking = null;
     this._open = false;
     this._suppressFocusOpen = false;
-    this._commitId = 0;
     this._messages = getDefaultMessages();
     /** @type {any} */
     this._source = null;
@@ -50,6 +49,9 @@ export class DatePickerElement extends HTMLElement {
     }
     this._connected = true;
     this._input = input;
+    this._field = new DateFieldController(input, { messages: this._messages, locale: this.locale });
+    this._field.onAttributesChanged = () => this._syncInputState();
+    this._field.confirm = (date) => this._confirmDate(date);
     this._setupFormValue();
     this._build();
     this._syncInputState();
@@ -69,7 +71,7 @@ export class DatePickerElement extends HTMLElement {
     // the app may change). Only when enhancement itself supplies the initial
     // text (picker value attr, no input value attr) does that text become the
     // default to restore.
-    if (this._hiddenInput) this._hiddenInput.defaultValue = this._value;
+    if (this._field.hidden) this._field.hidden.defaultValue = this._value;
     if (input.getAttribute("value") == null && input.defaultValue === "") {
       input.defaultValue = input.value;
     }
@@ -80,10 +82,8 @@ export class DatePickerElement extends HTMLElement {
     this.hide(false);
     this._controller?.abort();
     this._controller = null;
-    this._attributeObserver?.disconnect();
-    this._attributeObserver = null;
-    const hiddenName = this._hiddenInput?.getAttribute("name") || this._originalName;
-    if (this._input && hiddenName) this._input.setAttribute("name", hiddenName);
+    this._field?.teardown();
+    this._field = null;
     if (this._input) {
       if (this._originalDescribedBy) this._input.setAttribute("aria-describedby", this._originalDescribedBy);
       else this._input.removeAttribute("aria-describedby");
@@ -92,11 +92,9 @@ export class DatePickerElement extends HTMLElement {
       this._input.removeAttribute("aria-expanded");
       this._input.removeAttribute("aria-controls");
     }
-    this._hiddenInput?.remove();
     this._button?.remove();
     this._panel?.remove();
     this._formatHint?.remove();
-    this._hiddenInput = null;
     this._button = null;
     this._panel = null;
     this._calendar = null;
@@ -192,6 +190,7 @@ export class DatePickerElement extends HTMLElement {
   set messages(value) {
     this._messages = { ...getDefaultMessages(), ...(value || {}) };
     if (this._calendar) this._calendar.messages = this._messages;
+    this._field?.setMessages(this._messages);
     this._refreshButtonLabel();
     void this.validate();
   }
@@ -240,55 +239,19 @@ export class DatePickerElement extends HTMLElement {
   }
 
   _adapter() {
-    return createDateAdapter(this.locale);
+    return this._field?.adapter ?? createDateAdapter(this.locale);
   }
 
   _setupFormValue() {
-    const input = this._input;
-    if (!input) return;
-    this._originalName = input.getAttribute("name") || "";
-    if (this._originalName) {
-      const hidden = document.createElement("input");
-      hidden.type = "hidden";
-      hidden.name = this._originalName;
-      if (input.hasAttribute("form")) hidden.setAttribute("form", input.getAttribute("form") || "");
-      hidden.disabled = input.disabled;
-      hidden.value = this._value;
-      input.removeAttribute("name");
-      input.insertAdjacentElement("afterend", hidden);
-      this._hiddenInput = hidden;
-    }
-    this._attributeObserver = new MutationObserver(() => this._syncInputState());
-    this._attributeObserver.observe(input, {
-      attributes: true,
-      attributeFilter: ["disabled", "readonly", "name", "form"],
-    });
+    this._field?.setupFormValue();
   }
 
   _syncInputState() {
     const input = this._input;
     if (!input) return;
-    // The hidden canonical field owns submission: a dynamic input name moves
-    // to the hidden field and is stripped from the visible input, so the
-    // payload never contains both the localized text and the ISO value.
-    const name = input.getAttribute("name") || "";
-    if (name) {
-      if (!this._hiddenInput) {
-        const hidden = document.createElement("input");
-        hidden.type = "hidden";
-        hidden.value = this._value;
-        input.insertAdjacentElement("afterend", hidden);
-        this._hiddenInput = hidden;
-      }
-      if (this._hiddenInput) this._hiddenInput.name = name;
-      input.removeAttribute("name");
-    }
-    if (this._hiddenInput) {
-      if (input.hasAttribute("form"))
-        this._hiddenInput.setAttribute("form", input.getAttribute("form") || "");
-      else this._hiddenInput.removeAttribute("form");
-      this._hiddenInput.disabled = input.disabled;
-    }
+    // The hidden canonical field owns submission; dynamic name/form/disabled
+    // movement lives in the field controller.
+    this._field?.syncInputState();
     if (this._button) this._button.disabled = input.disabled || input.readOnly;
     if (this._open && (input.disabled || input.readOnly)) this.hide(false);
   }
@@ -357,15 +320,7 @@ export class DatePickerElement extends HTMLElement {
       () => {
         // Raw text is no longer the validated canonical value: the old ISO
         // must never submit (requestSubmit/FormData can bypass blur/change).
-        this._commitId++;
-        if (this._hiddenInput) this._hiddenInput.value = "";
-        const text = input.value.trim();
-        if (!text) {
-          input.setCustomValidity("");
-          return;
-        }
-        const canonical = this._value ? this._adapter().format(this._value) : "";
-        input.setCustomValidity(text === canonical ? "" : this._messages.invalidDate);
+        this._field?.handleInput();
       },
       { signal },
     );
@@ -433,7 +388,7 @@ export class DatePickerElement extends HTMLElement {
         queueMicrotask(() => {
           if (custom.defaultPrevented || !this._connected) return;
           if (this._input?.disabled || this._input?.readOnly) return;
-          this._commitId++;
+          this._field?.dirty();
           this._setValue(date, { emit: true, format: true });
           this.hide(false);
           this._focusInput();
@@ -495,16 +450,16 @@ export class DatePickerElement extends HTMLElement {
   }
 
   _refreshLocale() {
-    const input = this._input;
+    const field = this._field;
     const hint = this._formatHint;
-    if (!input || !hint) return;
-    const adapter = this._adapter();
-    hint.textContent = `${this._messages.formatHint}: ${adapter.placeholder}`;
-    if (!input.hasAttribute("placeholder") || this._generatedPlaceholder) {
-      input.placeholder = adapter.placeholder;
+    if (!field || !hint) return;
+    field.setLocale(this.locale);
+    hint.textContent = `${this._messages.formatHint}: ${field.placeholder}`;
+    if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholder) {
+      field.input.placeholder = field.placeholder;
       this._generatedPlaceholder = true;
     }
-    if (this._value) input.value = adapter.format(this._value);
+    if (this._value) field.input.value = field.format(this._value);
     this._refreshButtonLabel();
   }
 
@@ -529,32 +484,27 @@ export class DatePickerElement extends HTMLElement {
     const previous = this._value;
     this._value = value || "";
     if (options.reflect !== false) this._reflectValue(this._value);
-    if (this._hiddenInput) this._hiddenInput.value = this._value;
-    if (this._input && options.format !== false)
-      this._input.value = this._value ? this._adapter().format(this._value) : "";
+    this._field?.setCanonical(this._value, { format: options.format !== false });
     if (this._calendar) {
       this._calendar.value = this._value;
       if (this._value) this._calendar.focusedDate = this._value;
     }
-    this._input?.setCustomValidity("");
     this._refreshButtonLabel();
-    if (options.emit && previous !== this._value) {
+    if (previous !== this._value) {
       this.dispatchEvent(new CustomEvent("valuechange", { detail: { value: this._value }, bubbles: true }));
-      if (this._input) {
-        this._input.dispatchEvent(new Event("input", { bubbles: true }));
-        this._input.dispatchEvent(new Event("change", { bubbles: true }));
+      if (options.emit && this._field) {
+        const input = this._field.input;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
       }
-    } else if (previous !== this._value) {
-      this.dispatchEvent(new CustomEvent("valuechange", { detail: { value: this._value }, bubbles: true }));
     }
   }
 
   _restoreDefault() {
-    const input = this._input;
-    if (!input) return;
-    const text = String(input.defaultValue ?? "").trim();
-    const parsed = isDate(text) ? text : this._adapter().parse(text);
-    this._setValue(parsed && isDate(parsed) ? parsed : "", { emit: false, format: true });
+    const field = this._field;
+    if (!field) return;
+    const value = field.restoreDefault();
+    this._setValue(value, { emit: false, format: true });
     if (this._calendar) {
       if (this._value) {
         this._calendar.display = monthKey(this._value);
@@ -578,50 +528,36 @@ export class DatePickerElement extends HTMLElement {
     }, 0);
   }
 
+  /**
+   * Calendar-backed availability gate injected into the field controller.
+   * A cancelled or failed source load confirms nothing: do not fill the
+   * submitted ISO field nor treat the date as available.
+   * @param {string} date @returns {Promise<{ok: boolean, message?: string}>}
+   */
+  async _confirmDate(date) {
+    const calendar = this._calendar;
+    if (!calendar) return { ok: true };
+    const display = monthKey(date);
+    if (calendar.display !== display) calendar.display = display;
+    const confirmed = await calendar.ensureDate(date);
+    const state = calendar.getDateState(date);
+    if (!confirmed || state.disabled) return { ok: false, message: this._messages.unavailableDate };
+    return { ok: true };
+  }
+
   /** @param {boolean} emit */
   async _commitText(emit) {
-    const input = this._input;
-    const calendar = this._calendar;
-    if (!input || !calendar) return false;
-    const commitId = ++this._commitId;
-    const text = input.value.trim();
-    if (!text) {
-      if (commitId !== this._commitId) return false;
-      this._setValue("", { emit, format: false });
-      input.setCustomValidity("");
-      return true;
-    }
-    const parsed = this._adapter().parse(text);
-    if (!parsed) {
-      if (commitId !== this._commitId) return false;
-      if (this._hiddenInput) this._hiddenInput.value = "";
-      input.setCustomValidity(this._messages.invalidDate);
-      return false;
-    }
-    const display = monthKey(parsed);
-    if (calendar.display !== display) calendar.display = display;
-    const confirmed = await calendar.ensureDate(parsed);
-    if (commitId !== this._commitId) return false;
-    if (!confirmed) {
-      // A cancelled or failed source load confirms nothing: do not fill the
-      // submitted ISO field nor treat the date as available.
-      if (this._hiddenInput) this._hiddenInput.value = "";
-      input.setCustomValidity(this._messages.unavailableDate);
-      return false;
-    }
-    const state = calendar.getDateState(parsed);
-    if (state.disabled) {
-      if (this._hiddenInput) this._hiddenInput.value = "";
-      input.setCustomValidity(this._messages.unavailableDate);
-      return false;
-    }
-    this._setValue(parsed, { emit, format: true });
+    const field = this._field;
+    if (!field) return false;
+    const result = await field.commit();
+    if (result.status === "stale" || result.status === "invalid") return false;
+    this._setValue(result.value || "", { emit, format: result.status === "ok" });
     return true;
   }
 
   /** @public */
   async validate() {
-    const input = this._input;
+    const input = this._field?.input;
     if (!input) return true;
     if (!input.value.trim()) {
       input.setCustomValidity("");
