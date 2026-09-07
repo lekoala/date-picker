@@ -12,11 +12,11 @@ The public surface — flat event names, `selection` values, `--dp-*` styling to
 | `display`           | `YYYY-MM`        | value/today month  | Month being rendered.                        |
 | `min`               | `YYYY-MM-DD`     | `""`               | Earliest activatable date.                   |
 | `max`               | `YYYY-MM-DD`     | `""`               | Latest activatable date.                     |
-| `first-day`         | `0..6`           | `1`                | First weekday; Sunday=0, Monday=1.           |
+| `first-day`         | `0..6` (`7` alias) | `1`                | First weekday; Sunday=0, Monday=1. `7` is accepted as an ISO-style alias of Sunday (`@lekoala/calendar` uses 1..7) and never shifts the grid. Other values fall back to Monday. |
 | `locale`            | BCP 47 string    | document/navigator | `Intl` locale.                               |
 | `selection`         | `single \| none` | `single`           | Whether accepted activation updates `value`. |
 | `fixed-weeks`       | boolean          | false              | Render six rows; date math itself stays 4–6. |
-| `show-week-numbers` | boolean          | false              | Show ISO week numbers.                       |
+| `show-week-numbers` | boolean          | false              | Show ISO week numbers. The column renders only when `first-day === 1` (Monday-first): the ISO week and the displayed week only coincide then. With Sunday-first (`0`/`7`) the column is silently withheld. |
 
 `focusedDate` and `highlightedRange` are properties rather than reflected attributes.
 
@@ -283,7 +283,10 @@ Public helpers:
 - `dayOfWeek`
 - `startOfWeek`
 - `endOfWeek`
+- `normalizeFirstDay`
 - `getMonthWeeks`
 - `clampDate`
 - `todayISO`
 - `isoWeekNumber`
+
+`normalizeFirstDay(firstDay)` maps `7` to `0` (Sunday) and returns `0..6` unchanged; any other value throws a `RangeError`. It backs `startOfWeek`, `getMonthWeeks` and `weekdayNames`, so those accept `7` as the ISO-style Sunday alias `@lekoala/calendar` uses while `2..6` keep their current meaning.

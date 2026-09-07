@@ -1,4 +1,4 @@
-import { isDate, parseDate, toIntlDate, toISODate } from "./date.js";
+import { isDate, normalizeFirstDay, parseDate, toIntlDate, toISODate } from "./date.js";
 
 const BIDI = /[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g;
 
@@ -72,11 +72,12 @@ export function weekdayNames(locale = "", firstDay = 1, style = "short") {
     weekday: style,
     timeZone: "UTC",
   });
+  const normalized = normalizeFirstDay(firstDay);
   // 2026-01-04 is a Sunday.
   const sunday = toIntlDate("2026-01-04");
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date(sunday);
-    date.setUTCDate(sunday.getUTCDate() + ((firstDay + index) % 7));
+    date.setUTCDate(sunday.getUTCDate() + ((normalized + index) % 7));
     return formatter.format(date);
   });
 }

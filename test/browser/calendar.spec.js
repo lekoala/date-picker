@@ -13,6 +13,70 @@ test("fixed weeks is presentation while the inline calendar keeps one roving tab
   await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
 });
 
+test("first-day=7 aligns the grid exactly like first-day=0", async ({ page }) => {
+  const layout = await page.evaluate(() => {
+    const make = (attr) => {
+      const element = document.createElement("date-calendar");
+      element.setAttribute("display", "2026-09");
+      element.setAttribute("fixed-weeks", "");
+      element.setAttribute("first-day", attr);
+      document.body.append(element);
+      const headers = [...element.querySelectorAll(".dp-grid thead th")].map((th) => th.textContent?.trim());
+      return {
+        headers,
+        firstCell: element.querySelector(".dp-day[data-date]")?.getAttribute("data-date"),
+      };
+    };
+    return { monday: make("1"), sunday: make("0"), iso: make("7") };
+  });
+  expect(layout.iso.headers).toEqual(layout.sunday.headers);
+  expect(layout.iso.firstCell).toBe(layout.sunday.firstCell);
+  expect(layout.iso.firstCell).toBe("2026-08-30");
+  expect(layout.iso.headers).not.toEqual(layout.monday.headers);
+});
+
+test("show-week-numbers renders only in a Monday-first grid", async ({ page }) => {
+  const counts = await page.evaluate(() => {
+    const make = (attr) => {
+      const element = document.createElement("date-calendar");
+      element.setAttribute("display", "2026-09");
+      element.setAttribute("fixed-weeks", "");
+      element.setAttribute("show-week-numbers", "");
+      element.setAttribute("first-day", attr);
+      document.body.append(element);
+      return {
+        weekNumber: element.querySelectorAll(".dp-week-number").length,
+        header: element.querySelectorAll(".dp-week-heading").length,
+      };
+    };
+    return { monday: make("1"), sunday: make("0"), iso: make("7") };
+  });
+  expect(counts.monday.weekNumber).toBeGreaterThan(0);
+  expect(counts.monday.header).toBe(1);
+  expect(counts.sunday).toEqual({ weekNumber: 0, header: 0 });
+  expect(counts.iso).toEqual({ weekNumber: 0, header: 0 });
+});
+
+test("the grid heading is visually hidden but keeps naming and the live region", async ({ page }) => {
+  const heading = page.locator("#inline .dp-calendar-heading");
+  const grid = page.locator("#inline .dp-grid");
+  await expect(heading).toHaveCount(1);
+  await expect(heading).toHaveClass(/dp-visually-hidden/);
+  await expect(heading).toHaveCSS("position", "absolute");
+  await expect(heading).toHaveAttribute("aria-live", "polite");
+  const labelledBy = await grid.getAttribute("aria-labelledby");
+  expect(labelledBy).toBeTruthy();
+  await expect(page.locator(`#inline #${labelledBy}`)).toHaveClass(/dp-calendar-heading/);
+});
+
+test("the agenda anchor renders a visual marker and moves on activation", async ({ page }) => {
+  const anchorCell = page.locator('#mini .dp-day[data-date="2026-09-03"] .availability i.anchor');
+  await expect(anchorCell).toHaveCount(1);
+  await page.click('#mini .dp-day[data-date="2026-09-10"]');
+  await expect(page.locator('#mini .dp-day[data-date="2026-09-10"] .availability i.anchor')).toHaveCount(1);
+  await expect(anchorCell).toHaveCount(0);
+});
+
 test("month/year navigation changes display but not selection", async ({ page }) => {
   await page.selectOption("#inline .dp-month-select", "10");
   await expect(page.locator("#inline")).toHaveAttribute("display", "2026-10");

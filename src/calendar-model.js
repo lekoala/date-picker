@@ -5,6 +5,7 @@ import {
   endOfWeek,
   isDate,
   monthKey,
+  normalizeFirstDay,
   shiftMonth,
   startOfWeek,
   todayISO,
@@ -16,7 +17,7 @@ export class CalendarModel {
    */
   constructor(options = {}) {
     const today = todayISO();
-    this.firstDay = options.firstDay ?? 1;
+    this.firstDay = normalizeFirstDay(options.firstDay ?? 1);
     this.value = options.value && isDate(options.value) ? options.value : "";
     this.focused = options.focused && isDate(options.focused) ? options.focused : this.value || today;
     this.display = options.display ? monthKey(options.display) : monthKey(this.focused);

@@ -22,3 +22,8 @@ test("month focus clamps the day while preserving selection", () => {
   expect(model.focused).toBe("2026-02-28");
   expect(model.value).toBe("2026-01-31");
 });
+
+test("firstDay 7 normalizes to Sunday in the model", () => {
+  expect(new CalendarModel({ firstDay: 7 }).firstDay).toBe(0);
+  expect(new CalendarModel({ firstDay: 2 }).firstDay).toBe(2);
+});

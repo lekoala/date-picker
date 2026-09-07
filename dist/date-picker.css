@@ -104,12 +104,9 @@ date-calendar {
   background: var(--dp-hover);
 }
 
-.dp-calendar-heading {
-  margin: 0 0 0.35rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-align: center;
-}
+/* .dp-calendar-heading is always visually hidden: it names the grid via
+   aria-labelledby and stays the aria-live announcement channel while the
+   month/year selects render the same info visually. */
 
 .dp-grid {
   border-collapse: separate;

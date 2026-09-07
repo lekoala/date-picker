@@ -35,6 +35,21 @@ test("week helpers honor firstDay", () => {
   expect(startOfWeek("2026-09-03", 0)).toBe("2026-08-30");
 });
 
+test("firstDay 7 is a pure Sunday alias; 2+ keep their meaning", () => {
+  expect(startOfWeek("2026-09-03", 7)).toBe("2026-08-30");
+  expect(startOfWeek("2026-09-03", 7)).toBe(startOfWeek("2026-09-03", 0));
+  expect(startOfWeek("2026-09-03", 7)).not.toBe("2026-08-31");
+  expect(getMonthWeeks("2026-09", { firstDay: 7 })).toEqual(getMonthWeeks("2026-09", { firstDay: 0 }));
+  expect(startOfWeek("2026-09-03", 2)).toBe("2026-09-01");
+  expect(startOfWeek("2026-09-03", 3)).toBe("2026-09-02");
+  expect(startOfWeek("2026-09-03", 1)).toBe("2026-08-31");
+});
+
+test("firstDay rejects values outside the Sunday/Monday..Saturday range", () => {
+  expect(() => startOfWeek("2026-09-03", 8)).toThrow("firstDay must be 0..6");
+  expect(() => getMonthWeeks("2026-09", { firstDay: 8 })).toThrow("firstDay must be 0..6");
+});
+
 test("ISO week number matches the mini-calendar fixture", () => {
   expect(isoWeekNumber("2026-08-31")).toBe(36);
 });

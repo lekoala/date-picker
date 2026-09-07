@@ -25,21 +25,27 @@ A minimal sidebar navigator therefore looks like this:
 const mini = document.querySelector("#mini");
 const agenda = document.querySelector("#agenda");
 
-mini.display = agenda.date.toString().slice(0, 7);
-mini.focusedDate = agenda.date.toString();
+// The agenda anchor stays application state, not a model property.
+let anchorDate = agenda.getAttribute("date");
+
+mini.dateState = (date) => ({
+  description: date === anchorDate ? "Shown in the agenda" : "Navigate to this date",
+  anchor: date === anchorDate,
+});
 
 mini.addEventListener("dateactivate", (event) => {
   agenda.gotoDate(event.detail.date);
 });
 
 agenda.addEventListener("calendar:datechange", (event) => {
-  const date = event.detail.date.toString();
-  mini.display = date.slice(0, 7);
-  mini.focusedDate = date;
+  anchorDate = event.detail.date.toString();
+  mini.display = anchorDate.slice(0, 7);
 });
 ```
 
-Notice what is missing: the mini calendar does not need a selected value. The agenda anchor is application/calendar state, not form selection state.
+Do not anchor the mini calendar with `mini.focusedDate = date`. `display` and `focusedDate` are deliberately coupled: `setDisplay` re-clamps the focused day into the rendered month (`calendar-model.js`), because the roving-tabbable grid cell must stay visible (ARIA grid contract). So `focusedDate` is the keyboard target, never an application anchor. Keep the anchor in your own state and decorate it through the existing `dateState` / `renderDay` seams.
+
+Notice what else is missing: the mini calendar does not need a selected value. The agenda anchor is application/calendar state, not form selection state.
 
 ## Active week / availability decoration
 

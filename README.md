@@ -10,11 +10,13 @@ This project fills the gap between a normal editable date field and a full sched
 
 ### `<date-calendar>`
 
-An inline calendar with real month/year navigation, keyboard support and three separate pieces of state:
+An inline calendar with real month/year navigation, keyboard support and three distinct pieces of state:
 
 - `display` — the month being rendered (`YYYY-MM`);
 - `focusedDate` — the roving keyboard target (`YYYY-MM-DD`);
 - `value` — the selected date (`YYYY-MM-DD`, optional).
+
+`display` and `focusedDate` are coupled during navigation/display: changing the displayed month re-clamps the focused day into that month, because the roving-tabbable grid cell must stay visible. `value` and activation stay independent of both.
 
 User activation is exposed separately as `dateactivate`. This is what makes the same calendar useful as a selector **and** as a mini navigator.
 

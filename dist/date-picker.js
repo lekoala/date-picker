@@ -1,4 +1,4 @@
-/*** @lekoala/date-picker v0.1.0 - https://github.com/lekoala/date-picker ***/
+/*** @lekoala/date-picker v0.1.1 - https://github.com/lekoala/date-picker ***/
 (() => {
   var __defProp = Object.defineProperty;
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -156,10 +156,15 @@
       throw new TypeError(`Invalid civil date: ${value}`);
     return toUTCDate(parsed).getUTCDay();
   }
-  function startOfWeek(value, firstDay = 1) {
+  function normalizeFirstDay(firstDay) {
+    if (firstDay === 7)
+      return 0;
     if (!Number.isInteger(firstDay) || firstDay < 0 || firstDay > 6)
-      throw new RangeError("firstDay must be 0..6");
-    const offset = (dayOfWeek(value) - firstDay + 7) % 7;
+      throw new RangeError("firstDay must be 0..6 (Sunday=0, 7 accepted as Sunday alias)");
+    return firstDay;
+  }
+  function startOfWeek(value, firstDay = 1) {
+    const offset = (dayOfWeek(value) - normalizeFirstDay(firstDay) + 7) % 7;
     return addDays(value, -offset);
   }
   function endOfWeek(value, firstDay = 1) {
@@ -210,7 +215,7 @@
   class CalendarModel {
     constructor(options = {}) {
       const today = todayISO();
-      this.firstDay = options.firstDay ?? 1;
+      this.firstDay = normalizeFirstDay(options.firstDay ?? 1);
       this.value = options.value && isDate(options.value) ? options.value : "";
       this.focused = options.focused && isDate(options.focused) ? options.focused : this.value || today;
       this.display = options.display ? monthKey(options.display) : monthKey(this.focused);
@@ -394,10 +399,11 @@
       weekday: style,
       timeZone: "UTC"
     });
+    const normalized = normalizeFirstDay(firstDay);
     const sunday = toIntlDate("2026-01-04");
     return Array.from({ length: 7 }, (_, index) => {
       const date = new Date(sunday);
-      date.setUTCDate(sunday.getUTCDate() + (firstDay + index) % 7);
+      date.setUTCDate(sunday.getUTCDate() + (normalized + index) % 7);
       return formatter.format(date);
     });
   }
@@ -518,6 +524,8 @@
   }
   function parseFirstDay(value) {
     const parsed = Number(value);
+    if (parsed === 7)
+      return 0;
     return Number.isInteger(parsed) && parsed >= 0 && parsed <= 6 ? parsed : 1;
   }
   function yearOf(month) {
@@ -1157,7 +1165,7 @@
           <button type="button" class="dp-nav dp-prev" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10 4-4 4 4 4"/></svg></button>
           <button type="button" class="dp-nav dp-next" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></button>
         </div>
-        <h2 id="${headingId}" class="dp-calendar-heading" aria-live="polite">${escapeHtml(formatMonthYear(`${display}-15`, locale))}</h2>
+        <h2 id="${headingId}" class="dp-calendar-heading dp-visually-hidden" aria-live="polite">${escapeHtml(formatMonthYear(`${display}-15`, locale))}</h2>
         <table id="${gridId}" class="dp-grid" role="grid" aria-labelledby="${headingId}">
           <thead><tr>${weekHeader}${dayHeaders}</tr></thead>
           <tbody>${rows}</tbody>

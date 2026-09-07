@@ -141,11 +141,21 @@ export function dayOfWeek(value) {
   return toUTCDate(parsed).getUTCDay();
 }
 
+/**
+ * Canonical first weekday. 7 is the ISO-style Sunday alias of 0; values 1..6
+ * keep their current meaning. Any other value throws.
+ * @param {number} firstDay
+ */
+export function normalizeFirstDay(firstDay) {
+  if (firstDay === 7) return 0;
+  if (!Number.isInteger(firstDay) || firstDay < 0 || firstDay > 6)
+    throw new RangeError("firstDay must be 0..6 (Sunday=0, 7 accepted as Sunday alias)");
+  return firstDay;
+}
+
 /** @param {string} value @param {number} firstDay */
 export function startOfWeek(value, firstDay = 1) {
-  if (!Number.isInteger(firstDay) || firstDay < 0 || firstDay > 6)
-    throw new RangeError("firstDay must be 0..6");
-  const offset = (dayOfWeek(value) - firstDay + 7) % 7;
+  const offset = (dayOfWeek(value) - normalizeFirstDay(firstDay) + 7) % 7;
   return addDays(value, -offset);
 }
 

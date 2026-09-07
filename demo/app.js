@@ -105,11 +105,17 @@ mini.dateState = (date) => ({
   description: date === anchorDate ? "Date affichée dans l’agenda" : "Naviguer à cette date",
   anchor: date === anchorDate,
 });
-mini.renderDay = (date) => {
-  if (Number(date.slice(8, 10)) % 5 !== 0) return "";
+mini.renderDay = (date, state) => {
+  const isDot = Number(date.slice(8, 10)) % 5 === 0;
+  if (!state.anchor && !isDot) return "";
   const span = document.createElement("span");
   span.className = "availability";
-  span.append(document.createElement("i"));
+  if (isDot) span.append(document.createElement("i"));
+  if (state.anchor) {
+    const marker = document.createElement("i");
+    marker.className = "anchor";
+    span.append(marker);
+  }
   return span;
 };
 mini.addEventListener("dateactivate", (event) => {
@@ -118,6 +124,4 @@ mini.addEventListener("dateactivate", (event) => {
 agenda.addEventListener("calendar:datechange", (event) => {
   anchorDate = event.detail.date.toString();
   mini.display = anchorDate.slice(0, 7);
-  mini.focusedDate = anchorDate;
-  mini.render();
 });

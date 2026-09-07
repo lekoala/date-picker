@@ -1,6 +1,6 @@
 {
   "name": "@lekoala/date-picker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Native-first date picker and inline calendar primitives",
   "type": "module",
   "sideEffects": [

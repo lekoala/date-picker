@@ -40,6 +40,12 @@ export declare function startOfMonth(value: string): string;
 export declare function endOfMonth(value: string): string;
 /** 0=Sunday ... 6=Saturday. @param {string} value */
 export declare function dayOfWeek(value: string): number;
+/**
+ * Canonical first weekday. 7 is the ISO-style Sunday alias of 0; values 1..6
+ * keep their current meaning. Any other value throws.
+ * @param {number} firstDay
+ */
+export declare function normalizeFirstDay(firstDay: number): number;
 /** @param {string} value @param {number} firstDay */
 export declare function startOfWeek(value: string, firstDay?: number): string;
 /** @param {string} value @param {number} firstDay */
