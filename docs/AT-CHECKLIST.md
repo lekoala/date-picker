@@ -1,6 +1,8 @@
 # Manual accessibility test pass
 
-Automated Playwright covers interaction invariants; this checklist now distinguishes what the repo can re-check from what only a human with a real screen reader, keyboard or visual review can confirm. Run the manual parts once before `0.1.0` and record the result below.
+Automated Playwright covers interaction invariants; this checklist now distinguishes what the repo can re-check from what only a human with a real screen reader, keyboard or visual review can confirm.
+
+Release decision (0.1.0): the human reader/OS pairings below are **deferred past 0.1** — the automated portion is the 0.1 gate, and the [Recommended manual test matrix](ACCESSIBILITY.md#recommended-manual-test-matrix) plus the Record table stay open until the passes are actually run and logged.
 
 ## Legend
 
@@ -54,7 +56,7 @@ Automated Playwright covers interaction invariants; this checklist now distingui
 
 ## Record
 
-Run once per supported screen reader pairing, then add the date, the pair (OS + reader + browser), and any failures as issues.
+Run once per supported screen reader pairing, then add the date, the pair (OS + reader + browser), and any failures as issues. Still open for 0.1.0.
 
 | Date | OS / reader / browser | Result | Regression issues |
 | --- | --- | --- | --- |

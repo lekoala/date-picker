@@ -1,6 +1,6 @@
 # API
 
-The public surface — flat event names, `selection` values, `--dp-*` styling tokens and the `dateactivate`/`renderDay()` seams — is frozen in [DECISIONS.md](DECISIONS.md). Everything else stays internal and free to move before `0.1.0`.
+The public surface — flat event names, `selection` values, `--dp-*` styling tokens and the `dateactivate`/`renderDay()` seams — is frozen in [DECISIONS.md](DECISIONS.md). Everything else stays internal and is free to change within the same major version.
 
 ## `<date-calendar>`
 
@@ -217,7 +217,7 @@ The business range may be temporarily incomplete or inverted; `calendar.highligh
 const cleanup = linkDateRange(startPicker, endPicker);
 ```
 
-Keeps effective start/end bounds synchronized and revalidates both inputs. Returns an idempotent-style cleanup function (call once in the current prototype).
+Keeps effective start/end bounds synchronized and revalidates both inputs. Returns an idempotent-style cleanup function (call once to detach the relationship).
 
 ## `normalizeRange` and `rangePosition`
 
@@ -265,7 +265,7 @@ Pure helpers are exported as a namespace:
 import { dates } from "@lekoala/date-picker";
 ```
 
-Current prototype helpers:
+Public helpers:
 
 - `isLeapYear`
 - `daysInMonth`

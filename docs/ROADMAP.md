@@ -17,17 +17,19 @@
 - [x] unit/browser test skeleton;
 - [x] demos and architecture docs.
 
-## P1 — harden before 0.1
+## P1 — hardened before 0.1 (shipped in 0.1.0)
 
 - [x] run TypeScript 7/Biome/Bun checks in the actual repo;
 - [x] run Playwright on all engines;
-- [x] manual AT checklist and record ([docs/AT-CHECKLIST.md](AT-CHECKLIST.md)); a human pass still to be logged there;
+- [x] manual AT checklist and record ([docs/AT-CHECKLIST.md](AT-CHECKLIST.md)); the automated portion is the 0.1 gate, the human reader/OS rows track as a post-0.1 recommendation;
 - [x] add a real `@lekoala/calendar` mini-calendar integration demo;
 - [x] validate Popover behavior inside `<dialog>` and nested app surfaces;
 - [x] test form reset, disabled toggles and dynamic name/form ownership;
 - [x] decide exact event naming — flat `dateactivate` etc. ([DECISIONS.md](DECISIONS.md), D1);
 - [x] decide whether `selection="none"` is the final public spelling — yes (D2);
 - [x] decide public styling tokens/class names — `--dp-*` public, `.dp-*` internal (D3);
+- [x] decide the shared-range picker shape — `<date-picker range>` + `linkDateRange` (U9/U5);
+- [x] decide the popup modality on touch surfaces — stays non-modal in 0.1 ([ACCESSIBILITY.md](ACCESSIBILITY.md));
 - [x] add custom-elements manifest once names stabilize — `custom-elements.json`;
 - [x] add package/generated-artifact checks like `@lekoala/combobox`;
 - [x] commit `bun.lock` and freeze installs in CI.

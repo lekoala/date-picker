@@ -2,7 +2,7 @@
 
 Small, native-first date picker and inline calendar primitives.
 
-> Prototype status: the interaction contract, event names and styling surface are frozen — see [docs/DECISIONS.md](docs/DECISIONS.md). The internal DOM and class names remain free to move until `0.1.0`.
+> v0.1: the interaction contract, event names, public styling tokens and the component API are frozen — see [docs/DECISIONS.md](docs/DECISIONS.md). Internal DOM and class names are `.dp-*` implementation details and stay private.
 
 This project fills the gap between a normal editable date field and a full scheduling calendar. A plain date input remains the right answer for simple CMS/editing forms. This component becomes useful when a date has context: availability, disabled days, annotations, remote state, start/end relationships, or a mini calendar that navigates another view.
 
@@ -52,7 +52,20 @@ By default the calendar opens when the field receives focus — without stealing
 
 ## Start/end ranges
 
-Ranges stay outside the picker itself. Two ordinary pickers are linked by one small primitive:
+Two product shapes cover ranges.
+
+**One shared calendar surface** — two editable fields wired to a single picker popup:
+
+```html
+<date-picker range>
+  <input data-range-start name="arrival" aria-label="Arrival">
+  <input data-range-end name="departure" aria-label="Departure">
+</date-picker>
+```
+
+Opening from a field targets that bound; picking the first date moves the active endpoint to the other bound without closing, and the second pick completes and closes. `picker.range` is the atomic `{ start, end }` API (single `rangechange` event).
+
+**Two independent pickers** — a small external link for visually separate fields:
 
 ```js
 import { linkDateRange } from "@lekoala/date-picker";
@@ -140,6 +153,8 @@ bun install
 bun run dev
 ```
 
+If a previous `bun run dev` is still holding port `4859`, clear it with `bun run dev:kill` (or restart in one go with `bun run dev:restart`).
+
 Tooling is aligned with the current LeKoala component repos:
 
 - Bun 1.4.2
@@ -177,7 +192,7 @@ The default ESM exports point at `src/`, matching the native-first development s
 
 ## Scope
 
-Included in the prototype:
+Included in v0.1:
 
 - inline single-date selection;
 - mini-calendar/navigation-only use;
@@ -185,18 +200,20 @@ Included in the prototype:
 - previous/next navigation;
 - editable localized input + canonical submitted value;
 - min/max and custom disabled rules;
-- linked start/end pickers;
+- presentation-only range band (`highlightedRange`);
+- shared-calendar two-field range picker (`<date-picker range>`);
+- linked start/end pickers (`linkDateRange`);
 - async per-day state with cancellation;
 - custom day decorations that cannot replace the accessible cell;
 - fixed six-row presentation as an opt-in;
 - ISO week numbers;
 - keyboard and focus contracts.
 
-Deliberately out of scope for the first release:
+Deliberately out of scope for v0.1:
 
 - time or datetime picking;
 - timezones;
-- single-calendar range painting;
+- in-place single-calendar range *selection interaction* (use the two-field picker);
 - multi-date selection;
 - recurrence;
 - natural-language parsing;
@@ -206,6 +223,7 @@ Deliberately out of scope for the first release:
 
 ## Docs
 
+- [Changelog](CHANGELOG.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Decisions](docs/DECISIONS.md)
 - [API](docs/API.md)

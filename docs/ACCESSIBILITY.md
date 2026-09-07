@@ -87,7 +87,7 @@ Close behavior:
 
 While the popover is open, `Tab` is **not** trapped: focus leaves the popover to the next focusable element in the page. The popup is non-modal (`aria-modal` absent, the rest of the page stays interactive), so capturing the focus the way a modal dialog does would be incoherent — `Escape` remains the predictable way to close and return focus to the field. This deliberately diverges from Duet Date Picker's internal Tab wrap-around.
 
-Before 0.1 we should decide, based on AT testing, whether the popup should remain a non-modal dialog/combobox popup or move to a genuinely modal interaction on small/touch screens.
+Decision for 0.1: the popup stays **non-modal** on every surface, including small/touch screens. A modal variant would need a separate design (focus trap, inert background, explicit close) and a proposal of its own.
 
 ## Validation
 
@@ -112,9 +112,9 @@ This avoids relying on white text over a `Highlight` fill, which can become ambi
 
 Guard: re-run the `color-contrast` review and the forced-colors screenshot bundle whenever `--dp-*` styling or day-cell rendering changes.
 
-## Required manual test matrix before 0.1
+## Recommended manual test matrix
 
-At minimum:
+Beyond what the automated suite covers, the following pairings should be exercised before a broad adoption of 0.1. Results are recorded in [AT-CHECKLIST.md](AT-CHECKLIST.md); the human rows there are still open:
 
 - Windows + Chrome + NVDA;
 - Windows + Firefox + NVDA;

@@ -1,6 +1,6 @@
 # Contributing
 
-This is an early prototype. Keep changes tied to the documented use cases and preserve the small public surface.
+This is a small package with a deliberately frozen public surface. Keep changes tied to the documented use cases and preserve the small surface.
 
 Before a PR:
 
