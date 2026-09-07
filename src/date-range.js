@@ -52,8 +52,8 @@ export function rangePosition(date, range) {
  *
  * Interaction contract (U9):
  * - opening through a field targets that bound;
- * - activating through `end` never touches `start` and a date before `start`
- *   is refused;
+ * - a pick outside a complete range extends the corresponding bound;
+ * - otherwise activating through `end` refuses a date before `start`;
  * - activating through `start` commits `start`, moves the active endpoint to
  *   `end` and leaves the popup open for the second selection.
  *
@@ -98,6 +98,13 @@ export class DateRangeController {
    */
   activate(date, editable = () => true) {
     if (!isDate(date)) throw new TypeError(`Invalid range activation: ${date}`);
+    if (this.complete && (compareDates(date, this.start) < 0 || compareDates(date, this.end) > 0)) {
+      const endpoint = compareDates(date, this.start) < 0 ? "start" : "end";
+      if (!editable(endpoint)) return { status: "refused", endpoint };
+      this[endpoint] = date;
+      this.activeEndpoint = endpoint;
+      return { status: "complete", endpoint };
+    }
     if (this.activeEndpoint === "end") {
       if (this.start && compareDates(date, this.start) < 0) {
         return { status: "refused", endpoint: "end" };

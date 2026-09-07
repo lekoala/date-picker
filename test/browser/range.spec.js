@@ -73,7 +73,7 @@ test("the shared button targets the last active bound, else start", async ({ pag
   await expect(page.locator("#stay-end")).toHaveValue("");
 });
 
-test("opening from end refuses a date before start and closes on a valid end", async ({ page }) => {
+test("a completed range extends before or after regardless of the opening field", async ({ page }) => {
   await page.evaluate(() => {
     document.getElementById("stay-picker").range = { start: "2026-09-10", end: "2026-09-15" };
   });
@@ -81,14 +81,17 @@ test("opening from end refuses a date before start and closes on a valid end", a
   await expect(page.locator("#stay-picker .dp-picker-panel")).toBeVisible();
 
   await page.click('#stay-picker .dp-day[data-date="2026-09-05"]');
-  await expect(page.locator("#stay-picker")).toHaveJSProperty("open", true);
-  await expect(page.locator("#stay-end")).toHaveValue("15/09/2026");
-  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
-
-  await page.click('#stay-picker .dp-day[data-date="2026-09-12"]');
   await expect(page.locator("#stay-picker")).toHaveJSProperty("open", false);
-  await expect(page.locator("#stay-end")).toHaveValue("12/09/2026");
-  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
+  await expect(page.locator("#stay-end")).toHaveValue("15/09/2026");
+  await expect(page.locator("#stay-start")).toHaveValue("05/09/2026");
+
+  await page.click("#stay-picker .dp-picker-button");
+  await page.click('#stay-picker .dp-day[data-date="2026-09-20"]');
+  await expect(page.locator("#stay-picker")).toHaveJSProperty("open", false);
+  await expect(page.locator("#stay-end")).toHaveValue("20/09/2026");
+  await expect(page.locator("#stay-start")).toHaveValue("05/09/2026");
+  await expect(page.locator('#stay-picker input[type="hidden"][name="arrival"]')).toHaveValue("2026-09-05");
+  await expect(page.locator('#stay-picker input[type="hidden"][name="departure"]')).toHaveValue("2026-09-20");
 });
 
 test("picker.range assigns atomically with a single rangechange", async ({ page }) => {

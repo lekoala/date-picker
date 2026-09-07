@@ -135,8 +135,8 @@ test("a newer selection supersedes a still-pending older one", async ({ page }) 
   await page.waitForTimeout(200);
 
   // Only the newer activation commits, exactly once.
-  await expect(page.locator("#start-date")).toHaveValue("05/10/2026");
-  await expect(page.locator("#end-date")).toHaveValue("15/09/2026");
+  await expect(page.locator("#start-date")).toHaveValue("10/09/2026");
+  await expect(page.locator("#end-date")).toHaveValue("05/10/2026");
   const events = await page.evaluate(() => window.__events);
   expect(events.filter((entry) => entry.startsWith("rangechange"))).toHaveLength(1);
 });

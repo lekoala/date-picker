@@ -131,6 +131,8 @@
   },
   "scripts": {
     "dev": "node test/server.js",
+    "dev:kill": "node scripts/kill-port.mjs",
+    "dev:restart": "node scripts/kill-port.mjs && node test/server.js",
     "build:bundle": "bun scripts/build.js",
     "build:types": "bun run types",
     "build:manifest": "bun scripts/custom-elements.js",

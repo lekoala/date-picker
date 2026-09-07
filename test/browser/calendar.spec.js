@@ -266,6 +266,24 @@ test("inline range demo paints the band across two activations", async ({ page }
   await expect(page.locator("#stay-state")).toContainText("2026-09-10 → 2026-09-15");
 });
 
+test("range endpoints keep their contrasting background on hover", async ({ page }) => {
+  await page.evaluate(() => {
+    document.querySelector("#stay-calendar").highlightedRange = {
+      start: "2026-09-10",
+      end: "2026-09-15",
+    };
+  });
+  for (const date of ["2026-09-10", "2026-09-15"]) {
+    await page.mouse.move(0, 0);
+    const cell = page.locator(`#stay-calendar .dp-day[data-date="${date}"]`);
+    const background = await cell.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const foreground = await cell.evaluate((element) => getComputedStyle(element).color);
+    await cell.hover();
+    await expect(cell).toHaveCSS("background-color", background);
+    await expect(cell).toHaveCSS("color", foreground);
+  }
+});
+
 test("constraints disable prev/next and dim them visually", async ({ page }) => {
   const prev = page.locator("#constrained .dp-prev");
   const next = page.locator("#constrained .dp-next");

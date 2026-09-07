@@ -11,7 +11,8 @@ const types = new Map([
   [".json", "application/json; charset=utf-8"],
 ]);
 
-createServer((request, response) => {
+const port = Number(process.env.PORT || 4859);
+const server = createServer((request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
   const pathname = decodeURIComponent(url.pathname === "/" ? "/demo/index.html" : url.pathname);
   const safe = normalize(pathname).replace(/^(\.\.[/\\])+/, "");
@@ -23,6 +24,19 @@ createServer((request, response) => {
   if (statSync(file).isDirectory()) file = join(file, "index.html");
   response.writeHead(200, { "content-type": types.get(extname(file)) || "application/octet-stream" });
   createReadStream(file).pipe(response);
-}).listen(Number(process.env.PORT || 4859), "127.0.0.1", () => {
-  console.log(`date-picker demo: http://127.0.0.1:${Number(process.env.PORT || 4859)}/demo/index.html`);
+});
+
+server.listen(port, "127.0.0.1", () => {
+  console.log(`date-picker demo: http://127.0.0.1:${port}/demo/index.html`);
+});
+
+server.on("error", (error) => {
+  if (error && error.code === "EADDRINUSE") {
+    console.error(
+      `port ${port} is already in use. Kill the running dev server with \`bun run dev:kill\`, or start with a different PORT: \`PORT=xxxx bun run dev\`.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  throw error;
 });

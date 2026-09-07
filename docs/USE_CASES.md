@@ -104,6 +104,7 @@ Acceptance:
 
 - each field stays independently editable and localized, with its own hidden ISO value for submission;
 - opening from a bound targets that bound: selecting a first date commits it, moves the active endpoint to the other bound without closing, and a second selection commits and closes;
+- once an ordered range is complete, activating before it extends the start and activating after it extends the end, regardless of the opening field; the opposite bound stays unchanged and readonly/disabled bounds remain protected;
 - a preloaded range shows the band on open and is never reordered;
 - month/year navigation and arrow-key focus never mutate either bound;
 - an inverted range (start after end) keeps both entered values and surfaces an order error on the bound that was just modified; changing either side revalidates both;

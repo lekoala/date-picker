@@ -7,7 +7,7 @@
   --dp-accent: Highlight;
   --dp-accent-fg: HighlightText;
   --dp-radius: 0.5rem;
-  --dp-day-size: 2.5rem;
+  --dp-day-size: 2.75rem;
   --dp-gap: 0.25rem;
   color: var(--dp-fg);
   font: inherit;
@@ -72,11 +72,20 @@ date-calendar {
 }
 
 .dp-nav {
+  display: grid;
+  place-items: center;
   inline-size: 2.25rem;
   padding: 0;
   font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
+}
+
+.dp-nav svg {
+  display: block;
+  inline-size: 1rem;
+  block-size: 1rem;
+  pointer-events: none;
 }
 
 .dp-calendar-header :where(button, select, input):disabled,
@@ -89,12 +98,10 @@ date-calendar {
   background: var(--dp-hover);
 }
 
-.dp-day:hover:not([data-disabled="true"]):not([data-selected="true"]) {
+.dp-day:hover:not([data-disabled="true"]):not([data-selected="true"]):not([data-range-start="true"]):not(
+  [data-range-end="true"]
+) {
   background: var(--dp-hover);
-}
-
-.dp-day[data-selected="true"]:hover:not([data-disabled="true"]) {
-  box-shadow: inset 0 0 0 2px var(--dp-accent-fg);
 }
 
 .dp-calendar-heading {
@@ -107,7 +114,7 @@ date-calendar {
 .dp-grid {
   border-collapse: separate;
   /* --dp-gap scopes to the header grid; day-cell spacing stays fixed. */
-  border-spacing: 2px;
+  border-spacing: 0 0.25rem;
   table-layout: fixed;
 }
 
@@ -133,11 +140,13 @@ date-calendar {
   cursor: pointer;
   outline: none;
   vertical-align: middle;
+  font-size: 0.875rem;
 }
 
 .dp-day:focus-visible {
   outline: 2px solid var(--dp-accent);
   outline-offset: 1px;
+  z-index: 1;
 }
 
 .dp-day[data-selected="true"] {
@@ -169,9 +178,25 @@ date-calendar {
   background: color-mix(in srgb, var(--dp-accent) 18%, var(--dp-bg));
 }
 
-.dp-day[data-range-start="true"]:hover:not([data-disabled="true"]),
-.dp-day[data-range-end="true"]:hover:not([data-disabled="true"]) {
-  box-shadow: inset 0 0 0 2px var(--dp-accent-fg);
+/* Join the band without gaps, including the corners beside each endpoint. */
+.dp-day[data-range-start="true"]:has(+ [data-in-range="true"], + [data-range-end="true"]) {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.dp-day:is([data-in-range="true"], [data-range-start="true"]) + .dp-day[data-range-end="true"] {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+.dp-day[data-in-range="true"]:first-of-type {
+  border-start-start-radius: var(--dp-radius);
+  border-end-start-radius: var(--dp-radius);
+}
+
+.dp-day[data-in-range="true"]:last-of-type {
+  border-start-end-radius: var(--dp-radius);
+  border-end-end-radius: var(--dp-radius);
 }
 
 .dp-day-number {
@@ -257,12 +282,6 @@ date-picker[range] > .dp-picker-button {
   max-block-size: var(--available-height, 90svh);
   max-inline-size: calc(100vi - 1rem);
   overflow: auto;
-}
-
-@media (max-width: 24rem) {
-  :where(date-calendar, date-picker) {
-    --dp-day-size: 2.1rem;
-  }
 }
 
 .dp-picker-panel:not(:popover-open) {

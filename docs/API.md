@@ -205,7 +205,8 @@ The business range may be temporarily incomplete or inverted; `calendar.highligh
 
 ### Interaction
 
-- Opening through a field targets that bound (`activeEndpoint`). Picking from `start` commits it, moves the endpoint to `end` without closing, and a second pick commits and closes. Opening from `end` never touches `start`; a date before `start` is refused (`dateinvalid`, nothing changes).
+- When an ordered range is complete, picking before its start updates only the start; picking after its end updates only the end, regardless of the opening field. The popup closes after this update. An uneditable target bound refuses the activation.
+- Otherwise, opening through a field targets that bound (`activeEndpoint`). Picking from `start` commits it, moves the endpoint to `end` without closing, and a second pick commits and closes. Opening from `end` refuses a date before `start` (`dateinvalid`, nothing changes).
 - The shared trigger opens the last active bound, else `start`; it never auto-switches to a `readonly`/`disabled` bound.
 - Typing stays independent per field. Moving `start` past `end` keeps both values and flags the *modified* bound with `rangeOrderStart`; fixing either side revalidates both. Parse/source errors are never cleared by cross-bound revalidation.
 - A stale availability response resolving after the active endpoint changed (or after a newer selection) never commits; a field focus that switches the endpoint invalidates in-flight activations.

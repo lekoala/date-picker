@@ -1,5 +1,19 @@
 import { expect, test } from "bun:test";
-import { normalizeRange, rangePosition } from "../../src/date-range.js";
+import { DateRangeController, normalizeRange, rangePosition } from "../../src/date-range.js";
+
+test("complete ranges extend the corresponding editable bound", () => {
+  const model = new DateRangeController();
+  model.start = "2026-09-10";
+  model.end = "2026-09-15";
+  model.focus("end");
+  expect(model.activate("2026-09-05", (bound) => bound !== "start").status).toBe("refused");
+  expect(model.start).toBe("2026-09-10");
+  expect(model.activate("2026-09-05").endpoint).toBe("start");
+  expect(model.activate("2026-09-20", (bound) => bound !== "end").status).toBe("refused");
+  expect(model.end).toBe("2026-09-15");
+  expect(model.activate("2026-09-20").endpoint).toBe("end");
+  expect(model.range).toEqual({ start: "2026-09-05", end: "2026-09-20" });
+});
 
 test("normalizeRange resets on null and empty values", () => {
   expect(normalizeRange(null)).toEqual({ start: "", end: "" });
