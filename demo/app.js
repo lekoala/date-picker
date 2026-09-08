@@ -20,6 +20,27 @@ form.addEventListener("submit", (event) => {
   formState.textContent = `submitted date=${data.get("date")}`;
 });
 
+const timeForm = document.getElementById("time-form");
+const timeState = document.getElementById("time-state");
+timeForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(timeForm);
+  timeState.textContent = `submitted date=${data.get("date")} from=${data.get("from")} to=${data.get("to")}`;
+});
+
+const soloForm = document.getElementById("solo-form");
+const soloState = document.getElementById("solo-state");
+// Application-owned composition: the picker posts a civil date and a native
+// time separately; the ISO datetime is composed here, never in the package.
+soloForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(soloForm);
+  const date = data.get("date");
+  const time = data.get("time");
+  document.getElementById("solo-datetime").value = date && time ? `${date}T${time}` : "";
+  soloState.textContent = `submitted appointment=${new FormData(soloForm).get("appointment") || "—"}`;
+});
+
 const constrained = document.getElementById("constrained");
 constrained.isDateDisabled = (date) => [0, 6].includes(dates.dayOfWeek(date));
 constrained.dateState = (date) => ({

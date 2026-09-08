@@ -173,6 +173,18 @@ await picker.validate();
 
 Calendar selection also dispatches normal bubbling `input` and `change` events on the visible input.
 
+### Time companions
+
+```html
+<date-picker>
+  <input name="date">
+  <input type="time" data-time-start name="from">
+  <input type="time" data-time-end name="to">
+</date-picker>
+```
+
+Optional native time companions (one or both). They are direct children, fixed at connect time, and stay fully native: no hidden input, no `picker.time` property, no `timechange` event — their `input`/`change` events bubble like the date field's. `value` stays a `YYYY-MM-DD` date. The picker only enforces from/to order (`start <= end`, equality allowed, see [D5](DECISIONS.md)); a missing, empty or `disabled` time lifts the constraint, and `validate()` aggregates date validity, native time validity and that order. Range mode does not support time companions yet: marked times there are left native with a console warning.
+
 ## `<date-picker range>` — shared range surface
 
 ```html

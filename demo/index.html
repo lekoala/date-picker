@@ -17,6 +17,11 @@
     .field { display: grid; gap: .35rem; margin-block: .75rem; }
     input { min-height: 2.5rem; box-sizing: border-box; border: 1px solid color-mix(in srgb, CanvasText 25%, Canvas); border-radius: .5rem 0 0 .5rem; padding: .45rem .65rem; background: Canvas; color: CanvasText; font: inherit; }
     date-picker { width: min(100%, 19rem); }
+    #time-picker { width: min(100%, 30rem); }
+    #solo-picker { width: min(100%, 24rem); }
+    #time-picker > input[data-time-start] { border-radius: .5rem 0 0 .5rem; }
+    #time-picker > input[data-time-end] { border-radius: 0 .5rem .5rem 0; }
+    #solo-picker > input[type="time"] { border-radius: .5rem; }
     .range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
     .range date-picker { width: 100%; }
     output { display: block; margin-block-start: .75rem; padding: .6rem; background: color-mix(in srgb, CanvasText 5%, Canvas); border-radius: .5rem; }
@@ -105,6 +110,38 @@
         <input id="stay-end" data-range-end name="departure" aria-label="Départ">
       </date-picker>
       <output id="stay-picker-state">range: — → —</output>
+    </section>
+
+    <section class="card">
+      <h2>9. Date &amp; time</h2>
+      <form id="time-form">
+        <label class="field" for="time-date">
+          Date et heures
+          <date-picker id="time-picker" value="2026-09-10" locale="fr-BE">
+            <input id="time-date" name="date">
+            <input id="time-start" type="time" data-time-start name="from" value="09:30" aria-label="From">
+            <input id="time-end" type="time" data-time-end name="to" value="11:00" aria-label="To">
+          </date-picker>
+        </label>
+        <button type="submit">Submit</button>
+      </form>
+      <output id="time-state">submitted values appear here</output>
+    </section>
+
+    <section class="card">
+      <h2>10. Date &amp; one time</h2>
+      <form id="solo-form">
+        <label class="field" for="solo-date">
+          Rendez-vous
+          <date-picker id="solo-picker" value="2026-09-10" locale="fr-BE">
+            <input id="solo-date" name="date">
+            <input id="solo-time" type="time" data-time-start name="time" value="09:30" aria-label="Time">
+          </date-picker>
+        </label>
+        <input type="hidden" id="solo-datetime" name="appointment">
+        <button type="submit">Submit</button>
+      </form>
+      <output id="solo-state">submitted values appear here</output>
     </section>
 
     <section class="card" style="grid-column: 1 / -1;">

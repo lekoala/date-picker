@@ -112,6 +112,18 @@ Acceptance:
 - a stale async availability response arriving after the active endpoint changed never commits a value or closes the popup;
 - only the bounds are validated; per-night availability stays application-owned.
 
+## U10 — Date with native time companions
+
+A form pairs a date with one or two native times (appointment at `09:30`, from/to on the same day).
+
+Acceptance:
+
+- times stay native `input[type=time]` fields with their own names and submission;
+- `value` stays a `YYYY-MM-DD` date;
+- an inverted from/to surfaces an order error on the modified bound;
+- a missing or disabled time lifts the order constraint;
+- calendar selection and form reset keep the entered times.
+
 ## Not a use case for this package
 
 Do not grow the API to cover these without a separate design:

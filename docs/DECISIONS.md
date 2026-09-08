@@ -38,3 +38,10 @@ Context: DOM-backed styling hooks become API the moment they are documented — 
 - `show()` / `hide()` are the control surface. `open` is a **read-only getter** reflecting the popover. There is no `open` attribute: the popover element is the single machine of truth and a second state machine would only drift.
 - `readonly` mirrors native semantics: the field is non-editable, the value is still submitted, and the picker cannot change it — the calendar trigger is disabled. `disabled` additionally unsubmits the field. `readonly` is never used to mean "no typing, but calendar selection allowed".
 - Clearing the editable input clears the canonical value (the component renders no internal clear button). Form resets follow the native `defaultValue` contract. This matches the Open UI datepicker `clear` concept: clearing is a text-editing action, not a component-owned affordance.
+
+## D5 — Time is a native companion, not picker state
+
+- Time fields are authored native `input[type=time]` marked `[data-time-start]` / `[data-time-end]`; `name`, `value`, `required`, `min`, `max`, `step` and submission stay native. There is no hidden time input and no time field controller.
+- `picker.value` / `picker.range` remain date-only (`YYYY-MM-DD`); the picker never constructs a datetime, a timestamp or a timezone-bearing value.
+- The picker only coordinates from/to order (`start <= end`, equality allowed); duration rules stay application-owned.
+- Custom time UI and slot picking stay outside the package.

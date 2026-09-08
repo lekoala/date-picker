@@ -5,6 +5,7 @@ import { DateFieldController } from "./date-field.js";
 import { DateRangeController, normalizeRange } from "./date-range.js";
 import { createDateAdapter, formatLongDate, resolveLocale } from "./intl.js";
 import { getDefaultMessages } from "./messages.js";
+import { compareTimes, isTime } from "./time.js";
 
 let uid = 0;
 
@@ -25,6 +26,10 @@ export class DatePickerElement extends HTMLElement {
     /** @type {DateRangeController | null} */
     this._range = null;
     this._orderTags = new Set();
+    /** Native time companions, [start, end]. @type {[HTMLInputElement | null, HTMLInputElement | null]} */
+    this._timeFields = [null, null];
+    /** Time inputs currently holding our order error. @type {Set<HTMLInputElement>} */
+    this._timeOrderOwned = new Set();
     /** @type {"" | "start" | "end"} */
     this._lastFocusEndpoint = "";
     this._rangeCommitId = 0;
@@ -67,13 +72,16 @@ export class DatePickerElement extends HTMLElement {
   }
 
   _connectSingle() {
-    const input = this.querySelector(":scope > input:not([type=hidden])");
+    const input = this.querySelector(
+      ":scope > input:not([type=hidden]):not([type=time]):not([data-time-start]):not([data-time-end])",
+    );
     if (!(input instanceof HTMLInputElement)) {
       console.warn("<date-picker> expects a direct child text input");
       return;
     }
     this._connected = true;
     this._input = input;
+    this._discoverTimeFields();
     this._field = new DateFieldController(input, { messages: this._messages, locale: this.locale });
     this._field.onAttributesChanged = () => this._syncInputState();
     this._field.confirm = (date) => this._confirmDate(date);
@@ -102,7 +110,37 @@ export class DatePickerElement extends HTMLElement {
     }
   }
 
+  /**
+   * Find optional native time companions. They stay fully native (no hidden
+   * input, no field controller); the picker only coordinates from/to order.
+   * A bad composition never breaks the date picker: warn and leave times alone.
+   */
+  _discoverTimeFields() {
+    this._timeFields = [null, null];
+    /** @type {["data-time-start", "data-time-end"]} */
+    const markers = ["data-time-start", "data-time-end"];
+    for (const [index, marker] of markers.entries()) {
+      const matches = this.querySelectorAll(`:scope > input[${marker}]`);
+      if (matches.length > 1) {
+        console.warn(`<date-picker> expects at most one direct child input[${marker}]; ignoring extras`);
+      }
+      const candidate = matches[0];
+      if (candidate == null) continue;
+      if (!(candidate instanceof HTMLInputElement) || candidate.type !== "time") {
+        console.warn(`<date-picker> input[${marker}] must be an <input type="time">; ignoring it`);
+        continue;
+      }
+      this._timeFields[index] = candidate;
+    }
+    if (this.querySelector(":scope > input[type=time]:not([data-time-start]):not([data-time-end])")) {
+      console.warn("<date-picker> time inputs need [data-time-start] or [data-time-end]; ignoring it");
+    }
+  }
+
   _connectRange() {
+    if (this.querySelector(":scope > input[data-time-start], :scope > input[data-time-end]")) {
+      console.warn("<date-picker range> time companions are not supported yet; leaving them native");
+    }
     const startInput = this.querySelector(":scope > input[data-range-start]");
     const endInput = this.querySelector(":scope > input[data-range-end]");
     if (!(startInput instanceof HTMLInputElement) || !(endInput instanceof HTMLInputElement)) {
@@ -156,6 +194,8 @@ export class DatePickerElement extends HTMLElement {
     this.hide(false);
     this._controller?.abort();
     this._controller = null;
+    this._clearTimeOrderValidity();
+    this._timeFields = [null, null];
     if (this._rangeMode()) {
       for (const field of this._fields || []) this._teardownField(field);
       this._fields = null;
@@ -479,6 +519,12 @@ export class DatePickerElement extends HTMLElement {
       },
       { signal },
     );
+    for (const [index, timeInput] of this._timeFields.entries()) {
+      if (!timeInput) continue;
+      const endpoint = index === 1 ? "end" : "start";
+      timeInput.addEventListener("input", () => this._revalidateTimeOrder(endpoint), { signal });
+      timeInput.addEventListener("change", () => this._revalidateTimeOrder(endpoint), { signal });
+    }
     button.addEventListener(
       "click",
       (event) => {
@@ -959,6 +1005,47 @@ export class DatePickerElement extends HTMLElement {
     }
   }
 
+  /**
+   * Single-mode from/to order on the shared date: `start <= end`.
+   * The order error is attributed to the bound that was just modified; the
+   * other bound only loses a stale order error, never its native validity.
+   * Missing, empty or disabled times fall back to no order constraint: times
+   * are never implicitly required. Equality stays valid (duration rules are
+   * application-owned).
+   * @param {"start" | "end"} which
+   */
+  _revalidateTimeOrder(which) {
+    const [startInput, endInput] = this._timeFields;
+    /** @type {["start", "end"]} */
+    const bounds = ["start", "end"];
+    const inputs = [startInput, endInput];
+    const startValue = startInput && !startInput.disabled ? startInput.value.trim() : "";
+    const endValue = endInput && !endInput.disabled ? endInput.value.trim() : "";
+    const inverted =
+      Boolean(startInput && endInput && startValue && endValue) &&
+      isTime(startValue) &&
+      isTime(endValue) &&
+      compareTimes(endValue, startValue) < 0;
+    for (const [index, bound] of bounds.entries()) {
+      const input = inputs[index];
+      if (!input) continue;
+      const message = bound === "end" ? this._messages.rangeOrderEnd : this._messages.rangeOrderStart;
+      const shouldHaveOrder = inverted && bound === which;
+      if (shouldHaveOrder) {
+        input.setCustomValidity(message);
+        this._timeOrderOwned.add(input);
+      } else if (this._timeOrderOwned.has(input)) {
+        input.setCustomValidity("");
+        this._timeOrderOwned.delete(input);
+      }
+    }
+  }
+
+  _clearTimeOrderValidity() {
+    for (const input of this._timeOrderOwned) input.setCustomValidity("");
+    this._timeOrderOwned.clear();
+  }
+
   _restoreDefault() {
     const field = this._field;
     if (!field) return;
@@ -1051,10 +1138,15 @@ export class DatePickerElement extends HTMLElement {
     if (!input) return true;
     if (!input.value.trim()) {
       input.setCustomValidity("");
-      return input.checkValidity();
+    } else {
+      await this._commitText(false, { force: true });
     }
-    await this._commitText(false, { force: true });
-    return input.checkValidity();
+    // Same start-then-end order as the range path, so a from/to inversion
+    // ends reported on "end". A programmatic time change resyncs here too.
+    this._revalidateTimeOrder("start");
+    this._revalidateTimeOrder("end");
+    const timesValid = this._timeFields.every((timeInput) => timeInput?.checkValidity() ?? true);
+    return input.checkValidity() && timesValid;
   }
 
   /** @public @param {{moveFocus?:boolean}} [options] */
