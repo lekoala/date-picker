@@ -2,7 +2,7 @@
 
 Small, native-first date picker and inline calendar primitives.
 
-> v0.1: the interaction contract, event names, public styling tokens and the component API are frozen — see [docs/DECISIONS.md](docs/DECISIONS.md). Internal DOM and class names are `.dp-*` implementation details and stay private.
+> v0.2: the interaction contract, event names, public styling tokens and the component API are frozen — see [docs/DECISIONS.md](docs/DECISIONS.md). Internal DOM and class names are `.dp-*` implementation details and stay private.
 
 This project fills the gap between a normal editable date field and a full scheduling calendar. A plain date input remains the right answer for simple CMS/editing forms. This component becomes useful when a date has context: availability, disabled days, annotations, remote state, start/end relationships, or a mini calendar that navigates another view.
 
@@ -212,7 +212,7 @@ The default ESM exports point at `src/`, matching the native-first development s
 
 ## Scope
 
-Included in v0.1:
+Included in v0.2:
 
 - inline single-date selection;
 - mini-calendar/navigation-only use;
@@ -224,13 +224,17 @@ Included in v0.1:
 - shared-calendar two-field range picker (`<date-picker range>`);
 - linked start/end pickers (`linkDateRange`);
 - native time companions (one or two `input[type=time]` beside the date);
+- `Intl` month/year control order + `month-format="short"`;
+- RTL through the inherited `dir` (no `isRTL` option);
+- readable keyboard focus on disabled/selected days;
+- compact-consumer CSS tokens (`--dp-header-control-size`, `--dp-day-radius`, …);
 - async per-day state with cancellation;
 - custom day decorations that cannot replace the accessible cell;
 - fixed six-row presentation as an opt-in;
 - ISO week numbers;
 - keyboard and focus contracts.
 
-Deliberately out of scope for v0.1:
+Deliberately out of scope for v0.2:
 
 - custom time-picker UI and combined datetime values (only native `input[type=time]` companions are supported);
 - timezones;

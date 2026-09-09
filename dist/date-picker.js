@@ -1,4 +1,4 @@
-/*** @lekoala/date-picker v0.1.1 - https://github.com/lekoala/date-picker ***/
+/*** @lekoala/date-picker v0.2.0 - https://github.com/lekoala/date-picker ***/
 (() => {
   var __defProp = Object.defineProperty;
   var __getOwnPropNames = Object.getOwnPropertyNames;
