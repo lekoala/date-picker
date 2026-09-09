@@ -44,7 +44,10 @@ date-calendar {
 .dp-calendar-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
-  align-items: center;
+  /* Stretch (not center): once a UA natural height exceeds
+     --dp-header-control-size, the row grows to the tallest control and the
+     others stretch to match, so month/year/nav stay equal. */
+  align-items: stretch;
   gap: var(--dp-gap);
   margin-block-end: var(--dp-header-block-gap);
 }
@@ -76,9 +79,9 @@ date-calendar[data-year-first] .dp-calendar-header {
 }
 
 /* The select menulist carries UA-internal leading that author padding only
-   adds to (and it ignores line-height), so it gets zero author padding: with
-   a control size at or above its natural height, min-block-size alone governs
-   all three controls equally. */
+   adds to (and it ignores line-height), so it gets zero author padding.
+   Equal outer heights come from the header grid's stretch alignment: the row
+   sizes to the tallest control and the others stretch to match. */
 .dp-calendar-header select {
   padding-block: 0;
 }
