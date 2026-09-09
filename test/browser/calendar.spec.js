@@ -144,6 +144,113 @@ test("PageUp/PageDown move focus across months and years without selecting", asy
   await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
 });
 
+test("ArrowLeft across a month boundary keeps DOM focus on the new date with fixed-weeks", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const element = document.createElement("date-calendar");
+    element.id = "edge";
+    element.setAttribute("display", "2026-10");
+    element.setAttribute("fixed-weeks", "");
+    document.body.append(element);
+  });
+  await page.locator('#edge .dp-day[data-date="2026-10-01"]').focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.locator("#edge")).toHaveJSProperty("focusedDate", "2026-09-30");
+  await expect(page.locator("#edge")).toHaveAttribute("display", "2026-09");
+  await expect(page.locator('#edge .dp-day[data-date="2026-09-30"]')).toBeFocused();
+});
+
+test("month/year controls render at equal heights in a compact header", async ({ page }) => {
+  await page.evaluate(() => {
+    const element = document.createElement("date-calendar");
+    element.id = "compact-header";
+    element.setAttribute("display", "2026-09");
+    element.style.setProperty("--dp-header-control-size", "1.875rem");
+    document.body.append(element);
+  });
+  const heights = await page.evaluate(() => {
+    const element = document.getElementById("compact-header");
+    const height = (selector) => Math.round(element.querySelector(selector).getBoundingClientRect().height);
+    return { month: height(".dp-month-select"), year: height(".dp-year-input"), prev: height(".dp-prev") };
+  });
+  expect(Math.abs(heights.month - heights.year)).toBeLessThanOrEqual(1);
+  expect(Math.abs(heights.month - heights.prev)).toBeLessThanOrEqual(1);
+});
+
+test("month select truncates long names with an ellipsis instead of painting under the caret", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const element = document.createElement("date-calendar");
+    element.id = "narrow-month";
+    element.setAttribute("display", "2026-09");
+    element.setAttribute("locale", "fr-BE");
+    element.style.setProperty("--dp-year-inline-size", "4.25rem");
+    element.style.setProperty("max-inline-size", "228px");
+    document.body.append(element);
+  });
+  const select = page.locator("#narrow-month .dp-month-select");
+  // WebKit forces overflow: visible on menulists, so the ellipsis cannot
+  // engage there; the declaration is still locked everywhere.
+  if (test.info().project.name !== "webkit") {
+    await expect(select).toHaveCSS("overflow", /^(hidden|clip)$/);
+  }
+  await expect(select).toHaveCSS("text-overflow", "ellipsis");
+});
+
+test('month-format="short" abbreviates the month select but keeps the long heading', async ({ page }) => {
+  const names = await page.evaluate(() => {
+    const make = (format) => {
+      const element = document.createElement("date-calendar");
+      element.setAttribute("display", "2026-09");
+      element.setAttribute("locale", "fr-BE");
+      if (format) element.setAttribute("month-format", format);
+      document.body.append(element);
+      const result = {
+        options: [...element.querySelectorAll(".dp-month-select option")].map((o) => o.textContent),
+        heading: element.querySelector(".dp-calendar-heading").textContent,
+        api: element.monthFormat,
+      };
+      element.remove();
+      return result;
+    };
+    const september = (style) =>
+      new Intl.DateTimeFormat("fr-BE", { calendar: "gregory", month: style, timeZone: "UTC" }).format(
+        new Date(Date.UTC(2026, 8, 15)),
+      );
+    const dynamic = (() => {
+      const element = document.createElement("date-calendar");
+      element.setAttribute("display", "2026-09");
+      element.setAttribute("locale", "fr-BE");
+      document.body.append(element);
+      const before = element.querySelector('.dp-month-select option[value="09"]').textContent;
+      element.setAttribute("month-format", "short");
+      const after = element.querySelector('.dp-month-select option[value="09"]').textContent;
+      element.remove();
+      return { before, after };
+    })();
+    return {
+      long: make(),
+      short: make("short"),
+      bogus: make("banana"),
+      dynamic,
+      septemberLong: september("long"),
+      septemberShort: september("short"),
+    };
+  });
+  expect(names.long.api).toBe("long");
+  expect(names.long.options[8]).toBe(names.septemberLong);
+  expect(names.short.api).toBe("short");
+  expect(names.short.options[8]).toBe(names.septemberShort);
+  expect(names.short.options[8]).not.toBe(names.septemberLong);
+  expect(names.short.heading).toContain(names.septemberLong);
+  expect(names.bogus.api).toBe("long");
+  expect(names.bogus.options[8]).toBe(names.septemberLong);
+  expect(names.dynamic.before).toBe(names.septemberLong);
+  expect(names.dynamic.after).toBe(names.septemberShort);
+});
+
 test("Space activates the focused day", async ({ page }) => {
   const selected = page.locator('#inline .dp-day[data-date="2026-09-10"]');
   await selected.focus();

@@ -37,6 +37,9 @@
             },
             {
               "name": "selection"
+            },
+            {
+              "name": "month-format"
             }
           ],
           "members": [
@@ -71,6 +74,10 @@
             {
               "kind": "getter",
               "name": "selection"
+            },
+            {
+              "kind": "getter",
+              "name": "monthFormat"
             },
             {
               "kind": "getter",
@@ -190,6 +197,21 @@
             },
             {
               "name": "--dp-gap"
+            },
+            {
+              "name": "--dp-header-control-size"
+            },
+            {
+              "name": "--dp-header-block-gap"
+            },
+            {
+              "name": "--dp-nav-gap"
+            },
+            {
+              "name": "--dp-year-inline-size"
+            },
+            {
+              "name": "--dp-day-radius"
             }
           ]
         }
@@ -228,6 +250,9 @@
             },
             {
               "name": "open-on-focus"
+            },
+            {
+              "name": "month-format"
             }
           ],
           "members": [
@@ -250,6 +275,10 @@
             {
               "kind": "getter",
               "name": "locale"
+            },
+            {
+              "kind": "getter",
+              "name": "monthFormat"
             },
             {
               "kind": "getter",
@@ -347,6 +376,21 @@
             },
             {
               "name": "--dp-gap"
+            },
+            {
+              "name": "--dp-header-control-size"
+            },
+            {
+              "name": "--dp-header-block-gap"
+            },
+            {
+              "name": "--dp-nav-gap"
+            },
+            {
+              "name": "--dp-year-inline-size"
+            },
+            {
+              "name": "--dp-day-radius"
             }
           ]
         }

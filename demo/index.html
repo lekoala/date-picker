@@ -30,7 +30,28 @@
     .availability { display: inline-flex; gap: 2px; }
     .availability i { inline-size: .32rem; block-size: .32rem; border-radius: 50%; background: currentColor; }
     .availability i.anchor { border-radius: 0; background: CanvasText; }
-    .mini-wrap { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: start; }
+    .mini-wrap { display: grid; grid-template-columns: minmax(14rem, 16rem) 1fr; gap: 1rem; align-items: start; }
+    /* Card 8 compact navigator: public tokens + own marker nodes only, except
+       the shell/grid stretch and the weekend shading below. Those two depend
+       on the current table rendering (max-content shell, Mon-first columns
+       with week numbers) and are app-level integration, not guaranteed API. */
+    #mini {
+      max-inline-size: 228px;
+      --dp-day-size: 1.75rem;
+      --dp-gap: 0.125rem;
+      --dp-header-control-size: 1.875rem;
+      --dp-header-block-gap: 0;
+      --dp-nav-gap: 0;
+      --dp-year-inline-size: 4.25rem;
+      --dp-day-radius: 0;
+    }
+    #mini .availability { transform: translateY(2px); }
+    #mini .availability i { inline-size: 0.28rem; block-size: 0.28rem; }
+    #mini .availability i.closed { background: #b3261e; }
+    #mini .dp-calendar-shell, #mini .dp-grid { width: 100%; }
+    #mini td:nth-of-type(6), #mini td:nth-of-type(7) {
+      background: color-mix(in srgb, CanvasText 8%, Canvas);
+    }
     .calendar-agenda { min-block-size: 16rem; padding: .6rem; border: 1px dashed color-mix(in srgb, CanvasText 30%, Canvas); border-radius: .6rem; }
     .calendar-agenda calendar-view { min-block-size: 14rem; }
     code { font-size: .85em; }
@@ -148,7 +169,7 @@
       <h2>8. Mini calendar → @lekoala/calendar</h2>
       <p><code>dateactivate</code> navigates a real <code>&lt;calendar-view&gt;</code>; the agenda anchors the mini display back.</p>
       <div class="mini-wrap">
-        <date-calendar id="mini" display="2026-09" selection="none" fixed-weeks show-week-numbers></date-calendar>
+        <date-calendar id="mini" display="2026-09" selection="none" fixed-weeks show-week-numbers month-format="short"></date-calendar>
         <div class="calendar-agenda">
           <calendar-view id="agenda" view="month" date="2026-09-03"></calendar-view>
         </div>

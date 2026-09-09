@@ -14,6 +14,7 @@ The public surface — flat event names, `selection` values, `--dp-*` styling to
 | `max`               | `YYYY-MM-DD`     | `""`               | Latest activatable date.                     |
 | `first-day`         | `0..6` (`7` alias) | `1`                | First weekday; Sunday=0, Monday=1. `7` is accepted as an ISO-style alias of Sunday (`@lekoala/calendar` uses 1..7) and never shifts the grid. Other values fall back to Monday. |
 | `locale`            | BCP 47 string    | document/navigator | `Intl` locale.                               |
+| `month-format`      | `long \| short`  | `long`             | Visible month-name style in the month select; anything else falls back to `long`. The accessible grid heading always keeps the long month/year form. |
 | `selection`         | `single \| none` | `single`           | Whether accepted activation updates `value`. |
 | `fixed-weeks`       | boolean          | false              | Render six rows; date math itself stays 4–6. |
 | `show-week-numbers` | boolean          | false              | Show ISO week numbers. The column renders only when `first-day === 1` (Monday-first): the ISO week and the displayed week only coincide then. With Sunday-first (`0`/`7`) the column is silently withheld. |
@@ -132,6 +133,7 @@ The direct child text input is required. On enhancement its original `name` move
 - `min`;
 - `max`;
 - `open-on-focus` — boolean (default `true`): open the popover when the input receives focus without moving focus; `open-on-focus="false"` keeps focus alone passive;
+- `month-format` — `long | short` (default `long`): visible month-name style forwarded to the popup calendar;
 - `open` — read-only: whether the popover is shown;
 - `openOnFocus` — property form of `open-on-focus`.
 
@@ -175,12 +177,45 @@ Calendar selection also dispatches normal bubbling `input` and `change` events o
 
 ### Time companions
 
+Date with one time:
+
 ```html
 <date-picker>
-  <input name="date">
-  <input type="time" data-time-start name="from">
-  <input type="time" data-time-end name="to">
+  <input name="appointment[date]">
+  <input type="time" data-time-start name="appointment[time]">
 </date-picker>
+```
+
+```text
+appointment[date] = 2026-09-10
+appointment[time] = 09:30
+```
+
+Date with from/to times on the same day:
+
+```html
+<date-picker>
+  <input name="appointment[date]">
+  <input type="time" data-time-start name="appointment[from]">
+  <input type="time" data-time-end name="appointment[to]">
+</date-picker>
+```
+
+```text
+appointment[date] = 2026-09-10
+appointment[from] = 09:30
+appointment[to] = 11:00
+```
+
+The submit contract is: `date-picker` owns the civil date selection, the time inputs own their civil time values, the authored HTML `name`s own the submitted structure, and the server/application owns datetime composition plus timezone. The picker never constructs a combined datetime, timestamp or timezone-bearing value.
+
+Future range + time projection (not supported yet — range mode leaves marked times native with a console warning):
+
+```text
+period[start][date]
+period[start][time]
+period[end][date]
+period[end][time]
 ```
 
 Optional native time companions (one or both). They are direct children, fixed at connect time, and stay fully native: no hidden input, no `picker.time` property, no `timechange` event — their `input`/`change` events bubble like the date field's. `value` stays a `YYYY-MM-DD` date. The picker only enforces from/to order (`start <= end`, equality allowed, see [D5](DECISIONS.md)); a missing, empty or `disabled` time lifts the constraint, and `validate()` aggregates date validity, native time validity and that order. Range mode does not support time companions yet: marked times there are left native with a console warning.

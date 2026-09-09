@@ -77,6 +77,24 @@ const cleanup = linkDateRange(startPicker, endPicker);
 
 The relationship applies `end >= start` and `start <= end` as effective bounds. Neither picker knows about its sibling.
 
+## Date + time
+
+A date pairs with one or two native time companions. The picker owns the civil date; the time inputs own their civil time values:
+
+```html
+<date-picker>
+  <input name="appointment[date]">
+  <input type="time" data-time-start name="appointment[time]">
+</date-picker>
+```
+
+```text
+appointment[date] = 2026-09-10
+appointment[time] = 09:30
+```
+
+The application/server combines these civil values and applies the relevant timezone when a datetime/instant is needed. The picker never constructs a combined datetime value.
+
 ## Availability and per-day metadata
 
 The calendar accepts a source function or `{ load() }` object with the same abortable shape used elsewhere in LeKoala components:
@@ -205,6 +223,7 @@ Included in v0.1:
 - presentation-only range band (`highlightedRange`);
 - shared-calendar two-field range picker (`<date-picker range>`);
 - linked start/end pickers (`linkDateRange`);
+- native time companions (one or two `input[type=time]` beside the date);
 - async per-day state with cancellation;
 - custom day decorations that cannot replace the accessible cell;
 - fixed six-row presentation as an opt-in;
@@ -213,7 +232,7 @@ Included in v0.1:
 
 Deliberately out of scope for v0.1:
 
-- time or datetime picking;
+- custom time-picker UI and combined datetime values (only native `input[type=time]` companions are supported);
 - timezones;
 - in-place single-calendar range *selection interaction* (use the two-field picker);
 - multi-date selection;

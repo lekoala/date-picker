@@ -20,6 +20,8 @@ jobs:
     needs: verify
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
+    env:
+      HOME: /root
     steps:
       - uses: actions/checkout@v4
       - name: Install unzip

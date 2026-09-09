@@ -127,11 +127,17 @@ mini.dateState = (date) => ({
   anchor: date === anchorDate,
 });
 mini.renderDay = (date, state) => {
-  const isDot = Number(date.slice(8, 10)) % 5 === 0;
-  if (!state.anchor && !isDot) return "";
+  const day = Number(date.slice(8, 10));
+  const isDot = day % 5 === 0;
+  const isClosed = day % 7 === 0;
+  if (!state.anchor && !isDot && !isClosed) return "";
   const span = document.createElement("span");
   span.className = "availability";
-  if (isDot) span.append(document.createElement("i"));
+  if (isDot || isClosed) {
+    const dot = document.createElement("i");
+    if (isClosed) dot.className = "closed";
+    span.append(dot);
+  }
   if (state.anchor) {
     const marker = document.createElement("i");
     marker.className = "anchor";

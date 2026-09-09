@@ -8,6 +8,7 @@ export {
   formatLongDate,
   formatMonthYear,
   monthNames,
+  monthYearOrder,
   resolveLocale,
   weekdayNames,
 } from "./intl.js";

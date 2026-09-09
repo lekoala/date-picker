@@ -50,7 +50,8 @@ Use Formidable/Flatpickr cases as migration fixtures:
 
 These should require a separate proposal, not opportunistic growth:
 
-- time picker / datetime picker;
+- custom time-picker UI;
+- combined datetime values;
 - single-grid visual **selection** interaction (the band itself is core presentation via `calendar.highlightedRange`);
 - month-as-value picker;
 - multi-date;
@@ -86,7 +87,7 @@ Cross-check our coverage against the Open UI datepicker research: <https://open-
 | `range` | core | `<date-picker range>` two-field shared surface (U9); `linkDateRange()` stays external (U5). |
 | `range selected` | deferred | selection interaction needs its own proposal; `highlightedRange` covers band presentation only. |
 | `range presets` | deferred | application-owned. |
-| `date-time picker` | deferred | time/datetime is explicitly out of scope. |
+| `date-time picker` | contract boundary | native `input[type=time]` companions only (D5); custom time-picker UI, combined datetime values and timezone-aware values stay deferred. |
 | `side by side` | deferred | maps to "multiple visible months". |
 | `footer` | deferred | not part of the grid contract. |
 | `shape`, `size`, `compact`, `subtle`, `light`, `borderless`, `no icon` | app-owned | styling via public `--dp-*` tokens (D3), not a component API. |

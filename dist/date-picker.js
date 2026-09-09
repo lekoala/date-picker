@@ -387,6 +387,32 @@
       timeZone: "UTC"
     }).format(toIntlDate(`${value.slice(0, 7)}-15`));
   }
+  function monthYearOrder(locale = "") {
+    const resolved = resolveLocale(locale);
+    try {
+      const parts = new Intl.DateTimeFormat(resolved, {
+        calendar: "gregory",
+        year: "numeric",
+        month: "long",
+        timeZone: "UTC"
+      }).formatToParts(toIntlDate("2026-09-15"));
+      let monthIndex = -1;
+      let yearIndex = -1;
+      parts.forEach((part, index) => {
+        const type = part.type;
+        if (type === "month") {
+          if (monthIndex < 0)
+            monthIndex = index;
+        } else if (type === "year" || type === "relatedYear" || type === "yearName") {
+          if (yearIndex < 0)
+            yearIndex = index;
+        }
+      });
+      if (monthIndex >= 0 && yearIndex >= 0)
+        return yearIndex < monthIndex ? ["year", "month"] : ["month", "year"];
+    } catch {}
+    return ["month", "year"];
+  }
   function monthNames(locale = "", style = "long") {
     const resolved = resolveLocale(locale);
     const formatter = new Intl.DateTimeFormat(resolved, { calendar: "gregory", month: style, timeZone: "UTC" });
@@ -567,7 +593,8 @@
       "locale",
       "fixed-weeks",
       "show-week-numbers",
-      "selection"
+      "selection",
+      "month-format"
     ];
     constructor() {
       super();
@@ -688,6 +715,15 @@
     }
     set selection(value) {
       this.setAttribute("selection", value === "none" ? "none" : "single");
+    }
+    get monthFormat() {
+      return this.getAttribute("month-format") === "short" ? "short" : "long";
+    }
+    set monthFormat(value) {
+      if (value === "short")
+        this.setAttribute("month-format", "short");
+      else
+        this.removeAttribute("month-format");
     }
     get highlightedRange() {
       return { ...this._highlightedRange };
@@ -1109,7 +1145,7 @@
       const display = this.display;
       const displayYear = yearOf(display);
       const displayMonth = Number(display.slice(5, 7));
-      const names = monthNames(locale, "long");
+      const names = monthNames(locale, this.monthFormat);
       const weekdayShort = weekdayNames(locale, this.firstDay, "short");
       const weekdayLong = weekdayNames(locale, this.firstDay, "long");
       const weeks = this._weeks();
@@ -1154,14 +1190,18 @@
       }).join("");
       const focusedElement = document.activeElement;
       const focusKey = focusedElement instanceof HTMLElement && this.contains(focusedElement) ? this._focusTargetKey(focusedElement) : "";
+      const yearFirst = monthYearOrder(locale)[0] === "year";
+      this.toggleAttribute("data-year-first", yearFirst);
+      const monthControl = `<label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this._messages.month)}</label>
+          <select id="${this._id}-month" class="dp-month-select" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>`;
+      const yearControl = `<label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this._messages.year)}</label>
+          <input id="${this._id}-year" class="dp-year-input" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">`;
       this._rendering = true;
       this.innerHTML = `
       <div class="dp-calendar-shell">
         <div class="dp-calendar-header">
-          <label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this._messages.month)}</label>
-          <select id="${this._id}-month" class="dp-month-select" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>
-          <label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this._messages.year)}</label>
-          <input id="${this._id}-year" class="dp-year-input" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">
+          ${yearFirst ? yearControl : monthControl}
+          ${yearFirst ? monthControl : yearControl}
           <button type="button" class="dp-nav dp-prev" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10 4-4 4 4 4"/></svg></button>
           <button type="button" class="dp-nav dp-next" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></button>
         </div>
@@ -1174,7 +1214,11 @@
       this._rendering = false;
       if (focusKey) {
         queueMicrotask(() => {
-          const target = this.querySelector(focusKey);
+          let selector = focusKey;
+          if (selector.startsWith(".dp-day[data-date=")) {
+            selector = `.dp-day[data-date="${CSS.escape(this._model.focused)}"]`;
+          }
+          const target = this.querySelector(selector);
           if (target instanceof HTMLElement)
             target.focus();
         });
@@ -1697,11 +1741,40 @@
     }
   }
 
+  // src/time.js
+  var TIME_RE = /^(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/;
+  function parseTimeParts(value) {
+    const match = TIME_RE.exec(String(value || ""));
+    if (!match)
+      return null;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    const second = match[3] === undefined ? 0 : Number(match[3]);
+    const millisecond = match[4] === undefined ? 0 : Number(match[4].padEnd(3, "0"));
+    if (hour > 23 || minute > 59 || second > 59 || millisecond > 999)
+      return null;
+    return { hour, minute, second, millisecond };
+  }
+  function isTime(value) {
+    return parseTimeParts(value) !== null;
+  }
+  function toMillis(parts) {
+    return ((parts.hour * 60 + parts.minute) * 60 + parts.second) * 1000 + parts.millisecond;
+  }
+  function compareTimes(a, b) {
+    const left = parseTimeParts(a);
+    const right = parseTimeParts(b);
+    if (!left || !right)
+      throw new TypeError("compareTimes() expects HH:MM values");
+    const diff = toMillis(left) - toMillis(right);
+    return diff === 0 ? 0 : diff < 0 ? -1 : 1;
+  }
+
   // src/date-picker.js
   var uid2 = 0;
 
   class DatePickerElement extends HTMLElement {
-    static observedAttributes = ["value", "locale", "min", "max", "open-on-focus"];
+    static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
     constructor() {
       super();
       this._id = `date-picker-${++uid2}`;
@@ -1713,6 +1786,8 @@
       this._fields = null;
       this._range = null;
       this._orderTags = new Set;
+      this._timeFields = [null, null];
+      this._timeOrderOwned = new Set;
       this._lastFocusEndpoint = "";
       this._rangeCommitId = 0;
       this._pendingIntents = new Map;
@@ -1746,13 +1821,14 @@
       this._connectSingle();
     }
     _connectSingle() {
-      const input = this.querySelector(":scope > input:not([type=hidden])");
+      const input = this.querySelector(":scope > input:not([type=hidden]):not([type=time]):not([data-time-start]):not([data-time-end])");
       if (!(input instanceof HTMLInputElement)) {
         console.warn("<date-picker> expects a direct child text input");
         return;
       }
       this._connected = true;
       this._input = input;
+      this._discoverTimeFields();
       this._field = new DateFieldController(input, { messages: this._messages, locale: this.locale });
       this._field.onAttributesChanged = () => this._syncInputState();
       this._field.confirm = (date) => this._confirmDate(date);
@@ -1775,7 +1851,31 @@
         input.defaultValue = input.value;
       }
     }
+    _discoverTimeFields() {
+      this._timeFields = [null, null];
+      const markers = ["data-time-start", "data-time-end"];
+      for (const [index, marker] of markers.entries()) {
+        const matches = this.querySelectorAll(`:scope > input[${marker}]`);
+        if (matches.length > 1) {
+          console.warn(`<date-picker> expects at most one direct child input[${marker}]; ignoring extras`);
+        }
+        const candidate = matches[0];
+        if (candidate == null)
+          continue;
+        if (!(candidate instanceof HTMLInputElement) || candidate.type !== "time") {
+          console.warn(`<date-picker> input[${marker}] must be an <input type="time">; ignoring it`);
+          continue;
+        }
+        this._timeFields[index] = candidate;
+      }
+      if (this.querySelector(":scope > input[type=time]:not([data-time-start]):not([data-time-end])")) {
+        console.warn("<date-picker> time inputs need [data-time-start] or [data-time-end]; ignoring it");
+      }
+    }
     _connectRange() {
+      if (this.querySelector(":scope > input[data-time-start], :scope > input[data-time-end]")) {
+        console.warn("<date-picker range> time companions are not supported yet; leaving them native");
+      }
       const startInput = this.querySelector(":scope > input[data-range-start]");
       const endInput = this.querySelector(":scope > input[data-range-end]");
       if (!(startInput instanceof HTMLInputElement) || !(endInput instanceof HTMLInputElement)) {
@@ -1827,6 +1927,8 @@
       this.hide(false);
       this._controller?.abort();
       this._controller = null;
+      this._clearTimeOrderValidity();
+      this._timeFields = [null, null];
       if (this._rangeMode()) {
         for (const field of this._fields || [])
           this._teardownField(field);
@@ -1910,6 +2012,15 @@
         this.setAttribute("locale", value);
       else
         this.removeAttribute("locale");
+    }
+    get monthFormat() {
+      return this.getAttribute("month-format") === "short" ? "short" : "long";
+    }
+    set monthFormat(value) {
+      if (value === "short")
+        this.setAttribute("month-format", "short");
+      else
+        this.removeAttribute("month-format");
     }
     get min() {
       const value = this.getAttribute("min") || "";
@@ -2107,6 +2218,13 @@
       input.addEventListener("keydown", (event) => {
         this._onFieldKeyDown("", event);
       }, { signal });
+      for (const [index, timeInput] of this._timeFields.entries()) {
+        if (!timeInput)
+          continue;
+        const endpoint = index === 1 ? "end" : "start";
+        timeInput.addEventListener("input", () => this._revalidateTimeOrder(endpoint), { signal });
+        timeInput.addEventListener("change", () => this._revalidateTimeOrder(endpoint), { signal });
+      }
       button.addEventListener("click", (event) => {
         if (this._open) {
           if (event.detail === 0) {
@@ -2299,6 +2417,7 @@
       calendar.locale = this.locale;
       calendar.min = this.min;
       calendar.max = this.max;
+      calendar.monthFormat = this.monthFormat;
       calendar.messages = this._messages;
       calendar.source = this._source;
       calendar.dateState = this._dateState;
@@ -2524,6 +2643,33 @@
         }
       }
     }
+    _revalidateTimeOrder(which) {
+      const [startInput, endInput] = this._timeFields;
+      const bounds = ["start", "end"];
+      const inputs = [startInput, endInput];
+      const startValue = startInput && !startInput.disabled ? startInput.value.trim() : "";
+      const endValue = endInput && !endInput.disabled ? endInput.value.trim() : "";
+      const inverted = Boolean(startInput && endInput && startValue && endValue) && isTime(startValue) && isTime(endValue) && compareTimes(endValue, startValue) < 0;
+      for (const [index, bound] of bounds.entries()) {
+        const input = inputs[index];
+        if (!input)
+          continue;
+        const message = bound === "end" ? this._messages.rangeOrderEnd : this._messages.rangeOrderStart;
+        const shouldHaveOrder = inverted && bound === which;
+        if (shouldHaveOrder) {
+          input.setCustomValidity(message);
+          this._timeOrderOwned.add(input);
+        } else if (this._timeOrderOwned.has(input)) {
+          input.setCustomValidity("");
+          this._timeOrderOwned.delete(input);
+        }
+      }
+    }
+    _clearTimeOrderValidity() {
+      for (const input of this._timeOrderOwned)
+        input.setCustomValidity("");
+      this._timeOrderOwned.clear();
+    }
     _restoreDefault() {
       const field = this._field;
       if (!field)
@@ -2608,10 +2754,13 @@
         return true;
       if (!input.value.trim()) {
         input.setCustomValidity("");
-        return input.checkValidity();
+      } else {
+        await this._commitText(false, { force: true });
       }
-      await this._commitText(false, { force: true });
-      return input.checkValidity();
+      this._revalidateTimeOrder("start");
+      this._revalidateTimeOrder("end");
+      const timesValid = this._timeFields.every((timeInput) => timeInput?.checkValidity() ?? true);
+      return input.checkValidity() && timesValid;
     }
     show(options = {}) {
       const panel = this._panel;

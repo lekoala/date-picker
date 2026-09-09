@@ -10,7 +10,7 @@ import { compareTimes, isTime } from "./time.js";
 let uid = 0;
 
 export class DatePickerElement extends HTMLElement {
-  static observedAttributes = ["value", "locale", "min", "max", "open-on-focus"];
+  static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
 
   constructor() {
     super();
@@ -286,6 +286,16 @@ export class DatePickerElement extends HTMLElement {
   set locale(value) {
     if (value) this.setAttribute("locale", value);
     else this.removeAttribute("locale");
+  }
+
+  /** @public Visible month-name style forwarded to the popup calendar (`long` | `short`); anything else falls back to `long`. */
+  get monthFormat() {
+    return this.getAttribute("month-format") === "short" ? "short" : "long";
+  }
+
+  set monthFormat(value) {
+    if (value === "short") this.setAttribute("month-format", "short");
+    else this.removeAttribute("month-format");
   }
 
   /** @public */
@@ -767,6 +777,7 @@ export class DatePickerElement extends HTMLElement {
     calendar.locale = this.locale;
     calendar.min = this.min;
     calendar.max = this.max;
+    calendar.monthFormat = this.monthFormat;
     calendar.messages = this._messages;
     calendar.source = this._source;
     calendar.dateState = this._dateState;

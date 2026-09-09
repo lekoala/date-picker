@@ -14,6 +14,10 @@ export declare class DatePickerElement extends HTMLElement {
     /** @type {DateRangeController | null} */
     _range: DateRangeController | null;
     _orderTags: Set<any>;
+    /** Native time companions, [start, end]. @type {[HTMLInputElement | null, HTMLInputElement | null]} */
+    _timeFields: [HTMLInputElement | null, HTMLInputElement | null];
+    /** Time inputs currently holding our order error. @type {Set<HTMLInputElement>} */
+    _timeOrderOwned: Set<HTMLInputElement>;
     /** @type {"" | "start" | "end"} */
     _lastFocusEndpoint: "" | "start" | "end";
     _rangeCommitId: number;
@@ -64,6 +68,12 @@ export declare class DatePickerElement extends HTMLElement {
     _rangeMode(): boolean;
     connectedCallback(): void;
     _connectSingle(): void;
+    /**
+     * Find optional native time companions. They stay fully native (no hidden
+     * input, no field controller); the picker only coordinates from/to order.
+     * A bad composition never breaks the date picker: warn and leave times alone.
+     */
+    _discoverTimeFields(): void;
     _connectRange(): void;
     disconnectedCallback(): void;
     /** @param {DateFieldController | null} field */
@@ -89,6 +99,9 @@ export declare class DatePickerElement extends HTMLElement {
     /** @public */
     get locale(): string;
     set locale(value: string);
+    /** @public Visible month-name style forwarded to the popup calendar (`long` | `short`); anything else falls back to `long`. */
+    get monthFormat(): "long" | "short";
+    set monthFormat(value: string);
     /** @public */
     get min(): string;
     set min(value: string);
@@ -232,6 +245,17 @@ export declare class DatePickerElement extends HTMLElement {
      * @param {"start" | "end"} which
      */
     _revalidateRange(which: "start" | "end"): void;
+    /**
+     * Single-mode from/to order on the shared date: `start <= end`.
+     * The order error is attributed to the bound that was just modified; the
+     * other bound only loses a stale order error, never its native validity.
+     * Missing, empty or disabled times fall back to no order constraint: times
+     * are never implicitly required. Equality stays valid (duration rules are
+     * application-owned).
+     * @param {"start" | "end"} which
+     */
+    _revalidateTimeOrder(which: "start" | "end"): void;
+    _clearTimeOrderValidity(): void;
     _restoreDefault(): void;
     _restoreRangeDefault(): void;
     /** @param {"start" | "end"} which */

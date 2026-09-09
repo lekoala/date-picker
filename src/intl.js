@@ -51,6 +51,41 @@ export function formatMonthYear(value, locale = "") {
   }).format(toIntlDate(`${value.slice(0, 7)}-15`));
 }
 
+/**
+ * Locale order of the visible month/year controls, derived from `Intl` so no
+ * `showMonthAfterYear`-style option is needed. Year-like parts cover the
+ * `relatedYear` / `yearName` variants some calendars expose; anything
+ * unrecognized falls back to month-then-year. This is independent of `dir`:
+ * the locale decides the linguistic order, direction only mirrors the layout.
+ * @param {string} [locale] @returns {["month", "year"] | ["year", "month"]}
+ */
+export function monthYearOrder(locale = "") {
+  const resolved = resolveLocale(locale);
+  try {
+    const parts = new Intl.DateTimeFormat(resolved, {
+      calendar: "gregory",
+      year: "numeric",
+      month: "long",
+      timeZone: "UTC",
+    }).formatToParts(toIntlDate("2026-09-15"));
+    let monthIndex = -1;
+    let yearIndex = -1;
+    parts.forEach((part, index) => {
+      const type = /** @type {string} */ (part.type);
+      if (type === "month") {
+        if (monthIndex < 0) monthIndex = index;
+      } else if (type === "year" || type === "relatedYear" || type === "yearName") {
+        if (yearIndex < 0) yearIndex = index;
+      }
+    });
+    if (monthIndex >= 0 && yearIndex >= 0)
+      return yearIndex < monthIndex ? ["year", "month"] : ["month", "year"];
+  } catch {
+    // Fall through to the default below.
+  }
+  return ["month", "year"];
+}
+
 /** @param {string} [locale] @param {"long"|"short"} [style] */
 export function monthNames(locale = "", style = "long") {
   const resolved = resolveLocale(locale);

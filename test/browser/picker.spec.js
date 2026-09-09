@@ -102,3 +102,24 @@ test("explicit validate rechecks constraints on an already-selected value", asyn
   expect(valid).toBe(true);
   await expect(page.locator("#simple-picker")).toHaveAttribute("value", "2026-09-06");
 });
+
+test("month-format forwards short months to the popup calendar", async ({ page }) => {
+  await page.evaluate(() => {
+    const picker = document.createElement("date-picker");
+    picker.id = "short-picker";
+    picker.setAttribute("locale", "fr-BE");
+    picker.setAttribute("month-format", "short");
+    const input = document.createElement("input");
+    input.name = "date";
+    picker.append(input);
+    document.body.append(picker);
+  });
+  await page.locator("#short-picker").evaluate((picker) => picker.show());
+  const text = await page.locator('#short-picker .dp-month-select option[value="09"]').textContent();
+  const expected = await page.evaluate(() =>
+    new Intl.DateTimeFormat("fr-BE", { calendar: "gregory", month: "short", timeZone: "UTC" }).format(
+      new Date(Date.UTC(2026, 8, 15)),
+    ),
+  );
+  expect(text).toBe(expected);
+});

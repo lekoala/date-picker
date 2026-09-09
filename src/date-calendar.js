@@ -11,7 +11,14 @@ import {
   todayISO,
 } from "./date.js";
 import { normalizeRange, rangePosition } from "./date-range.js";
-import { formatLongDate, formatMonthYear, monthNames, resolveLocale, weekdayNames } from "./intl.js";
+import {
+  formatLongDate,
+  formatMonthYear,
+  monthNames,
+  monthYearOrder,
+  resolveLocale,
+  weekdayNames,
+} from "./intl.js";
 import { getDefaultMessages } from "./messages.js";
 import { normalizeDateStates } from "./source.js";
 
@@ -93,6 +100,7 @@ export class DateCalendarElement extends HTMLElement {
     "fixed-weeks",
     "show-week-numbers",
     "selection",
+    "month-format",
   ];
 
   constructor() {
@@ -235,6 +243,16 @@ export class DateCalendarElement extends HTMLElement {
 
   set selection(value) {
     this.setAttribute("selection", value === "none" ? "none" : "single");
+  }
+
+  /** @public Visible month-name style in the month select (`long` | `short`); anything else falls back to `long`. The accessible grid heading always keeps the long month/year form. */
+  get monthFormat() {
+    return this.getAttribute("month-format") === "short" ? "short" : "long";
+  }
+
+  set monthFormat(value) {
+    if (value === "short") this.setAttribute("month-format", "short");
+    else this.removeAttribute("month-format");
   }
 
   /** @public */
@@ -688,7 +706,7 @@ export class DateCalendarElement extends HTMLElement {
     const display = this.display;
     const displayYear = yearOf(display);
     const displayMonth = Number(display.slice(5, 7));
-    const names = monthNames(locale, "long");
+    const names = monthNames(locale, this.monthFormat);
     const weekdayShort = weekdayNames(locale, this.firstDay, "short");
     const weekdayLong = weekdayNames(locale, this.firstDay, "long");
     const weeks = this._weeks();
@@ -758,14 +776,22 @@ export class DateCalendarElement extends HTMLElement {
         ? this._focusTargetKey(focusedElement)
         : "";
 
+    // Visible month/year controls follow the locale order (Intl-derived, never
+    // direction-derived); the flexible header track stays under the month
+    // select via `data-year-first`.
+    const yearFirst = monthYearOrder(locale)[0] === "year";
+    this.toggleAttribute("data-year-first", yearFirst);
+    const monthControl = `<label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this._messages.month)}</label>
+          <select id="${this._id}-month" class="dp-month-select" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>`;
+    const yearControl = `<label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this._messages.year)}</label>
+          <input id="${this._id}-year" class="dp-year-input" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">`;
+
     this._rendering = true;
     this.innerHTML = `
       <div class="dp-calendar-shell">
         <div class="dp-calendar-header">
-          <label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this._messages.month)}</label>
-          <select id="${this._id}-month" class="dp-month-select" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>
-          <label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this._messages.year)}</label>
-          <input id="${this._id}-year" class="dp-year-input" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">
+          ${yearFirst ? yearControl : monthControl}
+          ${yearFirst ? monthControl : yearControl}
           <button type="button" class="dp-nav dp-prev" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10 4-4 4 4 4"/></svg></button>
           <button type="button" class="dp-nav dp-next" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></button>
         </div>
@@ -779,7 +805,16 @@ export class DateCalendarElement extends HTMLElement {
 
     if (focusKey) {
       queueMicrotask(() => {
-        const target = this.querySelector(focusKey);
+        let selector = focusKey;
+        // A day-cell key goes stale across display changes: the old date can
+        // reappear as outside-month padding in the new month (fixed-weeks or
+        // overlapping edge weeks). Restoring it would yank keyboard focus back
+        // onto the date the user just navigated away from, so retarget day
+        // cells to the current keyboard position. Controls keep exact restore.
+        if (selector.startsWith(".dp-day[data-date=")) {
+          selector = `.dp-day[data-date="${CSS.escape(this._model.focused)}"]`;
+        }
+        const target = this.querySelector(selector);
         if (target instanceof HTMLElement) target.focus();
       });
     }

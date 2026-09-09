@@ -4,6 +4,15 @@ export declare function resolveLocale(locale?: string): string;
 export declare function formatLongDate(value: string, locale?: string): string;
 /** @param {string} value @param {string} [locale] */
 export declare function formatMonthYear(value: string, locale?: string): string;
+/**
+ * Locale order of the visible month/year controls, derived from `Intl` so no
+ * `showMonthAfterYear`-style option is needed. Year-like parts cover the
+ * `relatedYear` / `yearName` variants some calendars expose; anything
+ * unrecognized falls back to month-then-year. This is independent of `dir`:
+ * the locale decides the linguistic order, direction only mirrors the layout.
+ * @param {string} [locale] @returns {["month", "year"] | ["year", "month"]}
+ */
+export declare function monthYearOrder(locale?: string): ["month", "year"] | ["year", "month"];
 /** @param {string} [locale] @param {"long"|"short"} [style] */
 export declare function monthNames(locale?: string, style?: "long" | "short"): string[];
 /**

@@ -103,6 +103,9 @@ export declare class DateCalendarElement extends HTMLElement {
     /** @public */
     get selection(): "none" | "single";
     set selection(value: string);
+    /** @public Visible month-name style in the month select (`long` | `short`); anything else falls back to `long`. The accessible grid heading always keeps the long month/year form. */
+    get monthFormat(): "long" | "short";
+    set monthFormat(value: string);
     /** @public */
     get highlightedRange(): {
         start: string;

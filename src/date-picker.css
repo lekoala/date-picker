@@ -9,6 +9,11 @@
   --dp-radius: 0.5rem;
   --dp-day-size: 2.75rem;
   --dp-gap: 0.25rem;
+  --dp-header-control-size: 2.25rem;
+  --dp-header-block-gap: 0.4rem;
+  --dp-nav-gap: calc(var(--dp-gap) * 2.5);
+  --dp-year-inline-size: 5.5rem;
+  --dp-day-radius: calc(var(--dp-radius) * 0.75);
   color: var(--dp-fg);
   font: inherit;
 }
@@ -41,20 +46,41 @@ date-calendar {
   grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: var(--dp-gap);
-  margin-block-end: 0.4rem;
+  margin-block-end: var(--dp-header-block-gap);
+}
+
+/* Locale year-first order (Intl-derived, direction-independent): the flexible
+   track stays under the month select so the fixed-width year input never
+   stretches. Visual mirroring itself is left to the inherited `dir`. */
+date-calendar[data-year-first] .dp-calendar-header {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
 }
 
 .dp-calendar-header .dp-prev {
-  margin-inline-start: calc(var(--dp-gap) * 2.5);
+  margin-inline-start: var(--dp-nav-gap);
 }
 
 .dp-calendar-header :where(button, select, input) {
-  min-block-size: 2.25rem;
+  min-block-size: var(--dp-header-control-size);
+  box-sizing: border-box;
+  /* Shared vertical metrics: UA default padding/line-height differ per control
+     (up to ~13px apart), which only shows once --dp-header-control-size drops
+     below content size. */
+  padding-block: 0.15rem;
   border: 1px solid var(--dp-border);
   border-radius: calc(var(--dp-radius) * 0.75);
   background: var(--dp-bg);
   color: var(--dp-fg);
   font: inherit;
+  line-height: 1.2;
+}
+
+/* The select menulist carries UA-internal leading that author padding only
+   adds to (and it ignores line-height), so it gets zero author padding: with
+   a control size at or above its natural height, min-block-size alone governs
+   all three controls equally. */
+.dp-calendar-header select {
+  padding-block: 0;
 }
 
 .dp-calendar-header select,
@@ -65,16 +91,20 @@ date-calendar {
 
 .dp-month-select {
   inline-size: 100%;
+  /* Long month names in a narrow track (compact consumers, long locales)
+     would paint under the native caret: truncate with an ellipsis instead. */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dp-year-input {
-  inline-size: 5.5rem;
+  inline-size: var(--dp-year-inline-size);
 }
 
 .dp-nav {
   display: grid;
   place-items: center;
-  inline-size: 2.25rem;
+  inline-size: var(--dp-header-control-size);
   padding: 0;
   font-size: 1.35rem;
   line-height: 1;
@@ -86,6 +116,14 @@ date-calendar {
   inline-size: 1rem;
   block-size: 1rem;
   pointer-events: none;
+}
+
+/* Inherited RTL mirrors the header layout via the grid; mirror the nav glyphs
+   so previous/next keep their visual sense. Actions stay chronological: no
+   button swap, no keyboard remapping. */
+[dir="rtl"] .dp-nav svg,
+html[dir="rtl"] .dp-nav svg {
+  transform: scaleX(-1);
 }
 
 .dp-calendar-header :where(button, select, input):disabled,
@@ -133,7 +171,7 @@ date-calendar {
 .dp-day {
   position: relative;
   border: 1px solid transparent;
-  border-radius: calc(var(--dp-radius) * 0.75);
+  border-radius: var(--dp-day-radius);
   cursor: pointer;
   outline: none;
   vertical-align: middle;
@@ -142,8 +180,19 @@ date-calendar {
 
 .dp-day:focus-visible {
   outline: 2px solid var(--dp-accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
+  /* Separation gap between the cell fill and the ring: invisible on plain
+     days, but keeps the ring readable on accent-filled days (selected, range
+     endpoints) where an accent-on-accent outline would disappear. */
+  box-shadow: 0 0 0 2px var(--dp-bg);
   z-index: 1;
+}
+
+/* Base tint for days outside the displayed month. It stays before the
+   selection states so selected/range endpoints keep their accent-contrast
+   text on the accent fill (equal specificity, source order decides). */
+.dp-day[data-outside-month="true"] {
+  color: var(--dp-muted);
 }
 
 .dp-day[data-selected="true"] {
@@ -153,10 +202,6 @@ date-calendar {
 
 .dp-day[data-today="true"]:not([data-selected="true"]) {
   border-color: var(--dp-accent);
-}
-
-.dp-day[data-outside-month="true"] {
-  color: var(--dp-muted);
 }
 
 .dp-day[data-disabled="true"] {
@@ -199,6 +244,17 @@ date-calendar {
 .dp-day-number {
   display: block;
   font-variant-numeric: tabular-nums;
+}
+
+/* A focused disabled day stays discoverable by keyboard: restore full opacity
+   so the focus outline renders at full strength, and mark the number with the
+   muted tone (same language as outside-month days) instead of the wash-out. */
+.dp-day[data-disabled="true"]:focus-visible {
+  opacity: 1;
+}
+
+.dp-day[data-disabled="true"]:focus-visible .dp-day-number {
+  color: var(--dp-muted);
 }
 
 .dp-day-extra {

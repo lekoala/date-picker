@@ -35,7 +35,8 @@ Acceptance:
 - activating a date dispatches `dateactivate` and the application calls `calendarView.gotoDate(date)`;
 - outside-month days remain activatable;
 - six-row height is available as presentation, not baked into month math;
-- ISO week numbers are available.
+- ISO week numbers are available;
+- a narrow/compact presentation can use short month names (`month-format="short"`).
 
 ## U4 — Constrained dates
 

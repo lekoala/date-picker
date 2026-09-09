@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Native time companions: one or two `input[type=time]` marked `[data-time-start]` / `[data-time-end]` beside the date. They stay fully native (own `name`/`value`/submission, no hidden input, no `picker.time` property); `value` stays a `YYYY-MM-DD` date, the picker only enforces from/to order and aggregates validity in `validate()`. Range mode leaves marked times native with a console warning. Datetime composition + timezone stay application/server-owned (D5).
+- `<date-calendar>` month/year controls follow the `Intl` locale order (new `monthYearOrder()` helper; year-first for e.g. `ja` / `zh-CN`). The order is direction-independent: locale decides the linguistic order, `dir` only mirrors the layout.
+- RTL through the inherited `dir` (no `isRTL` option): the header grid mirrors, the prev/next glyphs mirror via CSS, and actions plus ArrowLeft/ArrowRight stay chronological. Includes an Arabic-locale smoke test.
+- Documented date + native time companions submit contract (`appointment[date]` / `appointment[time]`, from/to, future range projection); the core never builds a combined datetime.
+- Five semantic CSS tokens so compact consumers (e.g. a mini-month sidebar) stay on the public surface: `--dp-header-control-size`, `--dp-header-block-gap`, `--dp-nav-gap`, `--dp-year-inline-size`, `--dp-day-radius`. Default rendering is unchanged.
+- `month-format="short"` for compact headers: the month select shows abbreviated month names (anything else falls back to `long`); the accessible grid heading always keeps the long form. Forwarded from `<date-picker>` to its popup calendar.
+
+### Fixed
+
+- Keyboard navigation across a month boundary no longer snaps focus back onto the old date when it reappears as outside-month padding (`fixed-weeks` / edge weeks).
+- A focused disabled day restores full opacity (muted number kept), so the focus outline and the date stay readable instead of washed out.
+- A selected day outside the displayed month keeps accent-contrast text on the accent fill (the outside-month tint no longer overrides selection text).
+- Header controls (month select, year input, nav buttons) share explicit vertical metrics, so compact `--dp-header-control-size` values render at equal heights instead of exposing UA padding differences.
+- Long month names in a narrow track truncate with an ellipsis instead of painting under the native select caret.
+
 ## 0.1.1 — 2026-09-07
 
 ### Fixed
