@@ -162,9 +162,9 @@
     "prepublishOnly": "bun run verify"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.11",
+    "@biomejs/biome": "2.5.13",
     "@lekoala/calendar": "0.1.0",
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.63.0",
     "temporal-polyfill": "^1.0.4",
     "typescript": "7.0.2"
   },
