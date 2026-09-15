@@ -261,6 +261,77 @@ test("Space activates the focused day", async ({ page }) => {
   await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-11");
 });
 
+test("a focused day draws an inner accent ring, inverted on accent-filled cells", async ({ page }) => {
+  const accent = "rgb(37, 99, 235)";
+  const foreground = "rgb(255, 255, 255)";
+  const ring = (scope, date) =>
+    page.evaluate(
+      ({ scope, date }) => {
+        const cell = [...document.querySelectorAll(`${scope} .dp-day`)].find((x) => x.dataset.date === date);
+        cell.focus();
+        const style = getComputedStyle(cell);
+        return {
+          color: style.outlineColor,
+          width: style.outlineWidth,
+          line: style.outlineStyle,
+          offset: style.outlineOffset,
+          shadow: style.boxShadow,
+        };
+      },
+      { scope, date },
+    );
+
+  // Plain day: accent ring drawn inside the cell, nothing painted outside.
+  const plain = await ring("#inline", "2026-09-14");
+  expect(plain.line).toBe("solid");
+  expect(plain.width).toBe("2px");
+  expect(plain.offset).toBe("-2px");
+  expect(plain.color).toBe(accent);
+  expect(plain.shadow).toBe("none");
+
+  // Selected day: the ring inverts so it stays readable on the accent fill.
+  const selected = await ring("#inline", "2026-09-10");
+  expect(selected.offset).toBe("-2px");
+  expect(selected.color).toBe(foreground);
+
+  await page.evaluate(() => {
+    document.querySelector("#stay-calendar").highlightedRange = { start: "2026-09-10", end: "2026-09-15" };
+  });
+  // Interior of a band: accent ring, the band silhouette stays untouched.
+  const inRange = await ring("#stay-calendar", "2026-09-12");
+  expect(inRange.color).toBe(accent);
+  expect(inRange.offset).toBe("-2px");
+  const endpoint = await ring("#stay-calendar", "2026-09-10");
+  expect(endpoint.color).toBe(foreground);
+});
+
+test("a focused day keeps a visible ring in forced colors", async ({ page, browserName }) => {
+  test.skip(
+    browserName !== "chromium",
+    "forced-colors visual assertions follow the Chromium capture pipeline",
+  );
+  await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
+  const ring = await page.evaluate(() => {
+    const cell = [...document.querySelectorAll("#constrained .dp-day")].find(
+      (x) => x.dataset.date === "2026-09-05",
+    );
+    cell.focus();
+    const style = getComputedStyle(cell);
+    return {
+      width: style.outlineWidth,
+      line: style.outlineStyle,
+      color: style.outlineColor,
+      offset: style.outlineOffset,
+    };
+  });
+  // A disabled day is still keyboard-discoverable, so the ring must survive.
+  // The browser is free to remap the accent to whatever system color it wants.
+  expect(ring.line).toBe("solid");
+  expect(ring.width).toBe("2px");
+  expect(ring.offset).toBe("-2px");
+  expect(ring.color).not.toBe("rgba(0, 0, 0, 0)");
+});
+
 test("selection=none navigates a real calendar-view without acquiring a value", async ({ page }) => {
   await page.click('#mini .dp-day[data-date="2026-09-10"]');
   await expect(page.locator("#agenda")).toHaveAttribute("date", "2026-09-10");
