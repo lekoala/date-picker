@@ -6,35 +6,10 @@
   body { font-family: system-ui, sans-serif; margin: 0; }
   main { max-inline-size: 40rem; margin: 0 auto; padding: 2rem 1rem 0; }
   .field { display: grid; gap: 0.35rem; inline-size: 16rem; }
-  .toolbar {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    padding: 1rem;
-    border: 1px solid #888;
-    background: white;
-  }
-  .fixed-box {
-    position: fixed;
-    bottom: 1rem;
-    left: 1rem;
-    padding: 1rem;
-    border: 1px solid #888;
-    background: white;
-  }
   .spacer { block-size: 150vh; }
 </style>
 
 <main>
-  <div class="toolbar" id="toolbar">
-    <label class="field" for="sticky-date">
-      Sticky
-      <date-picker id="sticky-picker" value="2026-09-06" locale="fr-BE">
-        <input id="sticky-date" name="sticky">
-      </date-picker>
-    </label>
-  </div>
-
   <p>Flow picker with room below (no flip expected).</p>
   <label class="field" for="flow-date">
     Flow
@@ -45,27 +20,6 @@
 
   <div class="spacer"></div>
 </main>
-
-<div class="fixed-box">
-  <label class="field" for="fixed-date">
-    Fixed
-    <date-picker id="fixed-picker" value="2026-09-06" locale="fr-BE">
-      <input id="fixed-date" name="fixed">
-    </date-picker>
-  </label>
-</div>
-
-<dialog id="position-dialog">
-  <form method="dialog">
-    <label class="field" for="dialog-date">
-      Dialog
-      <date-picker id="dialog-picker" value="2026-09-06" locale="fr-BE">
-        <input id="dialog-date" name="appointment">
-      </date-picker>
-    </label>
-    <button id="close-dialog" value="close" type="submit">Close</button>
-  </form>
-</dialog>
 
 <script type="module">
 import "/src/define.js";

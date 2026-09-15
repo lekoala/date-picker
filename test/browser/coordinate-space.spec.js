@@ -12,11 +12,10 @@ async function openState(page, id) {
     const hostRect = picker.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
     return {
-      space: picker._resolvedCoordinateSpace,
+      space: picker.coordinateSpace,
       position: panel.style.position,
       styleTop: Number.parseFloat(panel.style.top),
       gap: panelRect.top - hostRect.bottom,
-      gapAbove: hostRect.top - panelRect.bottom,
       hostBottom: hostRect.bottom,
       scrollY: window.scrollY,
     };
@@ -29,8 +28,23 @@ async function closePicker(page, id) {
   }, id);
 }
 
-test("flow + auto resolves document + absolute with scroll-origin coordinates", async ({ page }) => {
-  await page.evaluate(() => window.scrollTo(0, 200));
+test("default is viewport: fixed panel attached below the host", async ({ page }) => {
+  const state = await openState(page, "flow-picker");
+  expect(state.space).toBe("viewport");
+  expect(state.position).toBe("fixed");
+  expect(state.styleTop).toBeCloseTo(state.hostBottom + 4, 0);
+  expect(state.gap).toBeCloseTo(4, 0);
+  await closePicker(page, "flow-picker");
+});
+
+test("explicit document: absolute panel with scroll-origin coordinates", async ({ page }) => {
+  await page.evaluate(() => {
+    document.getElementById("flow-picker").coordinateSpace = "document";
+  });
+  // Small scroll keeps the host inside the viewport boundary so
+  // reposition() can measure; the scroll offset must still be baked
+  // into the absolute document coordinates.
+  await page.evaluate(() => window.scrollTo(0, 60));
   const state = await openState(page, "flow-picker");
   expect(state.space).toBe("document");
   expect(state.position).toBe("absolute");
@@ -39,60 +53,30 @@ test("flow + auto resolves document + absolute with scroll-origin coordinates", 
   await closePicker(page, "flow-picker");
 });
 
-test("flow + forced viewport stays fixed through scrolling", async ({ page }) => {
+test("invalid value falls back to viewport", async ({ page }) => {
   await page.evaluate(() => {
-    document.getElementById("flow-picker").coordinateSpace = "viewport";
+    document.getElementById("flow-picker").coordinateSpace = "nonsense";
   });
   const state = await openState(page, "flow-picker");
   expect(state.space).toBe("viewport");
   expect(state.position).toBe("fixed");
-  expect(state.styleTop).toBeCloseTo(state.hostBottom + 4, 0);
-  await page.evaluate(() => window.scrollBy(0, 200));
-  await page.waitForTimeout(150);
-  const gap = await page.evaluate(() => {
-    const picker = document.getElementById("flow-picker");
-    const panel = picker.querySelector(".dp-picker-panel");
-    return panel.getBoundingClientRect().top - picker.getBoundingClientRect().bottom;
-  });
-  expect(gap).toBeCloseTo(4, 0);
   await closePicker(page, "flow-picker");
 });
 
-test("unstuck sticky + auto resolves viewport + fixed", async ({ page }) => {
-  const state = await openState(page, "sticky-picker");
-  expect(state.space).toBe("viewport");
-  expect(state.position).toBe("fixed");
-  expect(state.gap).toBeCloseTo(4, 0);
-  await closePicker(page, "sticky-picker");
-});
-
-test("sticky + forced document resolves document + absolute", async ({ page }) => {
-  await page.evaluate(() => {
-    document.getElementById("sticky-picker").coordinateSpace = "document";
+test("coordinate space is frozen per opening", async ({ page }) => {
+  const opened = await openState(page, "flow-picker");
+  expect(opened.position).toBe("fixed");
+  const midOpen = await page.evaluate(() => {
+    const picker = /** @type {any} */ (document.getElementById("flow-picker"));
+    picker.coordinateSpace = "document";
+    const panel = picker.querySelector(".dp-picker-panel");
+    return panel.style.position;
   });
-  const state = await openState(page, "sticky-picker");
-  expect(state.space).toBe("document");
-  expect(state.position).toBe("absolute");
-  await closePicker(page, "sticky-picker");
-});
-
-test("fixed + auto resolves viewport + fixed", async ({ page }) => {
-  const state = await openState(page, "fixed-picker");
-  expect(state.space).toBe("viewport");
-  expect(state.position).toBe("fixed");
-  // No room below the fixed box: the panel flips above, still attached.
-  expect(Math.min(Math.abs(state.gap - 4), Math.abs(state.gapAbove - 4))).toBeLessThan(3);
-  await closePicker(page, "fixed-picker");
-});
-
-test("modal dialog + auto resolves viewport + fixed", async ({ page }) => {
-  await page.evaluate(() => {
-    document.getElementById("position-dialog").showModal();
-  });
-  const state = await openState(page, "dialog-picker");
-  expect(state.space).toBe("viewport");
-  expect(state.position).toBe("fixed");
-  // The dialog centers the picker: the panel may flip above, still attached.
-  expect(Math.min(Math.abs(state.gap - 4), Math.abs(state.gapAbove - 4))).toBeLessThan(3);
-  await closePicker(page, "dialog-picker");
+  // Changing the property while open must not move the current opening.
+  expect(midOpen).toBe("fixed");
+  await closePicker(page, "flow-picker");
+  const reopened = await openState(page, "flow-picker");
+  expect(reopened.space).toBe("document");
+  expect(reopened.position).toBe("absolute");
+  await closePicker(page, "flow-picker");
 });

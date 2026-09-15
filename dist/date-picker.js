@@ -1778,16 +1778,6 @@
 
   // src/date-picker.js
   var uid2 = 0;
-  function hasFixedOrStickyAncestor(element) {
-    let node = element;
-    while (node instanceof Element) {
-      const position = node.ownerDocument.defaultView?.getComputedStyle(node).position;
-      if (position === "fixed" || position === "sticky")
-        return true;
-      node = node.parentElement;
-    }
-    return false;
-  }
 
   class DatePickerElement extends HTMLElement {
     static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
@@ -1823,8 +1813,7 @@
       this._dateState = null;
       this._renderDay = null;
       this._isDateDisabled = null;
-      this._coordinateSpace = "auto";
-      this._resolvedCoordinateSpace = "viewport";
+      this._coordinateSpace = "viewport";
     }
     _rangeMode() {
       return this.hasAttribute("range") && Boolean(this._range);
@@ -2127,7 +2116,7 @@
       return this._coordinateSpace;
     }
     set coordinateSpace(value) {
-      this._coordinateSpace = value === "document" || value === "viewport" ? value : "auto";
+      this._coordinateSpace = value === "document" ? "document" : "viewport";
     }
     _adapter() {
       return this._field?.adapter ?? this._fields?.[0]?.adapter ?? createDateAdapter(this.locale);
@@ -2787,16 +2776,6 @@
       const timesValid = this._timeFields.every((timeInput) => timeInput?.checkValidity() ?? true);
       return input.checkValidity() && timesValid;
     }
-    _resolvePositionMode() {
-      if (this._coordinateSpace === "document")
-        return { space: "document", position: "absolute" };
-      if (this._coordinateSpace === "viewport")
-        return { space: "viewport", position: "fixed" };
-      if (this.closest("dialog:modal") || this.closest(":popover-open") || hasFixedOrStickyAncestor(this)) {
-        return { space: "viewport", position: "fixed" };
-      }
-      return { space: "document", position: "absolute" };
-    }
     show(options = {}) {
       const panel = this._panel;
       const calendar = this._calendar;
@@ -2825,14 +2804,13 @@
       panel.showPopover();
       this._open = true;
       this._setExpanded(true);
-      const mode = this._resolvePositionMode();
-      this._resolvedCoordinateSpace = mode.space;
-      panel.style.position = mode.position;
+      const coordinateSpace = this.coordinateSpace;
+      panel.style.position = coordinateSpace === "document" ? "absolute" : "fixed";
       const position = () => reposition(this, panel, {
         placement: "bottom-start",
         distance: 4,
         shiftPadding: 8,
-        coordinateSpace: this._resolvedCoordinateSpace
+        coordinateSpace
       });
       position();
       this._stopTracking = autoUpdate(this, panel, position);

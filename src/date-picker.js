@@ -9,24 +9,6 @@ import { compareTimes, isTime } from "./time.js";
 
 let uid = 0;
 
-/**
- * Whether `element` or any ancestor is fixed or sticky positioned. A sticky
- * ancestor counts whether or not it is currently stuck: it may stick while
- * the picker is open, and the position mode is frozen per opening, so the
- * conservative branch must win from the start.
- * @param {Element | null} element
- * @returns {boolean}
- */
-function hasFixedOrStickyAncestor(element) {
-  let node = element;
-  while (node instanceof Element) {
-    const position = node.ownerDocument.defaultView?.getComputedStyle(node).position;
-    if (position === "fixed" || position === "sticky") return true;
-    node = node.parentElement;
-  }
-  return false;
-}
-
 export class DatePickerElement extends HTMLElement {
   static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
 
@@ -74,10 +56,8 @@ export class DatePickerElement extends HTMLElement {
     this._renderDay = null;
     /** @type {any} */
     this._isDateDisabled = null;
-    /** Public picker coordinate-space request. @type {"auto" | "document" | "viewport"} */
-    this._coordinateSpace = "auto";
-    /** Space resolved for the current opening. @type {"viewport" | "document"} */
-    this._resolvedCoordinateSpace = "viewport";
+    /** Public picker coordinate-space request. @type {"viewport" | "document"} */
+    this._coordinateSpace = "viewport";
   }
 
   _rangeMode() {
@@ -414,13 +394,13 @@ export class DatePickerElement extends HTMLElement {
     if (this._connected) void this.validate();
   }
 
-  /** @public JS-only coordinate-space request with `"auto"` default, where a change made while open applies to the next opening only. @returns {"auto" | "document" | "viewport"} */
+  /** @public JS-only coordinate-space policy: "viewport" by default, "document" as an explicit opt-in; a change made while open applies to the next opening only. @returns {"viewport" | "document"} */
   get coordinateSpace() {
     return this._coordinateSpace;
   }
 
   set coordinateSpace(value) {
-    this._coordinateSpace = value === "document" || value === "viewport" ? value : "auto";
+    this._coordinateSpace = value === "document" ? "document" : "viewport";
   }
 
   _adapter() {
@@ -1195,24 +1175,6 @@ export class DatePickerElement extends HTMLElement {
     return input.checkValidity() && timesValid;
   }
 
-  /**
-   * Resolve the picker position mode. Forced spaces win unconditionally;
-   * "auto" detects once per opening: document flow → document + absolute
-   * (the browser scrolls the surface with the page, no touch lag), while a
-   * modal dialog, an open popover, or a fixed/sticky anchor lineage keeps
-   * viewport + fixed (document coordinates assume an anchor that moves with
-   * the page, which those are not).
-   * @returns {{ space: "viewport" | "document", position: "fixed" | "absolute" }}
-   */
-  _resolvePositionMode() {
-    if (this._coordinateSpace === "document") return { space: "document", position: "absolute" };
-    if (this._coordinateSpace === "viewport") return { space: "viewport", position: "fixed" };
-    if (this.closest("dialog:modal") || this.closest(":popover-open") || hasFixedOrStickyAncestor(this)) {
-      return { space: "viewport", position: "fixed" };
-    }
-    return { space: "document", position: "absolute" };
-  }
-
   /** @public @param {{moveFocus?:boolean}} [options] */
   show(options = {}) {
     const panel = this._panel;
@@ -1239,18 +1201,17 @@ export class DatePickerElement extends HTMLElement {
     panel.showPopover();
     this._open = true;
     this._setExpanded(true);
-    // Freeze the coordinate model once per opening: style.position and the
-    // space must agree, and must not drift mid-opening (e.g. a sticky anchor
-    // sticking after the picker opened).
-    const mode = this._resolvePositionMode();
-    this._resolvedCoordinateSpace = mode.space;
-    panel.style.position = mode.position;
+    // Freeze the explicitly configured coordinate space once per opening: a
+    // change made while open takes effect on the next opening, never the
+    // current one.
+    const coordinateSpace = this.coordinateSpace;
+    panel.style.position = coordinateSpace === "document" ? "absolute" : "fixed";
     const position = () =>
       reposition(this, panel, {
         placement: "bottom-start",
         distance: 4,
         shiftPadding: 8,
-        coordinateSpace: this._resolvedCoordinateSpace,
+        coordinateSpace,
       });
     position();
     this._stopTracking = autoUpdate(this, panel, position);

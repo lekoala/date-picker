@@ -154,7 +154,20 @@ The direct child text input is required. On enhancement its original `name` move
 
 ### Popup positioning
 
-- `coordinateSpace` — JS-only property (`"auto"` default, `"document"`/`"viewport"` force one space, no attribute). Resolved once per opening in `show()`: normal flow → `document` + `absolute`, fixed/sticky/modal/popover anchor → `viewport` + `fixed`. Changing it while open configures the next opening, never the current one.
+- `coordinateSpace` — JS-only, `"viewport"` by default.
+
+```text
+"viewport"
+  panel uses position: fixed
+  general/default integration
+
+"document"
+  panel uses position: absolute
+  explicit optimization when the application knows the picker
+  reference moves with root-page scrolling
+```
+
+`document` follows the `@lekoala/floating` consumer contract: the picker panel is a top-layer popover, so its absolute positioning resolves against the initial containing block; the application remains responsible for knowing that the `<date-picker>` reference itself moves with the root document. Changing `coordinateSpace` while open configures the next opening, never the current one. See the `@lekoala/floating` documentation for the coordinate-space doctrine.
 
 ### Read-only properties
 

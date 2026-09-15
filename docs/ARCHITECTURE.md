@@ -149,15 +149,14 @@ Native Popover owns the top layer. `@lekoala/floating` owns coordinates and geom
 
 ### Coordinate space
 
-`picker.coordinateSpace` (`"auto"` default, `"document"`/`"viewport"` overrides, JS-only, no attribute) is resolved once per opening in `show()`; `panel.style.position` is coupled (`absolute`/`fixed`):
+`picker.coordinateSpace` (`"viewport"` default, `"document"` explicit opt-in, JS-only, no attribute) is frozen once per opening in `show()`; `panel.style.position` is coupled:
 
 ```text
-auto
-  normal document-flow anchor → document + absolute
-  fixed/sticky/modal/popover  → viewport + fixed
+viewport (default) → fixed
+document           → absolute
 ```
 
-Document space lets the browser scroll the surface with the page (no async touch detach) but assumes the anchor moves with the page. Sticky counts even when unstuck — it may stick mid-opening while the mode is frozen. Forcing `"document"` inside sticky/fixed detaches until `autoUpdate()` corrects it.
+No layout inference is performed. Coordinate-space choice is consumer policy; `@lekoala/floating` owns only coordinate math and update tracking.
 
 The picker does not implement:
 

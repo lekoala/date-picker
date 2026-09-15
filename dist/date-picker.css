@@ -366,8 +366,8 @@ date-picker[range] > .dp-picker-button {
 }
 
 .dp-picker-panel[popover] {
-  /* Viewport default; show() overwrites this inline per opening with the
-   * resolved coordinate space (document → absolute, viewport → fixed). */
+  /* Safe baseline. show() switches to absolute only when the consumer
+   * explicitly selects document coordinate space. */
   position: fixed;
   inset: auto;
   margin: 0;
