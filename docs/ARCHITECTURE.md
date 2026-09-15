@@ -171,7 +171,7 @@ The popup remains in authored DOM, preserving inherited locale/theme/density con
 
 Two product shapes cover the range cases, and both keep range rules outside the classes:
 
-`<date-picker range>` shares **one** calendar surface between two editable fields. Each input is owned by a `DateFieldController` (parsing, hidden ISO, commit/stale protection); the pair is driven by `DateRangeController` in `date-range.js`, which owns the active-endpoint transitions and the start/end state. `DatePickerElement` remains a shell: it coordinates DOM/popup/focus only. `value` is unavailable in range mode and `range` is the atomic pair API; inverted or incomplete business ranges are never forwarded to `highlightedRange`, which stays presentation-only.
+`<date-picker range>` shares **one** calendar surface between two editable fields. Each input is owned by a `DateFieldController` (parsing, hidden ISO, commit/stale protection); the pair is driven by `DateRangeController` in `date-range.js`, which owns the active-endpoint transitions and the start/end state. The shell owns one calendar trigger per bound (each inserted after its own field, both pointing at the same popup) and switches the active endpoint without closing it. `DatePickerElement` remains a shell: it coordinates DOM/popup/focus only. `value` is unavailable in range mode and `range` is the atomic pair API; inverted or incomplete business ranges are never forwarded to `highlightedRange`, which stays presentation-only.
 
 `linkDateRange(start, end)` keeps the external relationship for two visually separate pickers:
 

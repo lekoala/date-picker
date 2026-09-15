@@ -84,6 +84,8 @@ test.describe("open-on-focus contract", () => {
     await expect(panel).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(panel).toBeHidden();
+    // Closing returns focus to the trigger that opened it (deferred a tick).
+    await expect(page.locator("#no-focus-picker .dp-picker-button")).toBeFocused();
     await page.keyboard.press("ArrowDown");
     await expect(panel).toBeVisible();
     await expect(page.locator("#no-focus-picker .dp-day[tabindex='0']")).toBeFocused();

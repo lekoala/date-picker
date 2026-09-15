@@ -83,11 +83,13 @@ test("disabling the active bound while open closes the popover", async ({ page }
     document.getElementById("start-date").disabled = true;
   });
   await expect(page.locator("#range-picker")).toHaveJSProperty("open", false);
-  await expect(page.locator("#range-picker .dp-picker-button")).toBeEnabled();
+  // Each trigger follows its own bound: disabling start does not disable end.
+  await expect(page.locator("#range-picker .dp-picker-button[data-endpoint=start]")).toBeDisabled();
+  await expect(page.locator("#range-picker .dp-picker-button[data-endpoint=end]")).toBeEnabled();
   await page.evaluate(() => {
     document.getElementById("end-date").disabled = true;
   });
-  await expect(page.locator("#range-picker .dp-picker-button")).toBeDisabled();
+  await expect(page.locator("#range-picker .dp-picker-button[data-endpoint=end]")).toBeDisabled();
 });
 
 test("a stale activation resolving after the endpoint switched never commits", async ({ page }) => {

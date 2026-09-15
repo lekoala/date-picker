@@ -208,6 +208,9 @@
               "name": "--dp-row-gap"
             },
             {
+              "name": "--dp-picker-button-size"
+            },
+            {
               "name": "--dp-year-inline-size"
             },
             {
@@ -389,6 +392,9 @@
             },
             {
               "name": "--dp-row-gap"
+            },
+            {
+              "name": "--dp-picker-button-size"
             },
             {
               "name": "--dp-year-inline-size"

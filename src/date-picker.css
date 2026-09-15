@@ -12,6 +12,7 @@
   --dp-header-control-size: 2.25rem;
   --dp-header-block-gap: 0.75rem;
   --dp-row-gap: 0.375rem;
+  --dp-picker-button-size: 2.5rem;
   --dp-year-inline-size: 5.5rem;
   --dp-day-radius: calc(var(--dp-radius) * 0.75);
   color: var(--dp-fg);
@@ -155,9 +156,8 @@ html[dir="rtl"] .dp-nav svg {
 }
 
 /* Shared control focus: accent border + light halo. Day cells keep their
-   dedicated outline ring below; this covers month/year/nav/picker button. */
-.dp-calendar-header :where(button, select, input):focus-visible,
-.dp-picker-button:focus-visible {
+   dedicated outline ring below; the picker trigger has its own inner ring. */
+.dp-calendar-header :where(button, select, input):focus-visible {
   outline: none;
   border-color: var(--dp-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-accent) 22%, transparent);
@@ -311,133 +311,111 @@ html[dir="rtl"] .dp-nav svg {
 date-picker {
   position: relative;
   display: inline-grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   max-inline-size: 100%;
-  /* Rounds the host-level focus ring to the pair's outer corners. */
-  border-radius: var(--dp-radius);
 }
 
-date-picker > input:not([type="hidden"]) {
-  grid-column: 1;
-  min-inline-size: 0;
-}
-
-/* Default visible-focus language for the direct inputs. Normal appearance
-   stays consumer-owned: only the focus state is normalized to --dp-accent so
-   the component holds together without a CSS framework. This covers the date
-   field (when it is not part of the composite pair below) and the native time
-   companions, which stay independent controls with their own ring. */
+/* Visible focus is normalized to --dp-accent so the component holds together
+   without a consumer stylesheet; the field's own look stays consumer-owned. */
 date-picker > input:not([type="hidden"]):focus-visible {
   border-color: var(--dp-accent);
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-accent) 20%, transparent);
 }
 
-/* Optional native time companions share the date row; authored inputs stay
-   consumer-styled, the picker only reserves their grid cells. Time tracks are
-   flexible (never `auto`) so a wide UA time control cannot squeeze the date. */
-date-picker:has(> [data-time-start], > [data-time-end]) {
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-}
-
-date-picker:has(> [data-time-start]):has(> [data-time-end]) {
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr);
-}
-
-date-picker > input[data-time-start] {
-  grid-column: 3;
-  grid-row: 1;
+/* Every authored control is a grid item. */
+date-picker > input:not([type="hidden"]) {
   min-inline-size: 0;
-  inline-size: 100%;
-  margin-inline-start: var(--dp-gap);
 }
 
-date-picker > input[data-time-end] {
-  grid-column: 4;
-  grid-row: 1;
-  min-inline-size: 0;
-  inline-size: 100%;
-}
-
-/* From/to read as one joined control: square the inner corners, but only
-   when both companions are present so a lone time keeps its own radius. */
-date-picker:has(> [data-time-start]):has(> [data-time-end]) > input[data-time-start] {
-  border-start-end-radius: 0;
-  border-end-end-radius: 0;
-}
-
-date-picker:has(> [data-time-start]):has(> [data-time-end]) > input[data-time-end] {
-  border-start-start-radius: 0;
-  border-end-start-radius: 0;
-}
-
-date-picker[range] > input:not([type="hidden"]) {
+/* Date fields reserve room for the trigger, which is painted inside the
+   field's own box: the field is the real outer box, so its focus ring wraps
+   the affordance too. `grid-row` must stay explicit, otherwise the trigger
+   (placed with a definite row) claims the row and pushes the field down. */
+date-picker > input:not([type="hidden"]):not([type="time"]) {
   grid-column: 1;
-}
-
-date-picker[range] > input[data-range-start] {
   grid-row: 1;
-  border-end-start-radius: 0;
+  box-sizing: border-box;
+  inline-size: 100%;
+  padding-inline-end: calc(var(--dp-picker-button-size) + 0.5rem);
 }
 
-date-picker[range] > input[data-range-end] {
-  grid-row: 2;
-  border-start-start-radius: 0;
-}
-
+/* The trigger is a real button overlaid on the field's inline-end, like the
+   native `input[type=time]` indicator: no chrome of its own, transparent, so
+   the authored field background and border stay visible underneath. */
 .dp-picker-button {
-  grid-column: 2;
-  min-inline-size: 2.5rem;
-  border: 1px solid var(--dp-border);
-  border-inline-start: 0;
-  border-start-start-radius: 0;
-  border-end-start-radius: 0;
-  border-start-end-radius: var(--dp-radius);
-  border-end-end-radius: var(--dp-radius);
-  background: var(--dp-bg);
+  display: grid;
+  place-items: center;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+  align-self: stretch;
+  inline-size: var(--dp-picker-button-size);
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
   color: var(--dp-fg);
   font: inherit;
   cursor: pointer;
 }
 
-date-picker[range] > .dp-picker-button {
-  grid-row: 1 / span 2;
+/* Like the native time indicator: the ring wraps the icon, not the field (the
+   field already shows its own ring through :focus-visible). Same radius as
+   everywhere else: no bespoke shape. */
+.dp-picker-button:focus-visible {
+  outline: 2px solid var(--dp-accent);
+  outline-offset: -5px;
+  border-radius: var(--dp-radius);
 }
 
-/* Focus is only ever drawn on a real box. When the host really is the date
-   field + trigger (no time companion, no range) it can carry the ring for the
-   pair. With time companions the host no longer maps to that pair, so the
-   focus follows the control that actually owns it: each native input keeps its
-   own ring and the trigger only marks the affordance through its border. Range
-   keeps per-bound focus for the same reason. No virtual focus box. */
-date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])):has(
-  > input:not([type="hidden"], [type="time"]):focus-visible,
-  > .dp-picker-button:focus-visible
-) {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-accent) 20%, transparent);
+/* Optional native time companions share the date row; authored inputs stay
+   consumer-styled, the picker only reserves their grid cells. Time tracks are
+   flexible (never `auto`) so a wide UA time control cannot squeeze the date.
+   Each companion keeps its own box and its own gap: nothing is joined, so
+   focus rings never merge and no neighbour swallows another's focus. */
+date-picker:has(> [data-time-start], > [data-time-end]) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: var(--dp-gap);
 }
 
-/* The pair owns the ring: its halves drop their own so the seam is not cut. */
-date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end]))
-> input:not([type="hidden"], [type="time"]):focus-visible,
-date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])) > .dp-picker-button:focus-visible {
-  outline: none;
-  box-shadow: none;
+date-picker:has(> [data-time-start]):has(> [data-time-end]) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
 }
 
-date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])):has(
-    > input:not([type="hidden"], [type="time"]):focus-visible,
-    > .dp-picker-button:focus-visible
-  )
-  > :is(input:not([type="hidden"], [type="time"]), .dp-picker-button) {
-  border-color: var(--dp-accent);
+date-picker > input[data-time-start] {
+  grid-column: 2;
+  grid-row: 1;
+  min-inline-size: 0;
 }
 
-/* Date field focused next to its trigger: the adjoining border follows so the
-   affordance reads as one control, even when there is no shared ring. */
-date-picker:not([range]):has(> input:not([type="hidden"], [type="time"]):focus-visible) > .dp-picker-button {
-  border-color: var(--dp-accent);
+date-picker > input[data-time-end] {
+  grid-column: 3;
+  grid-row: 1;
+  min-inline-size: 0;
+}
+
+/* Range: two stacked fields, each owning its trigger, sharing one popup and
+   one calendar. No trigger spans both bounds, so each bound keeps a local
+   affordance and a local focus target. */
+date-picker[range] {
+  row-gap: var(--dp-gap);
+}
+
+date-picker[range] > input[data-range-start] {
+  grid-row: 1;
+}
+
+date-picker[range] > input[data-range-end] {
+  grid-row: 2;
+}
+
+date-picker[range] > .dp-picker-button[data-endpoint="start"] {
+  grid-row: 1;
+}
+
+date-picker[range] > .dp-picker-button[data-endpoint="end"] {
+  grid-row: 2;
 }
 
 .dp-picker-panel[popover] {

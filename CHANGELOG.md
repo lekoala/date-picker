@@ -10,7 +10,20 @@
 - Forced-colors block reduced to observed-loss fixes (2px `Highlight` border on selected/endpoints, in-range underline, pinned today marker); the inner ring, bold weight and `GrayText` reconstruction are dropped after capture review. The month select also hands its caret back to the browser there.
 - Picker panel shadow is `rgb(15 23 42 / 0.12)`.
 - The month select draws its own caret (`appearance: none` + `currentColor` gradient, mirrored under RTL) instead of the UA menulist arrow.
-- Default visible-focus language for the direct inputs: the date field and the native time companions get an accent border plus a light halo with `outline: none`, while normal input appearance stays consumer-owned. Focus is only drawn on a real box: when `<date-picker>` really is the date field plus its trigger the host carries the ring for the pair; with time companions the field keeps its own ring and the trigger only marks the affordance through its accent border. `[range]` keeps per-bound focus.
+- Default visible-focus language for the direct inputs: the date field and the native time companions get an accent border plus a light halo with `outline: none`, while normal input appearance stays consumer-owned.
+- The calendar trigger is now a real button overlaid inside the date field's own box (like the native `input[type=time]` indicator) instead of a separate box joined to the field. The field reserves its place, keeps its border/background, and its own focus ring wraps the trigger; the trigger draws no chrome and shows a small inner ring when focused. Focus is only ever drawn on a real box — no host-level ring, no pseudo-element.
+- `<date-picker range>` has one trigger per bound (`start`, `end`), each inserted right after its own field in DOM/tab order, sharing a single popup, calendar, source and state. Activating the other bound's trigger while open switches the active bound and keeps the popup open instead of toggling it shut; each trigger follows its own bound's `disabled`/`readonly` and gets a bound-specific accessible name.
+- Closing the single picker returns focus to the control that opened it (field or trigger) instead of always the field. Range keeps restoring the active bound, since a first pick moves the workflow to the other bound.
+- All date/time boxes are independently rounded: the from/to time companions are no longer square-cornered against each other, and each keeps its own gap.
+- The date field now owns its whole box and its authored radius (the demo drops the old half-radius), which is a **visual contract change** for consumers who styled the field as the left half of a joined pair.
+
+### Added
+
+- `--dp-picker-button-size` (`2.5rem`): the calendar trigger width, also used to reserve `padding-inline-end` on the date field it is painted into.
+
+### Fixed
+
+- `ArrowDown` on the trigger opens the popup and enters the grid, so keyboard users keep a working path after focus returns there.
 
 ### Removed
 

@@ -162,7 +162,9 @@ The calendar follows the WAI-ARIA date-picker/grid interaction model:
 
 The picker popup uses native Popover for the top layer and `@lekoala/floating` for geometry. It has `role="dialog"`, but it is intentionally **not** marked `aria-modal` because the current implementation does not inert the rest of the document.
 
-When the popup opens on the field's focus, grid navigation is reachable via `ArrowDown` (or the trigger button) so the focus-restore/Escape flow stays predictable.
+The calendar trigger is a real button painted inside the field's own box (like the native `input[type=time]` indicator): the field reserves its place with `padding-inline-end`, keeps its own border and background, and its focus ring wraps the trigger too. The trigger draws no chrome of its own and shows a small inner ring when focused.
+
+When the popup opens on the field's focus, grid navigation is reachable via `ArrowDown` (or the trigger button) so the focus-restore/Escape flow stays predictable. Closing returns focus to the control that opened the popover: the field when it opened by focus, the trigger when it was activated. In range mode focus follows the active bound instead, because a first pick moves the workflow to the other bound.
 
 See [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md).
 

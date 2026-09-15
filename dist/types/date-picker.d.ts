@@ -24,7 +24,14 @@ export declare class DatePickerElement extends HTMLElement {
     /** Map of clicked/keyboard-activated grid dates to the generation at click
      * time (range mode supersession/stale protection). @type {Map<string, number>} */
     _pendingIntents: Map<string, number>;
-    _button: HTMLButtonElement | null;
+    /** Overlaid calendar triggers, one per field (single) or per bound (range). @type {{button: HTMLButtonElement, endpoint: "" | "start" | "end"}[]} */
+    _buttons: {
+        button: HTMLButtonElement;
+        endpoint: "" | "start" | "end";
+    }[];
+    /** Control that opened the popover, so single mode can restore focus to it.
+     * @type {HTMLElement | null} */
+    _returnFocus: HTMLElement | null;
     _panel: HTMLDivElement | null;
     _calendar: DateCalendarElement | null;
     _originalDescribedBy: string;
@@ -181,10 +188,45 @@ export declare class DatePickerElement extends HTMLElement {
     _syncInputState(): void;
     _syncRangeFields(): void;
     _setRangeAria(): void;
-    /** @param {HTMLInputElement} [anchorInput] */
-    _build(anchorInput?: HTMLInputElement): void;
+    /**
+     * Create one calendar trigger. It is a real button overlaid inside the
+     * field's own box (see the CSS): the field reserves the room, the trigger
+     * stays transparent, and the field's focus ring wraps both.
+     * @param {"" | "start" | "end"} endpoint
+     * @returns {HTMLButtonElement}
+     */
+    _createTrigger(endpoint: "" | "start" | "end"): HTMLButtonElement;
+    /**
+     * Build the popup once and one trigger per field. Each trigger is inserted
+     * immediately after its own field so DOM order follows visual/tab order
+     * (`date -> its trigger -> next control`). The hidden ISO field may sit
+     * between the two; it is not focusable.
+     */
+    _build(): void;
     _bind(): void;
     _bindRange(): void;
+    /**
+     * Point the shared calendar at one range bound and invalidate any pending
+     * activation, so a late response can never commit on the wrong bound.
+     * @param {"start" | "end"} endpoint
+     */
+    _activateRangeEndpoint(endpoint: "start" | "end"): void;
+    /**
+     * Range has one trigger per bound. A press on the other bound's trigger is a
+     * local switch, not a toggle: it repoints the single open popup instead of
+     * closing it. Only a press on the already-active bound toggles shut.
+     * @param {"start" | "end"} endpoint
+     * @param {MouseEvent} event
+     */
+    _onRangeTriggerClick(endpoint: "start" | "end", event: MouseEvent): void;
+    /**
+     * ArrowDown on a trigger opens the popup and drops into the grid, like the
+     * field itself (Enter/Space go through the click path). Needed because focus
+     * now returns to the trigger that opened the popover.
+     * @param {"" | "start" | "end"} endpoint
+     * @param {KeyboardEvent} event
+     */
+    _onTriggerKeyDown(endpoint: "" | "start" | "end", event: KeyboardEvent): void;
     /** @param {"" | "start" | "end"} endpoint @param {KeyboardEvent} event */
     _onFieldKeyDown(endpoint: "" | "start" | "end", event: KeyboardEvent): void;
     /** @param {"" | "start" | "end"} endpoint @param {FocusEvent} event */
@@ -199,6 +241,8 @@ export declare class DatePickerElement extends HTMLElement {
     _syncCalendarOptions(): void;
     _refreshLocale(): void;
     _refreshButtonLabel(): void;
+    /** Each bound has its own trigger, so each needs its own accessible name: the
+     * bound label is what tells two otherwise identical triggers apart. */
     _refreshRangeButtonLabel(): void;
     /** @param {string} value */
     _reflectValue(value: string): void;
@@ -265,14 +309,22 @@ export declare class DatePickerElement extends HTMLElement {
     _restoreRangeDefault(): void;
     /** @param {"start" | "end"} which */
     _focusField(which: "start" | "end"): void;
-    _focusInput(): void;
+    /**
+     * Restore focus to the control that opened the popover (single mode). focus()
+     * must not run synchronously from a keydown handler (Chromium drops focus
+     * changes there) and must not re-open the popover under the default
+     * open-on-focus. Deferring keeps _suppressFocusOpen active for the call.
+     */
+    _restoreFocus(): void;
     /** @returns {"" | "start" | "end"} */
     _resolveRangeEndpoint(): "" | "start" | "end";
     /** @public */
     validate(): Promise<boolean>;
-    /** @public @param {{moveFocus?:boolean}} [options] */
+    /** @public @param {{moveFocus?:boolean, endpoint?:"start"|"end", returnFocus?:HTMLElement}} [options] */
     show(options?: {
         moveFocus?: boolean;
+        endpoint?: "start" | "end";
+        returnFocus?: HTMLElement;
     }): void;
     /** @param {boolean} expanded */
     _setExpanded(expanded: boolean): void;

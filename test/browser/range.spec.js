@@ -65,12 +65,52 @@ test("opening from start picks start, stays open for end and closes on completio
   await expect(page.locator('#stay-picker input[type="hidden"][name="departure"]')).toHaveValue("2026-09-15");
 });
 
-test("the shared button targets the last active bound, else start", async ({ page }) => {
-  await page.click("#stay-picker .dp-picker-button");
+test("the start trigger fills start, then the flow moves to end", async ({ page }) => {
+  await page.click("#stay-picker .dp-picker-button[data-endpoint=start]");
   await expect(page.locator("#stay-picker .dp-picker-panel")).toBeVisible();
   await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
   await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
   await expect(page.locator("#stay-end")).toHaveValue("");
+  // The incomplete range keeps the shared popup open on the end bound.
+  await page.click('#stay-picker .dp-day[data-date="2026-09-20"]');
+  await expect(page.locator("#stay-end")).toHaveValue("20/09/2026");
+  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
+});
+
+test("the end trigger targets the end bound", async ({ page }) => {
+  await page.click("#stay-picker .dp-picker-button[data-endpoint=end]");
+  await expect(page.locator("#stay-picker .dp-picker-panel")).toBeVisible();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-20"]');
+  await expect(page.locator("#stay-end")).toHaveValue("20/09/2026");
+  await expect(page.locator("#stay-start")).toHaveValue("");
+});
+
+test("the other bound's trigger switches the active endpoint without closing", async ({ page }) => {
+  const start = page.locator("#stay-picker .dp-picker-button[data-endpoint=start]");
+  const end = page.locator("#stay-picker .dp-picker-button[data-endpoint=end]");
+  await start.click();
+  const panel = page.locator("#stay-picker .dp-picker-panel");
+  await expect(panel).toBeVisible();
+  await expect(start).toHaveAttribute("aria-expanded", "true");
+  await expect(end).toHaveAttribute("aria-expanded", "true");
+
+  await end.click();
+  // One shared popup that stays open, not a toggle and not a second panel.
+  await expect(page.locator("#stay-picker")).toHaveJSProperty("open", true);
+  await expect(panel).toBeVisible();
+  await expect(page.locator("#stay-picker > .dp-picker-panel")).toHaveCount(1);
+  await page.click('#stay-picker .dp-day[data-date="2026-09-20"]');
+  await expect(page.locator("#stay-end")).toHaveValue("20/09/2026");
+  await expect(page.locator("#stay-start")).toHaveValue("");
+});
+
+test("keyboard activation of the other bound's trigger also switches, not closes", async ({ page }) => {
+  await page.click("#stay-picker .dp-picker-button[data-endpoint=start]");
+  const end = page.locator("#stay-picker .dp-picker-button[data-endpoint=end]");
+  await end.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#stay-picker")).toHaveJSProperty("open", true);
+  await expect(page.locator('#stay-picker .dp-day[tabindex="0"]')).toBeFocused();
 });
 
 test("a completed range extends before or after regardless of the opening field", async ({ page }) => {
@@ -85,7 +125,7 @@ test("a completed range extends before or after regardless of the opening field"
   await expect(page.locator("#stay-end")).toHaveValue("15/09/2026");
   await expect(page.locator("#stay-start")).toHaveValue("05/09/2026");
 
-  await page.click("#stay-picker .dp-picker-button");
+  await page.click("#stay-picker .dp-picker-button[data-endpoint=start]");
   await page.click('#stay-picker .dp-day[data-date="2026-09-20"]');
   await expect(page.locator("#stay-picker")).toHaveJSProperty("open", false);
   await expect(page.locator("#stay-end")).toHaveValue("20/09/2026");

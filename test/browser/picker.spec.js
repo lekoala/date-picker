@@ -43,50 +43,95 @@ test("Tab reaches the trigger, month/year controls and the single grid tab stop"
 const shadowOf = (page, selector) =>
   page.locator(selector).evaluate((element) => getComputedStyle(element).boxShadow);
 
-test("the simple picker draws one composite ring around the field and trigger", async ({ page }) => {
+test("the trigger is painted inside the field box, which owns the focus ring", async ({ page }) => {
   const accent = "rgb(37, 99, 235)";
   await page.locator("#simple-date").focus();
-  // The host really is the pair here, so it carries the ring for both halves.
-  const hostShadow = await shadowOf(page, "#simple-picker");
-  expect(hostShadow).not.toBe("none");
-  expect(hostShadow).toContain("3px");
-  await expect(page.locator("#simple-date")).toHaveCSS("box-shadow", "none");
-  await expect(page.locator("#simple-date")).toHaveCSS("outline-style", "none");
+  const box = await page.evaluate(() => {
+    const picker = document.getElementById("simple-picker");
+    const input = document.getElementById("simple-date");
+    const button = picker.querySelector(".dp-picker-button");
+    const a = input.getBoundingClientRect();
+    const b = button.getBoundingClientRect();
+    return {
+      inputRight: Math.round(a.right),
+      buttonRight: Math.round(b.right),
+      buttonLeft: Math.round(b.left),
+      height: Math.round(b.height),
+      inputHeight: Math.round(a.height),
+      padEnd: getComputedStyle(input).paddingInlineEnd,
+    };
+  });
+  // The trigger sits flush at the field's inline-end, inside its box.
+  expect(box.buttonRight).toBe(box.inputRight);
+  expect(box.buttonLeft).toBeLessThan(box.inputRight);
+  expect(box.height).toBe(box.inputHeight);
+  expect(box.padEnd).toBe("48px");
+  // The field is the real box: its own ring wraps the affordance too.
+  const fieldShadow = await shadowOf(page, "#simple-date");
+  expect(fieldShadow).toContain("3px");
   await expect(page.locator("#simple-date")).toHaveCSS("border-top-color", accent);
-  // The adjoining trigger follows so the composite reads as one control.
-  await expect(page.locator("#simple-picker .dp-picker-button")).toHaveCSS("border-top-color", accent);
-  await expect(page.locator("#simple-picker .dp-picker-button")).toHaveCSS("box-shadow", "none");
+  await expect(page.locator("#simple-picker")).toHaveCSS("box-shadow", "none");
+  // No chrome of its own: transparent, borderless (the authored field shows).
+  await expect(page.locator("#simple-picker .dp-picker-button")).toHaveCSS("border-top-width", "0px");
+  await expect(page.locator("#simple-picker .dp-picker-button")).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
 });
 
-test("a focused time companion keeps its own ring, not a host ring", async ({ page }) => {
+test("a focused trigger draws a small inner ring, like the native time indicator", async ({ page }) => {
+  await page.locator("#simple-picker .dp-picker-button").focus();
+  const button = page.locator("#simple-picker .dp-picker-button");
+  await expect(button).toHaveCSS("outline-style", "solid");
+  await expect(button).toHaveCSS("outline-width", "2px");
+  await expect(button).toHaveCSS("outline-offset", "-5px");
+  await expect(button).toHaveCSS("border-radius", "8px");
+  // The field is not focused, so it shows no ring of its own.
+  await expect(page.locator("#simple-date")).toHaveCSS("box-shadow", "none");
+});
+
+test("a focused time companion keeps its own ring, outside the date field", async ({ page }) => {
   const accent = "rgb(37, 99, 235)";
   await page.locator("#time-start").focus();
   const timeShadow = await shadowOf(page, "#time-start");
   expect(timeShadow).toContain("3px");
   await expect(page.locator("#time-start")).toHaveCSS("border-top-color", accent);
   await expect(page.locator("#time-start")).toHaveCSS("outline-style", "none");
-  // The host is not the pair here, so it paints no ring.
   await expect(page.locator("#time-picker")).toHaveCSS("box-shadow", "none");
 });
 
-test("a date field beside times keeps its own ring, the trigger only marks the affordance", async ({
-  page,
-}) => {
-  const accent = "rgb(37, 99, 235)";
+test("the date field beside time companions rings its own box, trigger included", async ({ page }) => {
   await page.locator("#time-date").focus();
+  const boxes = await page.evaluate(() => {
+    const input = document.getElementById("time-date");
+    const button = document.querySelector("#time-picker .dp-picker-button");
+    const time = document.getElementById("time-start");
+    const a = input.getBoundingClientRect();
+    const b = button.getBoundingClientRect();
+    const t = time.getBoundingClientRect();
+    return {
+      inputRight: Math.round(a.right),
+      buttonRight: Math.round(b.right),
+      buttonLeft: Math.round(b.left),
+      timeLeft: Math.round(t.left),
+    };
+  });
+  // The trigger is inside the date field's box; the time starts after it.
+  expect(boxes.buttonRight).toBe(boxes.inputRight);
+  expect(boxes.buttonLeft).toBeLessThan(boxes.inputRight);
+  expect(boxes.timeLeft).toBeGreaterThan(boxes.inputRight);
   const dateShadow = await shadowOf(page, "#time-date");
   expect(dateShadow).toContain("3px");
-  await expect(page.locator("#time-date")).toHaveCSS("border-top-color", accent);
-  // No shared ring to fake: the host stays plain and the trigger shows a border.
   await expect(page.locator("#time-picker")).toHaveCSS("box-shadow", "none");
-  await expect(page.locator("#time-picker .dp-picker-button")).toHaveCSS("border-top-color", accent);
-  await expect(page.locator("#time-picker .dp-picker-button")).toHaveCSS("box-shadow", "none");
+  // The time companions are separate controls: no ring while unfocused.
+  await expect(page.locator("#time-start")).toHaveCSS("box-shadow", "none");
 });
 
-test("range bounds keep per-bound focus without a host ring", async ({ page }) => {
+test("range bounds keep per-bound focus on their own box", async ({ page }) => {
   await page.locator("#stay-start").focus();
   const boundShadow = await shadowOf(page, "#stay-start");
   expect(boundShadow).toContain("3px");
+  await expect(page.locator("#stay-end")).toHaveCSS("box-shadow", "none");
   await expect(page.locator("#stay-picker")).toHaveCSS("box-shadow", "none");
 });
 
@@ -126,17 +171,37 @@ test("typing a locale date commits the ISO value", async ({ page }) => {
   await expect(page.locator("#simple-picker")).toHaveAttribute("value", "2026-09-10");
 });
 
-test("open reflects the popover state and Escape restores focus", async ({ page }) => {
+test("Escape returns focus to the trigger that opened the popover", async ({ page }) => {
   await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
-  await page.click("#simple-picker .dp-picker-button");
+  await page.focus("#simple-picker .dp-picker-button");
+  await page.keyboard.press("ArrowDown");
   await expect(page.locator("#simple-picker")).toHaveJSProperty("open", true);
   await page.keyboard.press("Escape");
   await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
   await expect(page.locator("#simple-picker .dp-picker-panel")).toBeHidden();
+  await expect(page.locator("#simple-picker .dp-picker-button")).toBeFocused();
+});
+
+test("Escape returns focus to the field that opened the popover", async ({ page }) => {
+  await page.locator("#simple-date").focus();
+  await expect(page.locator("#simple-picker .dp-picker-panel")).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
   await expect(page.locator("#simple-date")).toBeFocused();
 });
 
-test("keyboard Enter on the open trigger moves into the grid instead of closing", async ({ page }) => {
+test("selecting a date returns focus to the trigger that opened the popover", async ({ page }) => {
+  await page.focus("#simple-picker .dp-picker-button");
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
+  await expect(page.locator("#simple-picker .dp-picker-button")).toBeFocused();
+});
+
+test("Enter on an open trigger moves into the grid; ArrowDown on it reopens", async ({ page }) => {
   await page.locator("#simple-date").focus();
   await expect(page.locator("#simple-picker .dp-picker-panel")).toBeVisible();
   await page.keyboard.press("Tab");
@@ -146,7 +211,13 @@ test("keyboard Enter on the open trigger moves into the grid instead of closing"
   await expect(page.locator("#simple-picker")).toHaveJSProperty("open", true);
   await page.keyboard.press("Escape");
   await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
+  // Opened by the field, so Escape returns there.
   await expect(page.locator("#simple-date")).toBeFocused();
+  // ArrowDown on the trigger then opens and enters the grid.
+  await page.focus("#simple-picker .dp-picker-button");
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator("#simple-picker")).toHaveJSProperty("open", true);
+  await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
 });
 
 test("mouse click on the open trigger still closes the popover", async ({ page }) => {
@@ -154,6 +225,15 @@ test("mouse click on the open trigger still closes the popover", async ({ page }
   await expect(page.locator("#simple-picker")).toHaveJSProperty("open", true);
   await page.click("#simple-picker .dp-picker-button");
   await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
+});
+
+test("Tab reaches the field, then its own trigger, then the next control", async ({ page }) => {
+  await page.locator("#time-date").focus();
+  await expect(page.locator("#time-picker .dp-picker-panel")).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#time-picker .dp-picker-button")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#time-start")).toBeFocused();
 });
 
 test("range linkage updates reciprocal effective bounds", async ({ page }) => {

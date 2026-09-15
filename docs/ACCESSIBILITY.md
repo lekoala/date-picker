@@ -108,13 +108,15 @@ Today keeps a thin `1px Highlight` border while selected carries the wider borde
 
 Guard: re-run the `color-contrast` review and the forced-colors screenshot bundle whenever `--dp-*` styling or day-cell rendering changes.
 
-## Visible focus (composite control)
+## Visible focus
 
 The default focus language uses `--dp-accent`, so the picker holds together without a consumer stylesheet (`outline: none` plus an accent border and a light halo). Only the focus state is normalized: the resting input appearance stays consumer-owned.
 
-Focus is only ever drawn on a real box. When `<date-picker>` really is the date field plus its trigger (no time companion, no range), the host carries the ring for the pair, so it wraps both halves instead of stopping at the seam.
+Focus is only ever drawn on a real box. The calendar trigger is a real button painted inside the date field's own box, so the field's focus ring naturally wraps the affordance too — no host-level ring, no pseudo-element. When the trigger itself is focused it shows a small inner ring, like the native `input[type=time]` indicator, instead of pretending the whole field is focused.
 
-With time companions the host no longer maps to that pair, so no shared ring is faked: the date field keeps its own ring, the adjoining trigger marks the affordance through its accent border, and each native time input keeps its own ring. `[range]` keeps per-bound focus because its host spans two stacked bounds. This deliberately avoids a virtual focus box; if a shared date-field-plus-trigger ring were ever required in every layout, that pair would need a real DOM wrapper instead.
+Each native time companion is an independent control and keeps its own ring; they are not joined, so rings never merge and no neighbour swallows another's focus. In `[range]`, each bound owns its trigger and its own ring, and focus follows the active bound rather than the original trigger.
+
+Closing returns focus to the control that opened the popover (field or trigger) in single mode.
 
 ## Recommended manual test matrix
 

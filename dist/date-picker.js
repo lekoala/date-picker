@@ -1797,7 +1797,8 @@
       this._lastFocusEndpoint = "";
       this._rangeCommitId = 0;
       this._pendingIntents = new Map;
-      this._button = null;
+      this._buttons = [];
+      this._returnFocus = null;
       this._panel = null;
       this._calendar = null;
       this._originalDescribedBy = "";
@@ -1905,7 +1906,7 @@
         field.confirm = (date) => this._confirmDate(date);
         field.setupFormValue();
       }
-      this._build(endInput);
+      this._build();
       this._setRangeAria();
       this._syncRangeFields();
       this._bindRange();
@@ -1945,10 +1946,12 @@
         this._teardownField(this._field);
       }
       this._field = null;
-      this._button?.remove();
+      for (const { button } of this._buttons)
+        button.remove();
+      this._buttons = [];
+      this._returnFocus = null;
       this._panel?.remove();
       this._formatHint?.remove();
-      this._button = null;
       this._panel = null;
       this._calendar = null;
       this._formatHint = null;
@@ -2129,8 +2132,9 @@
       if (!input)
         return;
       this._field?.syncInputState();
-      if (this._button)
-        this._button.disabled = input.disabled || input.readOnly;
+      const button = this._buttons[0]?.button;
+      if (button)
+        button.disabled = input.disabled || input.readOnly;
       if (this._open && (input.disabled || input.readOnly))
         this.hide(false);
     }
@@ -2139,10 +2143,12 @@
         return;
       for (const field of this._fields)
         field.syncInputState();
+      for (const { button, endpoint } of this._buttons) {
+        const index = endpoint === "end" ? 1 : 0;
+        const field = this._fields[index];
+        button.disabled = Boolean(field?.input.disabled || field?.input.readOnly);
+      }
       const active = this._range?.activeEndpoint === "end" ? 1 : 0;
-      const disabled = this._fields.every((field) => field.input.disabled || field.input.readOnly);
-      if (this._button)
-        this._button.disabled = disabled;
       if (this._open && (this._fields[active]?.input.disabled || this._fields[active]?.input.readOnly)) {
         this.hide(false);
       }
@@ -2160,19 +2166,37 @@
         input.setAttribute("aria-controls", this._panel.id);
       }
     }
-    _build(anchorInput) {
-      const input = anchorInput || this._input;
-      if (!input)
-        return;
-      const panelId = `${this._id}-panel`;
-      const hintId = `${this._id}-format`;
+    _createTrigger(endpoint) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "dp-picker-button";
       button.setAttribute("aria-haspopup", "dialog");
       button.setAttribute("aria-expanded", "false");
-      button.setAttribute("aria-controls", panelId);
+      button.setAttribute("aria-controls", `${this._id}-panel`);
+      if (endpoint)
+        button.dataset.endpoint = endpoint;
       button.innerHTML = '<span aria-hidden="true"><svg viewBox="0 0 16 16" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="1.75" y="3" width="12.5" height="11" rx="1.75"/><path d="M1.75 6.75h12.5"/><path d="M5.25 1.75v2.5M10.75 1.75v2.5"/></svg></span>';
+      return button;
+    }
+    _build() {
+      const ranges = this._rangeMode();
+      const targets = [];
+      if (ranges) {
+        for (const [index, field] of (this._fields || []).entries()) {
+          targets.push([field.input, index === 1 ? "end" : "start"]);
+        }
+      } else if (this._input) {
+        targets.push([this._input, ""]);
+      }
+      if (!targets.length)
+        return;
+      const panelId = `${this._id}-panel`;
+      const hintId = `${this._id}-format`;
+      this._buttons = targets.map(([input, endpoint]) => {
+        const button = this._createTrigger(endpoint);
+        input.insertAdjacentElement("afterend", button);
+        return { button, endpoint };
+      });
       const panel = document.createElement("div");
       panel.id = panelId;
       panel.className = "dp-picker-panel";
@@ -2186,28 +2210,25 @@
       const hint = document.createElement("span");
       hint.id = hintId;
       hint.className = "dp-visually-hidden";
-      input.insertAdjacentElement("afterend", button);
-      button.insertAdjacentElement("afterend", panel);
-      panel.insertAdjacentElement("afterend", hint);
-      this._button = button;
+      this.append(panel, hint);
       this._panel = panel;
       this._calendar = calendar;
       this._formatHint = hint;
-      if (!this._rangeMode()) {
-        this._originalDescribedBy = input.getAttribute("aria-describedby") || "";
+      if (!ranges && this._input) {
+        this._originalDescribedBy = this._input.getAttribute("aria-describedby") || "";
         const describedBy = [this._originalDescribedBy, hintId].filter(Boolean).join(" ");
-        input.setAttribute("aria-describedby", describedBy);
-        input.setAttribute("role", "combobox");
-        input.setAttribute("aria-haspopup", "dialog");
-        input.setAttribute("aria-expanded", "false");
-        input.setAttribute("aria-controls", panelId);
+        this._input.setAttribute("aria-describedby", describedBy);
+        this._input.setAttribute("role", "combobox");
+        this._input.setAttribute("aria-haspopup", "dialog");
+        this._input.setAttribute("aria-expanded", "false");
+        this._input.setAttribute("aria-controls", panelId);
       }
       this._refreshLocale();
       this._refreshButtonLabel();
     }
     _bind() {
       const input = this._input;
-      const button = this._button;
+      const button = this._buttons[0]?.button;
       const calendar = this._calendar;
       if (!input || !button || !calendar)
         return;
@@ -2247,8 +2268,9 @@
           this.hide(false);
           return;
         }
-        this.show();
+        this.show({ returnFocus: button });
       }, { signal });
+      button.addEventListener("keydown", (event) => this._onTriggerKeyDown("", event), { signal });
       calendar.addEventListener("dateactivate", (event) => {
         const custom = event;
         const date = custom.detail?.date;
@@ -2262,7 +2284,7 @@
           this._field?.dirty();
           this._setValue(date, { emit: true, format: true });
           this.hide(false);
-          this._focusInput();
+          this._restoreFocus();
         });
       }, { signal });
       calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
@@ -2284,9 +2306,8 @@
       this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
     }
     _bindRange() {
-      const button = this._button;
       const calendar = this._calendar;
-      if (!this._fields || !button || !calendar)
+      if (!this._fields || !this._buttons.length || !calendar)
         return;
       const controller = new AbortController;
       this._controller = controller;
@@ -2299,17 +2320,17 @@
         field.input.addEventListener("focus", (event) => this._onFieldFocus(endpoint, event), { signal });
         field.input.addEventListener("keydown", (event) => this._onFieldKeyDown(endpoint, event), { signal });
       }
-      button.addEventListener("click", (event) => {
-        if (this._open) {
-          if (event.detail === 0) {
-            setTimeout(() => this._calendar?.focusGrid(), 0);
-            return;
-          }
-          this.hide(false);
-          return;
-        }
-        this.show();
-      }, { signal });
+      for (const entry of this._buttons) {
+        const endpoint = entry.endpoint;
+        if (endpoint === "")
+          continue;
+        entry.button.addEventListener("click", (event) => this._onRangeTriggerClick(endpoint, event), {
+          signal
+        });
+        entry.button.addEventListener("keydown", (event) => this._onTriggerKeyDown(endpoint, event), {
+          signal
+        });
+      }
       calendar.addEventListener("click", (event) => this._captureGridIntent(event), { capture: true, signal });
       calendar.addEventListener("keydown", (event) => this._captureGridIntent(event), {
         capture: true,
@@ -2363,6 +2384,49 @@
         }
       }, { capture: true, signal });
       this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
+    }
+    _activateRangeEndpoint(endpoint) {
+      const calendar = this._calendar;
+      if (!this._range || !calendar)
+        return;
+      this._range.focus(endpoint);
+      this._rangeCommitId++;
+      this._pendingIntents.clear();
+      this._lastFocusEndpoint = endpoint;
+      const target = this._boundCanonical(endpoint) || todayISO();
+      calendar.display = monthKey(target);
+      calendar.focusedDate = target;
+    }
+    _onRangeTriggerClick(endpoint, event) {
+      if (!this._open) {
+        this.show({ endpoint });
+        return;
+      }
+      if (event.detail === 0) {
+        this._activateRangeEndpoint(endpoint);
+        setTimeout(() => this._calendar?.focusGrid(), 0);
+        return;
+      }
+      if (endpoint !== this._range?.activeEndpoint) {
+        this._activateRangeEndpoint(endpoint);
+        return;
+      }
+      this.hide(false);
+    }
+    _onTriggerKeyDown(endpoint, event) {
+      if (event.key !== "ArrowDown")
+        return;
+      event.preventDefault();
+      if (this._open) {
+        if (this._rangeMode() && endpoint)
+          this._activateRangeEndpoint(endpoint);
+        setTimeout(() => this._calendar?.focusGrid(), 0);
+        return;
+      }
+      if (this._rangeMode())
+        this.show({ endpoint: endpoint || undefined });
+      else
+        this.show({ returnFocus: this._buttons[0]?.button });
     }
     _onFieldKeyDown(endpoint, event) {
       if (event.key === "ArrowDown") {
@@ -2476,7 +2540,8 @@
       this._refreshButtonLabel();
     }
     _refreshButtonLabel() {
-      if (!this._button)
+      const single = this._buttons[0]?.button;
+      if (!single)
         return;
       if (this._rangeMode()) {
         this._refreshRangeButtonLabel();
@@ -2484,16 +2549,19 @@
       }
       const prefix = this._value ? this._messages.changeDate : this._messages.chooseDate;
       const suffix = this._value ? `, ${formatLongDate(this._value, this.locale)}` : "";
-      this._button.setAttribute("aria-label", `${prefix}${suffix}`);
+      single.setAttribute("aria-label", `${prefix}${suffix}`);
     }
     _refreshRangeButtonLabel() {
-      if (!this._button || !this._range)
+      if (!this._range)
         return;
       const { start, end } = this._range;
-      const hasRange = Boolean(start && end);
-      const prefix = hasRange ? this._messages.changeDate : this._messages.chooseDate;
-      const suffix = hasRange ? `, ${formatLongDate(start, this.locale)} – ${formatLongDate(end, this.locale)}` : "";
-      this._button.setAttribute("aria-label", `${prefix}${suffix}`);
+      for (const { button, endpoint } of this._buttons) {
+        const bound = endpoint === "end" ? end : start;
+        const prefix = bound ? this._messages.changeDate : this._messages.chooseDate;
+        const suffix = bound ? `, ${formatLongDate(bound, this.locale)}` : "";
+        const boundLabel = endpoint === "end" ? this._messages.rangeEnd : this._messages.rangeStart;
+        button.setAttribute("aria-label", `${prefix}${suffix}, ${boundLabel}`);
+      }
     }
     _reflectValue(value) {
       this._reflecting = true;
@@ -2725,10 +2793,14 @@
         this._suppressFocusOpen = false;
       }, 0);
     }
-    _focusInput() {
+    _restoreFocus() {
+      const target = this._returnFocus;
+      this._returnFocus = null;
+      if (!(target instanceof HTMLElement) || !target.isConnected || target.matches(":disabled"))
+        return;
       this._suppressFocusOpen = true;
       setTimeout(() => {
-        this._input?.focus();
+        target.focus();
         this._suppressFocusOpen = false;
       }, 0);
     }
@@ -2779,20 +2851,13 @@
     show(options = {}) {
       const panel = this._panel;
       const calendar = this._calendar;
-      const button = this._button;
-      if (!panel || !calendar || !button || this._open)
+      if (!panel || !calendar || !this._buttons.length || this._open)
         return;
       if (this._rangeMode()) {
-        const endpoint = this._resolveRangeEndpoint();
+        const endpoint = options.endpoint || this._resolveRangeEndpoint();
         if (!endpoint)
           return;
-        this._range?.focus(endpoint);
-        this._rangeCommitId++;
-        this._pendingIntents.clear();
-        const target = this._boundCanonical(endpoint) || todayISO();
-        calendar.display = monthKey(target);
-        calendar.focusedDate = target;
-        this._lastFocusEndpoint = endpoint;
+        this._activateRangeEndpoint(endpoint);
       } else {
         const input = this._input;
         if (!input || input.disabled || input.readOnly)
@@ -2800,6 +2865,7 @@
         const target = this._value || this._adapter().parse(input.value) || todayISO();
         calendar.display = monthKey(target);
         calendar.focusedDate = target;
+        this._returnFocus = options.returnFocus instanceof HTMLElement ? options.returnFocus : input;
       }
       panel.showPopover();
       this._open = true;
@@ -2821,7 +2887,8 @@
     _setExpanded(expanded) {
       const value = expanded ? "true" : "false";
       this._input?.setAttribute("aria-expanded", value);
-      this._button?.setAttribute("aria-expanded", value);
+      for (const { button } of this._buttons)
+        button.setAttribute("aria-expanded", value);
       for (const field of this._fields || [])
         field.input.setAttribute("aria-expanded", value);
     }
@@ -2843,7 +2910,7 @@
           if (endpoint)
             this._focusField(endpoint);
         } else {
-          this._focusInput();
+          this._restoreFocus();
         }
       }
       this.dispatchEvent(new Event("close", { bubbles: true }));
