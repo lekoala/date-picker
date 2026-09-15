@@ -40,13 +40,14 @@ test("Tab reaches the trigger, month/year controls and the single grid tab stop"
   await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
 });
 
+const shadowOf = (page, selector) =>
+  page.locator(selector).evaluate((element) => getComputedStyle(element).boxShadow);
+
 test("the simple picker draws one composite ring around the field and trigger", async ({ page }) => {
   const accent = "rgb(37, 99, 235)";
-  const shadowOf = (selector) =>
-    page.locator(selector).evaluate((element) => getComputedStyle(element).boxShadow);
   await page.locator("#simple-date").focus();
-  // The ring belongs to the host, not to its two halves.
-  const hostShadow = await shadowOf("#simple-picker");
+  // The host really is the pair here, so it carries the ring for both halves.
+  const hostShadow = await shadowOf(page, "#simple-picker");
   expect(hostShadow).not.toBe("none");
   expect(hostShadow).toContain("3px");
   await expect(page.locator("#simple-date")).toHaveCSS("box-shadow", "none");
@@ -57,24 +58,34 @@ test("the simple picker draws one composite ring around the field and trigger", 
   await expect(page.locator("#simple-picker .dp-picker-button")).toHaveCSS("box-shadow", "none");
 });
 
-test("time companions keep their own ring and stay out of the host composite", async ({ page }) => {
+test("a focused time companion keeps its own ring, not a host ring", async ({ page }) => {
   const accent = "rgb(37, 99, 235)";
   await page.locator("#time-start").focus();
-  const timeShadow = await page
-    .locator("#time-start")
-    .evaluate((element) => getComputedStyle(element).boxShadow);
+  const timeShadow = await shadowOf(page, "#time-start");
   expect(timeShadow).toContain("3px");
   await expect(page.locator("#time-start")).toHaveCSS("border-top-color", accent);
   await expect(page.locator("#time-start")).toHaveCSS("outline-style", "none");
-  // The host hosts the time inputs too, so it must not paint a composite ring.
+  // The host is not the pair here, so it paints no ring.
   await expect(page.locator("#time-picker")).toHaveCSS("box-shadow", "none");
+});
+
+test("a date field beside times keeps its own ring, the trigger only marks the affordance", async ({
+  page,
+}) => {
+  const accent = "rgb(37, 99, 235)";
+  await page.locator("#time-date").focus();
+  const dateShadow = await shadowOf(page, "#time-date");
+  expect(dateShadow).toContain("3px");
+  await expect(page.locator("#time-date")).toHaveCSS("border-top-color", accent);
+  // No shared ring to fake: the host stays plain and the trigger shows a border.
+  await expect(page.locator("#time-picker")).toHaveCSS("box-shadow", "none");
+  await expect(page.locator("#time-picker .dp-picker-button")).toHaveCSS("border-top-color", accent);
+  await expect(page.locator("#time-picker .dp-picker-button")).toHaveCSS("box-shadow", "none");
 });
 
 test("range bounds keep per-bound focus without a host ring", async ({ page }) => {
   await page.locator("#stay-start").focus();
-  const boundShadow = await page
-    .locator("#stay-start")
-    .evaluate((element) => getComputedStyle(element).boxShadow);
+  const boundShadow = await shadowOf(page, "#stay-start");
   expect(boundShadow).toContain("3px");
   await expect(page.locator("#stay-picker")).toHaveCSS("box-shadow", "none");
 });

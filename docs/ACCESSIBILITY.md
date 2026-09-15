@@ -112,7 +112,9 @@ Guard: re-run the `color-contrast` review and the forced-colors screenshot bundl
 
 The default focus language uses `--dp-accent`, so the picker holds together without a consumer stylesheet (`outline: none` plus an accent border and a light halo). Only the focus state is normalized: the resting input appearance stays consumer-owned.
 
-A `<date-picker>` holding a single date field next to its trigger is one composite control, so the ring is drawn on the host and wraps both halves instead of stopping at the seam. The host box also contains the native time companions, and in `[range]` it spans two bounds, so those shapes deliberately keep a per-element ring (per bound in range) rather than a host-level one.
+Focus is only ever drawn on a real box. When `<date-picker>` really is the date field plus its trigger (no time companion, no range), the host carries the ring for the pair, so it wraps both halves instead of stopping at the seam.
+
+With time companions the host no longer maps to that pair, so no shared ring is faked: the date field keeps its own ring, the adjoining trigger marks the affordance through its accent border, and each native time input keeps its own ring. `[range]` keeps per-bound focus because its host spans two stacked bounds. This deliberately avoids a virtual focus box; if a shared date-field-plus-trigger ring were ever required in every layout, that pair would need a real DOM wrapper instead.
 
 ## Recommended manual test matrix
 

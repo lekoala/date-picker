@@ -10,7 +10,7 @@
 - Forced-colors block reduced to observed-loss fixes (2px `Highlight` border on selected/endpoints, in-range underline, pinned today marker); the inner ring, bold weight and `GrayText` reconstruction are dropped after capture review. The month select also hands its caret back to the browser there.
 - Picker panel shadow is `rgb(15 23 42 / 0.12)`.
 - The month select draws its own caret (`appearance: none` + `currentColor` gradient, mirrored under RTL) instead of the UA menulist arrow.
-- Default visible-focus language for the direct inputs: the date field and the native time companions get an accent border plus a light halo with `outline: none`, while normal input appearance stays consumer-owned. The simple date + trigger pair is one composite: the ring moves to `<date-picker>` so it wraps both halves, and the trigger border follows. Time companions and range bounds keep their own ring.
+- Default visible-focus language for the direct inputs: the date field and the native time companions get an accent border plus a light halo with `outline: none`, while normal input appearance stays consumer-owned. Focus is only drawn on a real box: when `<date-picker>` really is the date field plus its trigger the host carries the ring for the pair; with time companions the field keeps its own ring and the trigger only marks the affordance through its accent border. `[range]` keeps per-bound focus.
 
 ### Removed
 

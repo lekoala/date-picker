@@ -314,6 +314,7 @@ date-picker {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   max-inline-size: 100%;
+  /* Rounds the host-level focus ring to the pair's outer corners. */
   border-radius: var(--dp-radius);
 }
 
@@ -404,18 +405,12 @@ date-picker[range] > .dp-picker-button {
   grid-row: 1 / span 2;
 }
 
-/* The date field reads as one composite with the picker button: while the
-   field is focused the adjoining button border follows, so the halo does
-   not cut the control in two. Range keeps per-bound focus, and a focused time
-   companion is an independent control, so neither pulls the button border. */
-date-picker:not([range]):has(> input:not([type="hidden"], [type="time"]):focus-visible) > .dp-picker-button {
-  border-color: var(--dp-accent);
-}
-
-/* Simple picker (date + trigger, no time companion, no range): the ring is
-   owned by the whole pair and drawn on the host. A time companion shares the
-   host box, so a host-level ring would swallow it; that case keeps the
-   per-element ring above. Range stays per-bound for the same reason. */
+/* Focus is only ever drawn on a real box. When the host really is the date
+   field + trigger (no time companion, no range) it can carry the ring for the
+   pair. With time companions the host no longer maps to that pair, so the
+   focus follows the control that actually owns it: each native input keeps its
+   own ring and the trigger only marks the affordance through its border. Range
+   keeps per-bound focus for the same reason. No virtual focus box. */
 date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])):has(
   > input:not([type="hidden"], [type="time"]):focus-visible,
   > .dp-picker-button:focus-visible
@@ -423,8 +418,9 @@ date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])):has(
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-accent) 20%, transparent);
 }
 
+/* The pair owns the ring: its halves drop their own so the seam is not cut. */
 date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end]))
-  > input:not([type="hidden"], [type="time"]):focus-visible,
+> input:not([type="hidden"], [type="time"]):focus-visible,
 date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])) > .dp-picker-button:focus-visible {
   outline: none;
   box-shadow: none;
@@ -435,6 +431,12 @@ date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])):has(
     > .dp-picker-button:focus-visible
   )
   > :is(input:not([type="hidden"], [type="time"]), .dp-picker-button) {
+  border-color: var(--dp-accent);
+}
+
+/* Date field focused next to its trigger: the adjoining border follows so the
+   affordance reads as one control, even when there is no shared ring. */
+date-picker:not([range]):has(> input:not([type="hidden"], [type="time"]):focus-visible) > .dp-picker-button {
   border-color: var(--dp-accent);
 }
 
