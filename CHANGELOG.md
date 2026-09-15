@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+
+## 0.3.0 — 2026-09-15
+
 ### Changed
 
 - Visual rhythm pass (CSS only, no JS/API/DOM change): `--dp-gap` is now `0.375rem`, `--dp-header-block-gap` is `0.75rem`, and week rows use the new `--dp-row-gap` token (`0.375rem`), so the header, weekdays and days read as three separated tiers; the picker panel padding is `0.875rem 1rem`. The header keeps a single uniform horizontal gap: the extra `--dp-nav-gap` between year and prev/next is gone (see Removed).
