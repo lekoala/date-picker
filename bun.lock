@@ -5,7 +5,7 @@
     "": {
       "name": "@lekoala/date-picker",
       "dependencies": {
-        "@lekoala/floating": "^0.1.1",
+        "@lekoala/floating": "^0.2.0",
       },
       "devDependencies": {
         "@biomejs/biome": "2.5.11",
@@ -37,7 +37,7 @@
 
     "@lekoala/calendar": ["@lekoala/calendar@0.1.0", "", { "peerDependencies": { "temporal-polyfill": "^1.0.4" } }, "sha512-Ky7KR9hQTYjcUqKRJ30D0LBSj4f6swWN41lVM3BJMuZISE9xuJOlpzRO2nYhiaHTI7ZP6DZKq3s5b1bS+33giw=="],
 
-    "@lekoala/floating": ["@lekoala/floating@0.1.1", "", {}, "sha512-V9bm4RzWWNzjvO16reAY5OTmKkxAtnKwtyafym6S2wcWni3n20MYY4PuwiCcI7xf7/8A332VEwA+xkgi7qRMgg=="],
+    "@lekoala/floating": ["@lekoala/floating@0.2.0", "", {}, "sha512-K1O+ZWexniv1hWe34wwrrPTntt37k3rCVp2luygoy9t+SaspJEKm/SyzBzUxBtkA4SLp9bNhIPd3ch3Ca0x+2g=="],
 
     "@playwright/test": ["@playwright/test@1.62.1", "", { "dependencies": { "playwright": "1.62.1" }, "bin": { "playwright": "cli.js" } }, "sha512-DTcUc8qii+cpHvtOwggMtBRMjKZHXYWdw8syRYu2vtzuq4Wxphqq4NfCs5Zt44L6mA8rfDfj+PHnxFc/FeK6mQ=="],
 

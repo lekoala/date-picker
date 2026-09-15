@@ -63,6 +63,10 @@ export declare class DatePickerElement extends HTMLElement {
     _renderDay: any;
     /** @type {any} */
     _isDateDisabled: any;
+    /** Public picker coordinate-space request. @type {"auto" | "document" | "viewport"} */
+    _coordinateSpace: "auto" | "document" | "viewport";
+    /** Space resolved for the current opening. @type {"viewport" | "document"} */
+    _resolvedCoordinateSpace: "viewport" | "document";
     static observedAttributes: string[];
     constructor();
     _rangeMode(): boolean;
@@ -166,6 +170,9 @@ export declare class DatePickerElement extends HTMLElement {
     /** @public @returns {any} */
     get isDateDisabled(): any;
     set isDateDisabled(value: any);
+    /** @public JS-only coordinate-space request with `"auto"` default, where a change made while open applies to the next opening only. @returns {"auto" | "document" | "viewport"} */
+    get coordinateSpace(): "auto" | "document" | "viewport";
+    set coordinateSpace(value: "auto" | "document" | "viewport");
     _adapter(): {
         locale: string;
         placeholder: string;
@@ -265,6 +272,19 @@ export declare class DatePickerElement extends HTMLElement {
     _resolveRangeEndpoint(): "" | "start" | "end";
     /** @public */
     validate(): Promise<boolean>;
+    /**
+     * Resolve the picker position mode. Forced spaces win unconditionally;
+     * "auto" detects once per opening: document flow → document + absolute
+     * (the browser scrolls the surface with the page, no touch lag), while a
+     * modal dialog, an open popover, or a fixed/sticky anchor lineage keeps
+     * viewport + fixed (document coordinates assume an anchor that moves with
+     * the page, which those are not).
+     * @returns {{ space: "viewport" | "document", position: "fixed" | "absolute" }}
+     */
+    _resolvePositionMode(): {
+        space: "viewport" | "document";
+        position: "fixed" | "absolute";
+    };
     /** @public @param {{moveFocus?:boolean}} [options] */
     show(options?: {
         moveFocus?: boolean;

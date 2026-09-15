@@ -317,6 +317,10 @@
               "name": "isDateDisabled"
             },
             {
+              "kind": "getter",
+              "name": "coordinateSpace"
+            },
+            {
               "kind": "method",
               "name": "validate"
             },

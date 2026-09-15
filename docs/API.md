@@ -152,6 +152,10 @@ The direct child text input is required. On enhancement its original `name` move
 - `isDateDisabled`;
 - `messages`.
 
+### Popup positioning
+
+- `coordinateSpace` — JS-only property (`"auto"` default, `"document"`/`"viewport"` force one space, no attribute). Resolved once per opening in `show()`: normal flow → `document` + `absolute`, fixed/sticky/modal/popover anchor → `viewport` + `fixed`. Changing it while open configures the next opening, never the current one.
+
 ### Read-only properties
 
 ```js

@@ -66,7 +66,9 @@ export declare class DateFieldController {
     /** Whether the user edited the visible text since the last application. */
     get isDirty(): boolean;
     /** Live text input: the raw text no longer matches the canonical value, so
-     * the hidden ISO must not submit it. */
+     * the hidden ISO must not submit it. A text that formats back to the current
+     * canonical value (e.g. re-applied by a calendar pick) keeps the ISO value
+     * valid; invalidating in-flight commits first still drops stale async work. */
     handleInput(): void;
     /**
      * Commit the visible text. Returns the parsed canonical date on success, the

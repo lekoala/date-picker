@@ -834,7 +834,7 @@
       return weeks;
     }
     _focusTargetKey(element) {
-      if (element.matches(".dp-month-select, .dp-year-select, .dp-year-input") && element.id) {
+      if (element.matches(".dp-month-select, .dp-year-input") && element.id) {
         return `#${CSS.escape(element.id)}`;
       }
       if (element.matches(".dp-nav[data-calendar-action]")) {
@@ -1074,10 +1074,6 @@
       const target = event.target;
       if (target instanceof HTMLSelectElement && target.matches(".dp-month-select")) {
         this._setDisplay(`${this.display.slice(0, 4)}-${target.value}`);
-        return;
-      }
-      if (target instanceof HTMLSelectElement && target.matches(".dp-year-select")) {
-        this._setDisplay(`${target.value}-${this.display.slice(5, 7)}`);
         return;
       }
       if (target instanceof HTMLInputElement && target.matches(".dp-year-input")) {
@@ -1560,8 +1556,11 @@
     const availableHeight = `${getAvailableHeight(referenceRect, side, boundary, distance, shiftPadding)}px`;
     const { style } = floating;
     const roomChanged = style.getPropertyValue("--available-height") !== availableHeight;
-    style.left = `${coords.x}px`;
-    style.top = `${coords.y}px`;
+    const win = options.coordinateSpace === "document" ? reference.ownerDocument.defaultView : null;
+    const originX = win ? win.scrollX : 0;
+    const originY = win ? win.scrollY : 0;
+    style.left = `${coords.x + originX}px`;
+    style.top = `${coords.y + originY}px`;
     style.setProperty("--arrow-x", `${arrowX}%`);
     style.setProperty("--arrow-y", `${arrowY}%`);
     style.setProperty("--available-height", availableHeight);
@@ -1668,16 +1667,23 @@
     }
     handleInput() {
       const input = this.input;
-      this._dirty = true;
+      const text = input.value.trim();
+      const canonical = this.canonical ? this.adapter.format(this.canonical) : "";
       this.dirty();
+      if (text === canonical) {
+        this._dirty = false;
+        if (this.hidden)
+          this.hidden.value = this.canonical;
+        input.setCustomValidity("");
+        return;
+      }
+      this._dirty = true;
       if (this.hidden)
         this.hidden.value = "";
-      const text = input.value.trim();
       if (!text) {
         input.setCustomValidity("");
         return;
       }
-      const canonical = this.canonical ? this.adapter.format(this.canonical) : "";
       input.setCustomValidity(text === canonical ? "" : this.messages.invalidDate);
     }
     async commit() {
@@ -1772,6 +1778,16 @@
 
   // src/date-picker.js
   var uid2 = 0;
+  function hasFixedOrStickyAncestor(element) {
+    let node = element;
+    while (node instanceof Element) {
+      const position = node.ownerDocument.defaultView?.getComputedStyle(node).position;
+      if (position === "fixed" || position === "sticky")
+        return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
 
   class DatePickerElement extends HTMLElement {
     static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
@@ -1807,6 +1823,8 @@
       this._dateState = null;
       this._renderDay = null;
       this._isDateDisabled = null;
+      this._coordinateSpace = "auto";
+      this._resolvedCoordinateSpace = "viewport";
     }
     _rangeMode() {
       return this.hasAttribute("range") && Boolean(this._range);
@@ -2105,6 +2123,12 @@
       if (this._connected)
         this.validate();
     }
+    get coordinateSpace() {
+      return this._coordinateSpace;
+    }
+    set coordinateSpace(value) {
+      this._coordinateSpace = value === "document" || value === "viewport" ? value : "auto";
+    }
     _adapter() {
       return this._field?.adapter ?? this._fields?.[0]?.adapter ?? createDateAdapter(this.locale);
     }
@@ -2352,7 +2376,7 @@
       this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
     }
     _onFieldKeyDown(endpoint, event) {
-      if (event.key === "ArrowDown" || event.altKey && event.key === "ArrowDown") {
+      if (event.key === "ArrowDown") {
         event.preventDefault();
         if (this._rangeMode() && endpoint) {
           this._lastFocusEndpoint = endpoint;
@@ -2400,6 +2424,7 @@
       const date = cell?.getAttribute("data-date") || "";
       if (!isDate(date))
         return;
+      this._pendingIntents.clear();
       this._pendingIntents.set(date, ++this._rangeCommitId);
     }
     _onEscape(event) {
@@ -2552,7 +2577,7 @@
         this._orderTags.delete(index);
         return false;
       }
-      this._setBound(which, result.value || "", { emit: true, user: true, format: result.status === "ok" });
+      this._setBound(which, result.value || "", { emit: false, user: true, format: result.status === "ok" });
       return true;
     }
     _setBound(which, value, options = {}) {
@@ -2762,6 +2787,16 @@
       const timesValid = this._timeFields.every((timeInput) => timeInput?.checkValidity() ?? true);
       return input.checkValidity() && timesValid;
     }
+    _resolvePositionMode() {
+      if (this._coordinateSpace === "document")
+        return { space: "document", position: "absolute" };
+      if (this._coordinateSpace === "viewport")
+        return { space: "viewport", position: "fixed" };
+      if (this.closest("dialog:modal") || this.closest(":popover-open") || hasFixedOrStickyAncestor(this)) {
+        return { space: "viewport", position: "fixed" };
+      }
+      return { space: "document", position: "absolute" };
+    }
     show(options = {}) {
       const panel = this._panel;
       const calendar = this._calendar;
@@ -2790,7 +2825,15 @@
       panel.showPopover();
       this._open = true;
       this._setExpanded(true);
-      const position = () => reposition(this, panel, { placement: "bottom-start", distance: 4, shiftPadding: 8 });
+      const mode = this._resolvePositionMode();
+      this._resolvedCoordinateSpace = mode.space;
+      panel.style.position = mode.position;
+      const position = () => reposition(this, panel, {
+        placement: "bottom-start",
+        distance: 4,
+        shiftPadding: 8,
+        coordinateSpace: this._resolvedCoordinateSpace
+      });
       position();
       this._stopTracking = autoUpdate(this, panel, position);
       if (options.moveFocus !== false)
