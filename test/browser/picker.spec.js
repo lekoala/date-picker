@@ -40,6 +40,74 @@ test("Tab reaches the trigger, month/year controls and the single grid tab stop"
   await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
 });
 
+test("the simple picker draws one composite ring around the field and trigger", async ({ page }) => {
+  const accent = "rgb(37, 99, 235)";
+  const shadowOf = (selector) =>
+    page.locator(selector).evaluate((element) => getComputedStyle(element).boxShadow);
+  await page.locator("#simple-date").focus();
+  // The ring belongs to the host, not to its two halves.
+  const hostShadow = await shadowOf("#simple-picker");
+  expect(hostShadow).not.toBe("none");
+  expect(hostShadow).toContain("3px");
+  await expect(page.locator("#simple-date")).toHaveCSS("box-shadow", "none");
+  await expect(page.locator("#simple-date")).toHaveCSS("outline-style", "none");
+  await expect(page.locator("#simple-date")).toHaveCSS("border-top-color", accent);
+  // The adjoining trigger follows so the composite reads as one control.
+  await expect(page.locator("#simple-picker .dp-picker-button")).toHaveCSS("border-top-color", accent);
+  await expect(page.locator("#simple-picker .dp-picker-button")).toHaveCSS("box-shadow", "none");
+});
+
+test("time companions keep their own ring and stay out of the host composite", async ({ page }) => {
+  const accent = "rgb(37, 99, 235)";
+  await page.locator("#time-start").focus();
+  const timeShadow = await page
+    .locator("#time-start")
+    .evaluate((element) => getComputedStyle(element).boxShadow);
+  expect(timeShadow).toContain("3px");
+  await expect(page.locator("#time-start")).toHaveCSS("border-top-color", accent);
+  await expect(page.locator("#time-start")).toHaveCSS("outline-style", "none");
+  // The host hosts the time inputs too, so it must not paint a composite ring.
+  await expect(page.locator("#time-picker")).toHaveCSS("box-shadow", "none");
+});
+
+test("range bounds keep per-bound focus without a host ring", async ({ page }) => {
+  await page.locator("#stay-start").focus();
+  const boundShadow = await page
+    .locator("#stay-start")
+    .evaluate((element) => getComputedStyle(element).boxShadow);
+  expect(boundShadow).toContain("3px");
+  await expect(page.locator("#stay-picker")).toHaveCSS("box-shadow", "none");
+});
+
+test("the month select uses an author-drawn caret and hands it back in forced colors", async ({ page }) => {
+  const select = page.locator("#inline .dp-month-select");
+  await expect(select).toHaveCSS("appearance", "none");
+  const normal = await select.evaluate((element) => getComputedStyle(element).backgroundImage);
+  expect(normal).not.toBe("none");
+  // Room for the caret on the trailing side (2rem), text keeps the small inset.
+  await expect(select).toHaveCSS("padding-right", "32px");
+  await expect(select).toHaveCSS("padding-left", "7.2px");
+
+  // RTL: the logical padding flips, the physically-positioned caret mirrors.
+  const rtl = await page.evaluate(() => {
+    document.documentElement.dir = "rtl";
+    const element = document.querySelector("#inline .dp-month-select");
+    const style = getComputedStyle(element);
+    return { left: style.paddingLeft, right: style.paddingRight, position: style.backgroundPosition };
+  });
+  expect(rtl.left).toBe("32px");
+  expect(rtl.right).toBe("7.2px");
+  expect(rtl.position).toContain("14.4px");
+
+  await page.evaluate(() => {
+    document.documentElement.dir = "ltr";
+  });
+  await page.emulateMedia({ forcedColors: "active" });
+  await expect(select).toHaveCSS("appearance", "auto");
+  await expect(select).toHaveCSS("background-image", "none");
+  await expect(select).toHaveCSS("padding-right", "7.2px");
+});
+
 test("typing a locale date commits the ISO value", async ({ page }) => {
   await page.fill("#simple-date", "10/09/2026");
   await page.locator("#simple-date").blur();

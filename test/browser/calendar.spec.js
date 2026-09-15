@@ -366,7 +366,7 @@ test("forced colors keep a highlighted range band visually distinct", async ({ p
       return {
         borderColor: style.borderTopColor,
         borderWidth: style.borderTopWidth,
-        fontWeight: style.fontWeight,
+        borderStyle: style.borderTopStyle,
       };
     };
     const readAfter = (selector) => {
@@ -393,7 +393,7 @@ test("forced colors keep a highlighted range band visually distinct", async ({ p
   expect(styles.end.borderWidth).toBe("2px");
   expect(styles.start.borderColor).toBe(styles.end.borderColor);
   expect(styles.start.borderColor).not.toBe("rgba(0, 0, 0, 0)");
-  expect(styles.start.fontWeight).toBe("700");
+  expect(styles.start.borderStyle).toBe("solid");
   expect(styles.middle.content).toBe('""');
   expect(styles.middle.height).toBe("1px");
   expect(styles.middle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
@@ -416,11 +416,11 @@ test("constrained forced-colors endpoints inside a range keep readable contrast"
     const element = document.querySelector('#stay-calendar .dp-day[data-date="2026-09-10"]');
     if (!(element instanceof HTMLElement)) return null;
     const style = getComputedStyle(element);
-    return { borderWidth: style.borderTopWidth, fontWeight: style.fontWeight };
+    return { borderWidth: style.borderTopWidth, borderStyle: style.borderTopStyle };
   });
   expect(endpoint).not.toBeNull();
   expect(endpoint.borderWidth).toBe("2px");
-  expect(endpoint.fontWeight).toBe("700");
+  expect(endpoint.borderStyle).toBe("solid");
 });
 
 test("inline range demo paints the band across two activations", async ({ page }) => {
@@ -528,28 +528,36 @@ test("forced colors keep selected, today and disabled days visually distinct", a
     "forced-colors visual assertions follow the Chromium capture pipeline",
   );
   await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
+  // A calendar pinned to the real current month keeps the today assertions
+  // independent of the wall clock and of the demo's fixed month.
+  await page.evaluate(() => {
+    const pad = (value) => String(value).padStart(2, "0");
+    const now = new Date();
+    const iso = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    const element = document.createElement("date-calendar");
+    element.id = "hc-calendar";
+    element.setAttribute("display", iso(now).slice(0, 7));
+    element.setAttribute("value", iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)));
+    document.body.append(element);
+  });
 
   const styles = await page.evaluate(() => {
-    const read = (selector) => {
-      const element = document.querySelector(selector);
+    const read = (element) => {
       if (!(element instanceof HTMLElement)) return null;
       const style = getComputedStyle(element);
-      const before = getComputedStyle(element, "::before");
       return {
         backgroundColor: style.backgroundColor,
         color: style.color,
         borderColor: style.borderTopColor,
         borderWidth: style.borderTopWidth,
         opacity: style.opacity,
-        beforeBorderColor: before.borderTopColor,
-        beforeBorderWidth: before.borderTopWidth,
       };
     };
-
+    const calendar = document.getElementById("hc-calendar");
     return {
-      selected: read('#inline .dp-day[data-date="2026-09-10"]'),
-      today: read('#inline .dp-day[data-date="2026-09-06"]'),
-      disabled: read('#constrained .dp-day[data-date="2026-09-05"]'),
+      selected: read(calendar.querySelector('[data-selected="true"]')),
+      today: read(calendar.querySelector('[data-today="true"]')),
+      disabled: read(document.querySelector('#constrained .dp-day[data-date="2026-09-05"]')),
     };
   });
 
@@ -557,14 +565,13 @@ test("forced colors keep selected, today and disabled days visually distinct", a
   expect(styles.today).not.toBeNull();
   expect(styles.disabled).not.toBeNull();
   expect(styles.selected.borderWidth).toBe("2px");
-  expect(styles.selected.beforeBorderWidth).toBe("1px");
   expect(styles.selected.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
   expect(styles.selected.borderColor).not.toBe(styles.today.borderColor);
   expect(styles.selected.borderWidth).not.toBe(styles.today.borderWidth);
   expect(styles.today.borderWidth).toBe("1px");
   expect(styles.today.borderColor).not.toBe("rgba(0, 0, 0, 0)");
-  expect(styles.selected.color).toBe(styles.selected.beforeBorderColor);
-  expect(styles.disabled.opacity).toBe("1");
-  expect(styles.disabled.color).not.toBe(styles.selected.color);
-  expect(styles.disabled.color).not.toBe(styles.today.color);
+  // No GrayText override: disabled keeps the day color and is carried by the
+  // native dimming instead of a color swap.
+  expect(Number(styles.disabled.opacity)).toBeLessThan(Number(styles.today.opacity));
+  expect(styles.disabled.color).toBe(styles.today.color);
 });

@@ -97,18 +97,22 @@ The same resolved date state used by the grid is used for manual-entry validatio
 
 Forced colors should not rely on the normal selected-day fill tokens.
 
-When `forced-colors: active`, the selected day switches to a border-based treatment:
+When `forced-colors: active`, the selected day and range endpoints switch to a border-based treatment:
 
 - `Canvas` background;
 - `CanvasText` foreground;
-- `Highlight` outer border;
-- an inner `CanvasText` ring.
+- `2px Highlight` outer border;
+- in-range days keep a `1px Highlight` underline (the range fill is lost and the browser does not know the semantics).
 
-Today keeps the base 1px outline — `border-color: var(--dp-accent)` force-adjusts to `CanvasText` here, so it stays a thin `CanvasText` border. Selected and today therefore remain distinct through border color, width, the inner ring and weight (selected is `700`), not through a shared system key.
-
-This avoids relying on white text over a `Highlight` fill, which can become ambiguous when the active high-contrast theme resolves `Highlight` near-white or when small white digits rasterize poorly. The disabled state is `GrayText` at full opacity.
+Today keeps a thin `1px Highlight` border while selected carries the wider border, so the two stay distinct through border width. The disabled state relies on the native dimming, verified by capture. The month select hands its caret back to the browser (`appearance: auto`), since the author-drawn gradient is a non-system color.
 
 Guard: re-run the `color-contrast` review and the forced-colors screenshot bundle whenever `--dp-*` styling or day-cell rendering changes.
+
+## Visible focus (composite control)
+
+The default focus language uses `--dp-accent`, so the picker holds together without a consumer stylesheet (`outline: none` plus an accent border and a light halo). Only the focus state is normalized: the resting input appearance stays consumer-owned.
+
+A `<date-picker>` holding a single date field next to its trigger is one composite control, so the ring is drawn on the host and wraps both halves instead of stopping at the seam. The host box also contains the native time companions, and in `[range]` it spans two bounds, so those shapes deliberately keep a per-element ring (per bound in range) rather than a host-level one.
 
 ## Recommended manual test matrix
 

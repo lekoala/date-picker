@@ -44,7 +44,7 @@ Release decision (0.1.0): the human reader/OS pairings below are **deferred past
 
 - [x] [auto] Typing a valid localized date updates the field validation state (no stale invalid message).
 - [x] [split] Typing an impossible date produces an announced invalid message (native invalid state/message covered automatically; announcement still manual).
-- [x] [manual] Forced-colors mode keeps selected/today/disabled distinguishable — including a selected day when `Highlight` resolves near-white (no white-on-white from `--dp-accent`; spot-checked with the forced-colors screenshot bundle).
+- [ ] [manual] Forced-colors mode keeps selected/today/disabled distinguishable with the simplified border-based treatment (re-check after the neutral-palette + rhythm pass; spot-check with the forced-colors screenshot bundle).
 
 ## Automated pass
 

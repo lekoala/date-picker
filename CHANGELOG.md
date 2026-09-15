@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Visual rhythm pass (CSS only, no JS/API/DOM change): `--dp-gap` is now `0.375rem`, `--dp-header-block-gap` is `0.75rem`, and week rows use the new `--dp-row-gap` token (`0.375rem`), so the header, weekdays and days read as three separated tiers; the picker panel padding is `0.875rem 1rem`. The header keeps a single uniform horizontal gap: the extra `--dp-nav-gap` between year and prev/next is gone (see Removed).
+- Deterministic default palette: neutral chrome (`--dp-bg` `#ffffff`, `--dp-fg` `#1f2328`, `color-mix`-derived muted/border/hover) with one functional accent (`--dp-accent` `#2563eb`, `--dp-accent-fg` `#fff`); hover stays neutral, the range band is accent at 18%, and selected/endpoints/today/focus carry the full accent.
+- `today` no longer competes with stronger states: the base rule excludes `selected`/`range-start`/`range-end`, so an endpoint falling on today keeps its own treatment in normal rendering and in forced colors (no HC-specific override).
+- Forced-colors block reduced to observed-loss fixes (2px `Highlight` border on selected/endpoints, in-range underline, pinned today marker); the inner ring, bold weight and `GrayText` reconstruction are dropped after capture review. The month select also hands its caret back to the browser there.
+- Picker panel shadow is `rgb(15 23 42 / 0.12)`.
+- The month select draws its own caret (`appearance: none` + `currentColor` gradient, mirrored under RTL) instead of the UA menulist arrow.
+- Default visible-focus language for the direct inputs: the date field and the native time companions get an accent border plus a light halo with `outline: none`, while normal input appearance stays consumer-owned. The simple date + trigger pair is one composite: the ring moves to `<date-picker>` so it wraps both halves, and the trigger border follows. Time companions and range bounds keep their own ring.
+
+### Removed
+
+- `--dp-nav-gap`. It only existed to space the prev/next group from month/year, and that irregularity read as an arbitrary hole in a four-control header. The header now uses `--dp-gap` everywhere; consumers who set the token can drop it.
+
 ## 0.2.0 — 2026-09-09
 
 ### Added

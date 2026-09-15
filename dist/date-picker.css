@@ -1,17 +1,17 @@
 :where(date-calendar, date-picker) {
-  --dp-bg: Canvas;
-  --dp-fg: CanvasText;
-  --dp-muted: color-mix(in srgb, CanvasText 58%, Canvas);
-  --dp-border: color-mix(in srgb, CanvasText 22%, Canvas);
-  --dp-hover: color-mix(in srgb, CanvasText 7%, Canvas);
-  --dp-accent: Highlight;
-  --dp-accent-fg: HighlightText;
+  --dp-bg: #ffffff;
+  --dp-fg: #1f2328;
+  --dp-muted: color-mix(in srgb, var(--dp-fg) 58%, var(--dp-bg));
+  --dp-border: color-mix(in srgb, var(--dp-fg) 16%, var(--dp-bg));
+  --dp-hover: color-mix(in srgb, var(--dp-fg) 5%, var(--dp-bg));
+  --dp-accent: #2563eb;
+  --dp-accent-fg: #fff;
   --dp-radius: 0.5rem;
   --dp-day-size: 2.75rem;
-  --dp-gap: 0.25rem;
+  --dp-gap: 0.375rem;
   --dp-header-control-size: 2.25rem;
-  --dp-header-block-gap: 0.4rem;
-  --dp-nav-gap: calc(var(--dp-gap) * 2.5);
+  --dp-header-block-gap: 0.75rem;
+  --dp-row-gap: 0.375rem;
   --dp-year-inline-size: 5.5rem;
   --dp-day-radius: calc(var(--dp-radius) * 0.75);
   color: var(--dp-fg);
@@ -48,6 +48,9 @@ date-calendar {
      --dp-header-control-size, the row grows to the tallest control and the
      others stretch to match, so month/year/nav stay equal. */
   align-items: stretch;
+  /* Uniform horizontal rhythm: the four header controls are self-evident from
+     their kind and position, so no group gets an extra semantic gap. The air
+     belongs to the vertical zones (header -> weekdays -> dates). */
   gap: var(--dp-gap);
   margin-block-end: var(--dp-header-block-gap);
 }
@@ -57,10 +60,6 @@ date-calendar {
    stretches. Visual mirroring itself is left to the inherited `dir`. */
 date-calendar[data-year-first] .dp-calendar-header {
   grid-template-columns: auto minmax(0, 1fr) auto auto;
-}
-
-.dp-calendar-header .dp-prev {
-  margin-inline-start: var(--dp-nav-gap);
 }
 
 .dp-calendar-header :where(button, select, input) {
@@ -78,26 +77,42 @@ date-calendar[data-year-first] .dp-calendar-header {
   line-height: 1.2;
 }
 
-/* The select menulist carries UA-internal leading that author padding only
-   adds to (and it ignores line-height), so it gets zero author padding.
-   Equal outer heights come from the header grid's stretch alignment: the row
-   sizes to the tallest control and the others stretch to match. */
-.dp-calendar-header select {
-  padding-block: 0;
-}
-
-.dp-calendar-header select,
 .dp-calendar-header input {
   min-inline-size: 0;
   padding-inline: 0.45rem;
 }
 
+/* Author-drawn caret so the month select matches the nav controls without a
+   hardcoded SVG color (currentColor keeps theming). Equal outer heights come
+   from the header grid's stretch alignment: the row sizes to the tallest
+   control and the others stretch to match. */
 .dp-month-select {
   inline-size: 100%;
+  min-inline-size: 0;
   /* Long month names in a narrow track (compact consumers, long locales)
-     would paint under the native caret: truncate with an ellipsis instead. */
+     would paint under the caret: truncate with an ellipsis instead. */
   overflow: hidden;
   text-overflow: ellipsis;
+  appearance: none;
+  padding-inline: 0.45rem 2rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 0.9rem) 50%,
+    calc(100% - 0.65rem) 50%;
+  background-size: 0.3rem 0.3rem;
+  background-repeat: no-repeat;
+}
+
+/* Inherited RTL mirrors the header layout via the grid. The logical
+   `padding-inline` already flips, so only the physically-positioned caret has
+   to follow it to the other side. */
+[dir="rtl"] .dp-month-select,
+html[dir="rtl"] .dp-month-select {
+  background-position:
+    0.9rem 50%,
+    0.65rem 50%;
 }
 
 .dp-year-input {
@@ -139,6 +154,15 @@ html[dir="rtl"] .dp-nav svg {
   background: var(--dp-hover);
 }
 
+/* Shared control focus: accent border + light halo. Day cells keep their
+   dedicated outline ring below; this covers month/year/nav/picker button. */
+.dp-calendar-header :where(button, select, input):focus-visible,
+.dp-picker-button:focus-visible {
+  outline: none;
+  border-color: var(--dp-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-accent) 22%, transparent);
+}
+
 .dp-day:hover:not([data-disabled="true"]):not([data-selected="true"]):not([data-range-start="true"]):not(
   [data-range-end="true"]
 ) {
@@ -151,8 +175,8 @@ html[dir="rtl"] .dp-nav svg {
 
 .dp-grid {
   border-collapse: separate;
-  /* --dp-gap scopes to the header grid; day-cell spacing stays fixed. */
-  border-spacing: 0 0.25rem;
+  /* --dp-gap scopes to the header grid; vertical week rhythm is --dp-row-gap. */
+  border-spacing: 0 var(--dp-row-gap);
   table-layout: fixed;
 }
 
@@ -165,10 +189,10 @@ html[dir="rtl"] .dp-nav svg {
 }
 
 .dp-grid thead th {
-  block-size: 1.6rem;
+  block-size: 1.5rem;
   color: var(--dp-muted);
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .dp-day {
@@ -203,7 +227,10 @@ html[dir="rtl"] .dp-nav svg {
   color: var(--dp-accent-fg);
 }
 
-.dp-day[data-today="true"]:not([data-selected="true"]) {
+/* Today never competes with a stronger state: a selected day or a range
+   endpoint keeps its own treatment, in normal rendering and in
+   forced-colors alike. */
+.dp-day[data-today="true"]:not([data-selected="true"], [data-range-start="true"], [data-range-end="true"]) {
   border-color: var(--dp-accent);
 }
 
@@ -235,13 +262,13 @@ html[dir="rtl"] .dp-nav svg {
 }
 
 .dp-day[data-in-range="true"]:first-of-type {
-  border-start-start-radius: var(--dp-radius);
-  border-end-start-radius: var(--dp-radius);
+  border-start-start-radius: var(--dp-day-radius);
+  border-end-start-radius: var(--dp-day-radius);
 }
 
 .dp-day[data-in-range="true"]:last-of-type {
-  border-start-end-radius: var(--dp-radius);
-  border-end-end-radius: var(--dp-radius);
+  border-start-end-radius: var(--dp-day-radius);
+  border-end-end-radius: var(--dp-day-radius);
 }
 
 .dp-day-number {
@@ -287,11 +314,23 @@ date-picker {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   max-inline-size: 100%;
+  border-radius: var(--dp-radius);
 }
 
 date-picker > input:not([type="hidden"]) {
   grid-column: 1;
   min-inline-size: 0;
+}
+
+/* Default visible-focus language for the direct inputs. Normal appearance
+   stays consumer-owned: only the focus state is normalized to --dp-accent so
+   the component holds together without a CSS framework. This covers the date
+   field (when it is not part of the composite pair below) and the native time
+   companions, which stay independent controls with their own ring. */
+date-picker > input:not([type="hidden"]):focus-visible {
+  border-color: var(--dp-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-accent) 20%, transparent);
 }
 
 /* Optional native time companions share the date row; authored inputs stay
@@ -365,18 +404,52 @@ date-picker[range] > .dp-picker-button {
   grid-row: 1 / span 2;
 }
 
+/* The date field reads as one composite with the picker button: while the
+   field is focused the adjoining button border follows, so the halo does
+   not cut the control in two. Range keeps per-bound focus, and a focused time
+   companion is an independent control, so neither pulls the button border. */
+date-picker:not([range]):has(> input:not([type="hidden"], [type="time"]):focus-visible) > .dp-picker-button {
+  border-color: var(--dp-accent);
+}
+
+/* Simple picker (date + trigger, no time companion, no range): the ring is
+   owned by the whole pair and drawn on the host. A time companion shares the
+   host box, so a host-level ring would swallow it; that case keeps the
+   per-element ring above. Range stays per-bound for the same reason. */
+date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])):has(
+  > input:not([type="hidden"], [type="time"]):focus-visible,
+  > .dp-picker-button:focus-visible
+) {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-accent) 20%, transparent);
+}
+
+date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end]))
+  > input:not([type="hidden"], [type="time"]):focus-visible,
+date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])) > .dp-picker-button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+date-picker:not([range]):not(:has(> [data-time-start], > [data-time-end])):has(
+    > input:not([type="hidden"], [type="time"]):focus-visible,
+    > .dp-picker-button:focus-visible
+  )
+  > :is(input:not([type="hidden"], [type="time"]), .dp-picker-button) {
+  border-color: var(--dp-accent);
+}
+
 .dp-picker-panel[popover] {
   /* Safe baseline. show() switches to absolute only when the consumer
    * explicitly selects document coordinate space. */
   position: fixed;
   inset: auto;
   margin: 0;
-  padding: 0.65rem;
+  padding: 0.875rem 1rem;
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius);
   background: var(--dp-bg);
   color: var(--dp-fg);
-  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.16);
+  box-shadow: 0 0.5rem 1.5rem rgb(15 23 42 / 0.12);
   max-block-size: var(--available-height, 90svh);
   max-inline-size: calc(100vi - 1rem);
   overflow: auto;
@@ -387,19 +460,22 @@ date-picker[range] > .dp-picker-button {
 }
 
 @media (forced-colors: active) {
-  .dp-day[data-selected="true"] {
-    border: 2px solid Highlight;
-    background-color: Canvas;
-    color: CanvasText;
-    font-weight: 700;
+  /* The author-drawn caret is a gradient and disappears here: hand the
+     control back to the browser instead of trying to rebuild it. */
+  .dp-month-select,
+  [dir="rtl"] .dp-month-select {
+    appearance: auto;
+    background-image: none;
+    padding-inline: 0.45rem;
   }
 
-  .dp-day[data-range-start="true"],
-  .dp-day[data-range-end="true"] {
+  /* Fills vanish here, so selection and endpoints fall back to a 2px
+     Highlight border. The in-range underline is the only band marker left:
+     the range fill is lost and the browser does not know the semantics. */
+  .dp-day:is([data-selected="true"], [data-range-start="true"], [data-range-end="true"]) {
     border: 2px solid Highlight;
     background-color: Canvas;
     color: CanvasText;
-    font-weight: 700;
   }
 
   .dp-day[data-in-range="true"] {
@@ -415,15 +491,8 @@ date-picker[range] > .dp-picker-button {
     background-color: Highlight;
   }
 
-  .dp-day[data-selected="true"]::before {
-    content: "";
-    position: absolute;
-    inset: 3px;
-    border: 1px solid CanvasText;
-    border-radius: calc(var(--dp-radius) * 0.5);
-    pointer-events: none;
-  }
-
+  /* Pin the today marker: the deterministic accent is a non-system color
+     and would otherwise remap unpredictably here. */
   .dp-day[data-today="true"] {
     border-color: Highlight;
   }
@@ -431,12 +500,5 @@ date-picker[range] > .dp-picker-button {
   .dp-day-extra {
     color: CanvasText;
     forced-color-adjust: none;
-  }
-
-  .dp-day[data-disabled="true"],
-  .dp-calendar-header :where(button, select, input):disabled,
-  .dp-picker-button:disabled {
-    opacity: 1;
-    color: GrayText;
   }
 }

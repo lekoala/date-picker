@@ -205,7 +205,7 @@
               "name": "--dp-header-block-gap"
             },
             {
-              "name": "--dp-nav-gap"
+              "name": "--dp-row-gap"
             },
             {
               "name": "--dp-year-inline-size"
@@ -388,7 +388,7 @@
               "name": "--dp-header-block-gap"
             },
             {
-              "name": "--dp-nav-gap"
+              "name": "--dp-row-gap"
             },
             {
               "name": "--dp-year-inline-size"
