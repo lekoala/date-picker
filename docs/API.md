@@ -31,7 +31,7 @@ Presentation-only range band. It never changes `value`, `selection` or `focusedD
 calendar.isDateDisabled = (date) => boolean;
 calendar.dateState = (date, sourceState) => ({
   disabled,
-  enabled, // true = explicit exception to generic disabled rules
+  enabled, // true = lifts isDateDisabled() only; never min/max or resolved disabled
   description,
   ...applicationMetadata
 });

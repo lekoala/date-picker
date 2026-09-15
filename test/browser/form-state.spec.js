@@ -179,4 +179,25 @@ test.describe("form lifecycle and ownership", () => {
     // stripped of name so the payload holds a single ISO value.
     await expect(page.locator("#demo-out")).toHaveText("renamed=2026-09-06");
   });
+
+  test("calendar selection keeps the submitted value visible during input/change", async ({ page }) => {
+    const seen = await page.evaluate(async () => {
+      const input = /** @type {HTMLInputElement} */ (document.getElementById("reset-date"));
+      const form = /** @type {HTMLFormElement} */ (document.getElementById("demo-form"));
+      const values = {};
+      input.addEventListener("input", () => {
+        values.input = new FormData(form).get("date");
+      });
+      input.addEventListener("change", () => {
+        values.change = new FormData(form).get("date");
+      });
+      document.getElementById("reset-picker").show();
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      document.querySelector('#reset-picker .dp-day[data-date="2026-09-12"]').click();
+      await new Promise((r) => setTimeout(r, 50));
+      values.after = new FormData(form).get("date");
+      return values;
+    });
+    expect(seen).toEqual({ input: "2026-09-12", change: "2026-09-12", after: "2026-09-12" });
+  });
 });

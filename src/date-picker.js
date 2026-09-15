@@ -707,7 +707,7 @@ export class DatePickerElement extends HTMLElement {
 
   /** @param {"" | "start" | "end"} endpoint @param {KeyboardEvent} event */
   _onFieldKeyDown(endpoint, event) {
-    if (event.key === "ArrowDown" || (event.altKey && event.key === "ArrowDown")) {
+    if (event.key === "ArrowDown") {
       event.preventDefault();
       if (this._rangeMode() && endpoint) {
         this._lastFocusEndpoint = endpoint;
@@ -758,6 +758,8 @@ export class DatePickerElement extends HTMLElement {
     const cell = event.target.closest(".dp-day[data-date]");
     const date = cell?.getAttribute("data-date") || "";
     if (!isDate(date)) return;
+    // Each activation supersedes every earlier pending one.
+    this._pendingIntents.clear();
     this._pendingIntents.set(date, ++this._rangeCommitId);
   }
 
@@ -912,7 +914,9 @@ export class DatePickerElement extends HTMLElement {
       this._orderTags.delete(index);
       return false;
     }
-    this._setBound(which, result.value || "", { emit: true, user: true, format: result.status === "ok" });
+    // Typed commits keep native input/change only; synthetic events are
+    // reserved for calendar-driven changes (no native input event occurred).
+    this._setBound(which, result.value || "", { emit: false, user: true, format: result.status === "ok" });
     return true;
   }
 

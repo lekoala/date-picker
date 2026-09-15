@@ -42,9 +42,7 @@ Moving focus never changes selection.
 
 ## Month/year controls
 
-The prototype deliberately uses native selects. They are easy to discover, keyboard-operable, and do not require nested custom popovers.
-
-The year select is a moving window around the displayed year when no hard min/max exists. Navigating past the current window causes a normal re-render centered on the new year.
+The month control is a native select and the year control is a native number input. They are easy to discover, keyboard-operable, and do not require nested custom popovers.
 
 ## Date picker input
 

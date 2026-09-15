@@ -93,7 +93,10 @@ This prevents rich decorations from breaking grid semantics or keyboard behavior
 3. `min` / `max`;
 4. `isDateDisabled()`.
 
-`enabled: true` is the explicit exception seam: it can reopen a date disabled by generic/source rules, but never bypasses hard `min`/`max` bounds.
+`enabled: true` is the explicit exception seam: when the resolved state carries
+`enabled === true`, it lifts `isDateDisabled()` only. It never bypasses
+`min`/`max` or the resolved `state.disabled` (source state merged with
+`dateState()` output, so `dateState()` can already replace a source `disabled`).
 
 Both click activation and typed picker validation use this resolved state.
 

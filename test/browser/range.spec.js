@@ -186,3 +186,32 @@ test("Escape after the first selection restores focus to the active bound", asyn
   await expect(page.locator("#stay-picker")).toHaveJSProperty("open", false);
   await expect(page.locator("#stay-end")).toBeFocused();
 });
+
+test("typed range commits keep native input/change only", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__counts = { input: 0, change: 0 };
+    const start = document.getElementById("stay-start");
+    start.addEventListener("input", () => window.__counts.input++);
+    start.addEventListener("change", () => window.__counts.change++);
+  });
+  await page.fill("#stay-start", "10/09/2026");
+  await page.locator("#stay-start").blur();
+  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
+  const counts = await page.evaluate(() => window.__counts);
+  expect(counts).toEqual({ input: 1, change: 1 });
+});
+
+test("calendar range picks still synthesize input/change", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__counts = { input: 0, change: 0 };
+    const start = document.getElementById("stay-start");
+    start.addEventListener("input", () => window.__counts.input++);
+    start.addEventListener("change", () => window.__counts.change++);
+  });
+  await page.locator("#stay-start").focus();
+  await expect(page.locator("#stay-picker .dp-picker-panel")).toBeVisible();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
+  const counts = await page.evaluate(() => window.__counts);
+  expect(counts).toEqual({ input: 1, change: 1 });
+});

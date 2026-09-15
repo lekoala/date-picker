@@ -478,6 +478,47 @@ test("weekends can be disabled without disappearing from keyboard navigation", a
   );
 });
 
+test("enabled:true lifts only isDateDisabled, never min/max or resolved disabled", async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const make = () => {
+      const element = document.createElement("date-calendar");
+      element.setAttribute("display", "2026-09");
+      document.body.append(element);
+      return element;
+    };
+    const check = (setup) => {
+      const element = make();
+      setup(element);
+      const disabled = element.getDateState("2026-09-12").disabled;
+      element.remove();
+      return disabled;
+    };
+    return {
+      minWins: check((el) => {
+        el.setAttribute("min", "2026-09-13");
+        el.dateState = () => ({ enabled: true });
+      }),
+      resolvedDisabledWins: check((el) => {
+        el.dateState = () => ({ disabled: true, enabled: true });
+      }),
+      liftsPredicate: check((el) => {
+        el.isDateDisabled = () => true;
+        el.dateState = () => ({ enabled: true });
+      }),
+      sourceReplaced: check((el) => {
+        el.dateState = (_date, source) => ({ ...source, disabled: false });
+        // Simulate a merged source state carrying disabled:true.
+        const original = el.dateState;
+        el.dateState = (date, source) => original(date, { ...source, disabled: true });
+      }),
+    };
+  });
+  expect(result.minWins).toBe(true);
+  expect(result.resolvedDisabledWins).toBe(true);
+  expect(result.liftsPredicate).toBe(false);
+  expect(result.sourceReplaced).toBe(false);
+});
+
 test("forced colors keep selected, today and disabled days visually distinct", async ({
   page,
   browserName,

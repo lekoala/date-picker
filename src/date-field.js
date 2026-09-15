@@ -117,18 +117,26 @@ export class DateFieldController {
   }
 
   /** Live text input: the raw text no longer matches the canonical value, so
-   * the hidden ISO must not submit it. */
+   * the hidden ISO must not submit it. A text that formats back to the current
+   * canonical value (e.g. re-applied by a calendar pick) keeps the ISO value
+   * valid; invalidating in-flight commits first still drops stale async work. */
   handleInput() {
     const input = this.input;
-    this._dirty = true;
-    this.dirty();
-    if (this.hidden) this.hidden.value = "";
     const text = input.value.trim();
+    const canonical = this.canonical ? this.adapter.format(this.canonical) : "";
+    this.dirty();
+    if (text === canonical) {
+      this._dirty = false;
+      if (this.hidden) this.hidden.value = this.canonical;
+      input.setCustomValidity("");
+      return;
+    }
+    this._dirty = true;
+    if (this.hidden) this.hidden.value = "";
     if (!text) {
       input.setCustomValidity("");
       return;
     }
-    const canonical = this.canonical ? this.adapter.format(this.canonical) : "";
     input.setCustomValidity(text === canonical ? "" : this.messages.invalidDate);
   }
 

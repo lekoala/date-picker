@@ -386,7 +386,7 @@ export class DateCalendarElement extends HTMLElement {
 
   /** @param {HTMLElement} element @returns {string} */
   _focusTargetKey(element) {
-    if (element.matches(".dp-month-select, .dp-year-select, .dp-year-input") && element.id) {
+    if (element.matches(".dp-month-select, .dp-year-input") && element.id) {
       return `#${CSS.escape(element.id)}`;
     }
     if (element.matches(".dp-nav[data-calendar-action]")) {
@@ -416,7 +416,8 @@ export class DateCalendarElement extends HTMLElement {
     const outsideBounds =
       (this.min && compareDates(date, this.min) < 0) || (this.max && compareDates(date, this.max) > 0);
     const explicitlyEnabled = state.enabled === true;
-    // min/max > state.disabled > enabled:true lifts only isDateDisabled().
+    // min/max > resolved state.disabled > isDateDisabled(), unless resolved
+    // state.enabled === true lifts only isDateDisabled().
     const disabledByRule = explicitlyEnabled ? false : Boolean(this._isDateDisabled?.(date));
     const disabled = Boolean(outsideBounds) || Boolean(state.disabled) || disabledByRule;
     return { ...state, disabled };
@@ -640,10 +641,6 @@ export class DateCalendarElement extends HTMLElement {
     const target = event.target;
     if (target instanceof HTMLSelectElement && target.matches(".dp-month-select")) {
       this._setDisplay(`${this.display.slice(0, 4)}-${target.value}`);
-      return;
-    }
-    if (target instanceof HTMLSelectElement && target.matches(".dp-year-select")) {
-      this._setDisplay(`${target.value}-${this.display.slice(5, 7)}`);
       return;
     }
     if (target instanceof HTMLInputElement && target.matches(".dp-year-input")) {

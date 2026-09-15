@@ -78,7 +78,7 @@ calendar.isDateDisabled = (date) => isWeekend(date);
 // weekend rule. Hard min/max bounds still win.
 ```
 
-The prototype promotes this legacy behavior into a documented generic field: `enabled: true` reopens a date disabled by `isDateDisabled()` or ordinary source state, but never bypasses hard `min`/`max` bounds.
+The prototype promotes this legacy behavior into a documented generic field: `enabled: true` reopens a date disabled by `isDateDisabled()`, but never bypasses hard `min`/`max` bounds or a resolved `state.disabled`.
 
 ## Not migrated into this component
 
