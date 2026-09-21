@@ -38,7 +38,11 @@ Weekday headings use visible short labels plus a full `abbr` value.
 | Shift+PageDown | same/clamped day in next year |
 | Enter / Space | activate focused date |
 
-Moving focus never changes selection.
+Moving focus never changes selection. Each cell that actually receives focus dispatches `datefocus`, so an application can follow keyboard navigation without reading internal DOM classes; hover never dispatches it, and assigning `focusedDate` without moving focus stays silent.
+
+A range preview projected onto the band is visual only: it never contributes a range start/end to a day's accessible name, so a proposal is never announced as a committed selection.
+
+Endpoint dragging is a pointer enhancement. Every adjustment it offers is also reachable from the keyboard: activating before or after a complete range moves the corresponding bound.
 
 ## Month/year controls
 

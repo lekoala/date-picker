@@ -255,3 +255,171 @@ test("calendar range picks still synthesize input/change", async ({ page }) => {
   const counts = await page.evaluate(() => window.__counts);
   expect(counts).toEqual({ input: 1, change: 1 });
 });
+
+test("a second pick before the first is sorted, not refused", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__events = [];
+    const picker = document.getElementById("stay-picker");
+    for (const name of ["rangechange", "dateinvalid"]) {
+      picker.addEventListener(name, (event) =>
+        window.__events.push(`${name}:${event.detail?.start ?? ""}:${event.detail?.end ?? ""}`),
+      );
+    }
+  });
+  await page.locator("#stay-start").focus();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
+
+  await page.click('#stay-picker .dp-day[data-date="2026-09-05"]');
+  await expect(page.locator("#stay-picker")).toHaveJSProperty("open", false);
+  await expect(page.locator("#stay-start")).toHaveValue("05/09/2026");
+  await expect(page.locator("#stay-end")).toHaveValue("10/09/2026");
+  await expect(page.locator('#stay-picker input[type="hidden"][name="arrival"]')).toHaveValue("2026-09-05");
+  await expect(page.locator('#stay-picker input[type="hidden"][name="departure"]')).toHaveValue("2026-09-10");
+  // Both bounds move at once, announced once, with no refusal on the way.
+  const events = await page.evaluate(() => window.__events);
+  expect(events).toEqual(["rangechange:2026-09-10:", "rangechange:2026-09-05:2026-09-10"]);
+});
+
+test("the sorted second pick fires input/change on both moved bounds only", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__counts = { start: [], end: [] };
+    for (const [key, id] of [
+      ["start", "stay-start"],
+      ["end", "stay-end"],
+    ]) {
+      const input = document.getElementById(id);
+      for (const name of ["input", "change"]) {
+        input.addEventListener(name, () => window.__counts[key].push(name));
+      }
+    }
+  });
+  await page.locator("#stay-start").focus();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await page.click('#stay-picker .dp-day[data-date="2026-09-05"]');
+  await expect(page.locator("#stay-end")).toHaveValue("10/09/2026");
+  const counts = await page.evaluate(() => window.__counts);
+  expect(counts).toEqual({
+    start: ["input", "change", "input", "change"],
+    end: ["input", "change"],
+  });
+});
+
+test("picking the same day twice makes a one-day range", async ({ page }) => {
+  await page.locator("#stay-start").focus();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
+  await expect(page.locator("#stay-end")).toHaveValue("10/09/2026");
+  expect(await page.evaluate(() => document.getElementById("stay-picker").range)).toEqual({
+    start: "2026-09-10",
+    end: "2026-09-10",
+  });
+});
+
+test("hovering after the first pick previews the range on both sides", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__events = [];
+    document
+      .getElementById("stay-picker")
+      .addEventListener("rangechange", () => window.__events.push("rangechange"));
+  });
+  await page.locator("#stay-start").focus();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await page.evaluate(() => {
+    window.__events = [];
+  });
+
+  await page.hover('#stay-picker .dp-day[data-date="2026-09-13"]');
+  const calendar = page.locator("#stay-picker date-calendar");
+  await expect(calendar).toHaveAttribute("data-range-preview", "");
+  await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-12"]')).toHaveAttribute(
+    "data-in-range",
+    "true",
+  );
+  await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-13"]')).toHaveAttribute(
+    "data-range-end",
+    "true",
+  );
+
+  // Before the anchor the preview shows the sorted range the pick would commit.
+  await page.hover('#stay-picker .dp-day[data-date="2026-09-07"]');
+  await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-07"]')).toHaveAttribute(
+    "data-range-start",
+    "true",
+  );
+  await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
+    "data-range-end",
+    "true",
+  );
+
+  // Preview is presentation only: no commit, no field write.
+  expect(await page.evaluate(() => window.__events)).toEqual([]);
+  await expect(page.locator("#stay-end")).toHaveValue("");
+  expect(await page.evaluate(() => document.getElementById("stay-picker").range)).toEqual({
+    start: "2026-09-10",
+    end: "",
+  });
+});
+
+test("leaving the grid restores the committed band", async ({ page }) => {
+  await page.locator("#stay-start").focus();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await page.hover('#stay-picker .dp-day[data-date="2026-09-13"]');
+  await expect(page.locator("#stay-picker date-calendar")).toHaveAttribute("data-range-preview", "");
+
+  await page.hover("#stay-picker .dp-picker-button[data-endpoint=start]");
+  await expect(page.locator("#stay-picker date-calendar")).not.toHaveAttribute("data-range-preview", /.*/);
+  await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-13"]')).not.toHaveAttribute(
+    "data-range-end",
+    /.*/,
+  );
+  await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
+    "data-range-start",
+    "true",
+  );
+});
+
+test("keyboard navigation previews exactly what Enter commits", async ({ page }) => {
+  await page.locator("#stay-start").focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator('#stay-picker .dp-day[tabindex="0"]')).toBeFocused();
+  await page.evaluate(() => {
+    const calendar = document.querySelector("#stay-picker date-calendar");
+    calendar.focusDate("2026-09-10");
+  });
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#stay-start")).toHaveValue("10/09/2026");
+
+  // Arrowing backwards from the anchor previews the sorted range immediately.
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.locator("#stay-picker date-calendar")).toHaveAttribute("data-range-preview", "");
+  await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-08"]')).toHaveAttribute(
+    "data-range-start",
+    "true",
+  );
+  await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
+    "data-range-end",
+    "true",
+  );
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#stay-start")).toHaveValue("08/09/2026");
+  await expect(page.locator("#stay-end")).toHaveValue("10/09/2026");
+});
+
+test("an unavailable candidate promises no preview", async ({ page }) => {
+  await page.evaluate(() => {
+    const picker = document.getElementById("stay-picker");
+    picker.isDateDisabled = (date) => date === "2026-09-13";
+  });
+  await page.locator("#stay-start").focus();
+  await page.click('#stay-picker .dp-day[data-date="2026-09-10"]');
+  await page.hover('#stay-picker .dp-day[data-date="2026-09-13"]');
+  await expect(page.locator("#stay-picker date-calendar")).not.toHaveAttribute("data-range-preview", /.*/);
+  await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-12"]')).not.toHaveAttribute(
+    "data-in-range",
+    /.*/,
+  );
+});

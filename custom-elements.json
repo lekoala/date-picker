@@ -141,6 +141,11 @@
             },
             {
               "kind": "method",
+              "name": "activateDate",
+              "description": "Run one explicit activation: availability check, then the cancelable `dateactivate` seam, then selection. Click, keyboard and any other input device share this single path, so an application that cancels `dateactivate` cannot be bypassed by a new interaction."
+            },
+            {
+              "kind": "method",
               "name": "render"
             }
           ],
@@ -150,6 +155,9 @@
             },
             {
               "name": "datechange"
+            },
+            {
+              "name": "datefocus"
             },
             {
               "name": "dateinvalid"

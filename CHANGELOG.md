@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added
+
+- `datefocus` on `<date-calendar>`: a public seam for the date cell that actually took focus (`{ date, state }`, bubbling, not cancelable), so an application can follow keyboard navigation without reading internal `.dp-*` classes. It observes only: hover never emits it, a disabled day still does (grid navigation stays discoverable), and assigning `focusedDate` without moving DOM focus stays silent.
+- `calendar.activateDate(date)`: the availability check plus the cancelable `dateactivate` seam plus selection, as one public path. Click, keyboard and the new endpoint drag all run through it, so a cancelled activation cannot be bypassed by choosing another input device.
+- Range preview. While a range is being created, hovering a day or moving the keyboard focus projects the range the next pick would commit onto the band, and the pick commits exactly what was projected. The projection is visual only — no `rangechange`, no field write, no validation, no source request — it reads the month already loaded, and a day known to be unavailable promises nothing. Pointer hover never moves `focusedDate`.
+- Endpoint drag on `<date-picker range>`. On a complete range whose ends sit on different days, each endpoint can be dragged with a mouse or pen (pointer events plus capture, armed only once the pointer travels). A handle never crosses the other one, an unavailable cell is not a drop target, `pointercancel` restores the committed band, and the drop runs the same projection and the same `ensureDate` + `dateactivate` path as a click. The popup stays open: a drag adjusts a range, it does not validate it. Touch keeps native scrolling and stays a plain tap.
+- `DateRangeController` gains `project()`, `projectEndpoint()`, `previewRange()` and `moveEndpoint()`. Each interaction rule now exists once as a projection; the previews read the same projections the commit applies.
+
+### Changed
+
+- **Calendar interaction never produces an inverted range** (see DECISIONS D6). While a range is being created, a second pick before the anchor is sorted instead of refused: `10` then `5` now commits `5 -> 10` rather than firing `dateinvalid`; `10` then `10` is a one-day range. A pick that completes a range from the other side is sorted the same way. Text entry keeps the opposite contract and may stay temporarily inverted with an order error.
+- A range transition now describes the whole resulting pair (`{ status, endpoint, changedEndpoints, range, activeEndpoint, close? }`) and is applied in a single write, because a sorted second pick moves both bounds at once: one `rangechange`, with synthetic `input`/`change` only on the bounds that moved, and no intermediate inverted pair observable.
+- `highlightedRange` now repaints the band in place instead of rebuilding the grid. A live preview no longer drops `renderDay()` nodes or fights the roving focus on every hover.
+- A range preview never contributes a range start/end to a day's accessible name, so a proposal is not announced as a committed selection.
+
 
 ## 0.3.0 — 2026-09-15
 

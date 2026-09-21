@@ -213,15 +213,43 @@ export declare class DateCalendarElement extends HTMLElement {
     _moveFocusDom(previous: string, next: string, moveFocus?: boolean): void;
     /** @param {string} previousValue @param {string} nextValue */
     _moveSelectionDom(previousValue: string, nextValue: string): boolean;
+    /**
+     * Accessible name of one day cell. The band contribution is dropped while a
+     * preview is projected onto `highlightedRange`: a proposal must not be
+     * announced as a committed range start/end.
+     * @param {string} date @param {DateState} state
+     * @param {"" | "start" | "in" | "end" | "single"} position
+     */
+    _dayLabel(date: string, state: DateState, position: "" | "start" | "in" | "end" | "single"): string;
+    /**
+     * Repaint the range band over the cells already rendered. The band is
+     * presentation on top of the same grid, so it must never rebuild it: a full
+     * render would drop `renderDay()` nodes and fight the roving focus on every
+     * hover of a live range preview.
+     */
+    _updateRangeDom(): void;
     /** @public */
     focusGrid(): void;
-    /** @param {string} date @returns {Promise<boolean>} */
-    _activate(date: string): Promise<boolean>;
+    /**
+     * Run one explicit activation: availability check, then the cancelable
+     * `dateactivate` seam, then selection. Click, keyboard and any other input
+     * device share this single path, so an application that cancels
+     * `dateactivate` cannot be bypassed by a new interaction.
+     * @public
+     * @param {string} date @returns {Promise<boolean>}
+     */
+    activateDate(date: string): Promise<boolean>;
     /** @param {MouseEvent} event */
     _onClick(event: MouseEvent): void;
     /** @param {Event} event */
     _onChange(event: Event): void;
-    /** @param {FocusEvent} event */
+    /**
+     * Real DOM focus is the single source of truth for `datefocus`: the model is
+     * synced here and the event is announced from here, so the temporary focus
+     * arithmetic in `_onKeyDown` cannot emit phantom events, and setting
+     * `focusedDate` without moving focus stays silent.
+     * @param {FocusEvent} event
+     */
     _onFocusIn(event: FocusEvent): void;
     /** @param {KeyboardEvent} event */
     _onKeyDown(event: KeyboardEvent): void;

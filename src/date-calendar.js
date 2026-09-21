@@ -46,20 +46,26 @@ function yearOf(month) {
   return Number(month.slice(0, 4));
 }
 
+/**
+ * Band attributes for one day position. Markup and in-place band updates read
+ * the same map, so the two paths cannot disagree about a cell's state.
+ * @param {"" | "start" | "in" | "end" | "single"} position
+ * @returns {Record<string, boolean>}
+ */
+function rangeAttributeMap(position) {
+  return {
+    "data-range-start": position === "start" || position === "single",
+    "data-range-end": position === "end" || position === "single",
+    "data-in-range": position === "in",
+  };
+}
+
 /** @param {"" | "start" | "in" | "end" | "single"} position */
 function rangeAttributes(position) {
-  switch (position) {
-    case "single":
-      return ' data-range-start="true" data-range-end="true"';
-    case "start":
-      return ' data-range-start="true"';
-    case "end":
-      return ' data-range-end="true"';
-    case "in":
-      return ' data-in-range="true"';
-    default:
-      return "";
-  }
+  return Object.entries(rangeAttributeMap(position))
+    .filter(([, on]) => on)
+    .map(([name]) => ` ${name}="true"`)
+    .join("");
 }
 
 /** @param {"" | "start" | "in" | "end" | "single"} position */
@@ -264,7 +270,7 @@ export class DateCalendarElement extends HTMLElement {
     const next = normalizeRange(value);
     if (next.start === this._highlightedRange.start && next.end === this._highlightedRange.end) return;
     this._highlightedRange = next;
-    if (this._connected) this.render();
+    if (this._connected) this._updateRangeDom();
   }
 
   /** @public */
@@ -572,14 +578,60 @@ export class DateCalendarElement extends HTMLElement {
     return false;
   }
 
+  /**
+   * Accessible name of one day cell. The band contribution is dropped while a
+   * preview is projected onto `highlightedRange`: a proposal must not be
+   * announced as a committed range start/end.
+   * @param {string} date @param {DateState} state
+   * @param {"" | "start" | "in" | "end" | "single"} position
+   */
+  _dayLabel(date, state, position) {
+    const rangeLabel = this.hasAttribute("data-range-preview") ? "" : rangeLabelKey(position);
+    const description = typeof state.description === "string" ? state.description : "";
+    return [
+      formatLongDate(date, this.locale),
+      description,
+      rangeLabel ? this._messages[rangeLabel] : "",
+      state.disabled ? this._messages.unavailable : "",
+    ]
+      .filter(Boolean)
+      .join(". ");
+  }
+
+  /**
+   * Repaint the range band over the cells already rendered. The band is
+   * presentation on top of the same grid, so it must never rebuild it: a full
+   * render would drop `renderDay()` nodes and fight the roving focus on every
+   * hover of a live range preview.
+   */
+  _updateRangeDom() {
+    for (const cell of this.querySelectorAll(".dp-day[data-date]")) {
+      if (!(cell instanceof HTMLTableCellElement)) continue;
+      const date = cell.dataset.date || "";
+      const position = rangePosition(date, this._highlightedRange);
+      for (const [name, on] of Object.entries(rangeAttributeMap(position))) {
+        if (on) cell.setAttribute(name, "true");
+        else cell.removeAttribute(name);
+      }
+      cell.setAttribute("aria-label", this._dayLabel(date, this.getDateState(date), position));
+    }
+  }
+
   /** @public */
   focusGrid() {
     const target = this.querySelector(`.dp-day[data-date="${CSS.escape(this.focusedDate)}"]`);
     if (target instanceof HTMLElement) target.focus();
   }
 
-  /** @param {string} date @returns {Promise<boolean>} */
-  async _activate(date) {
+  /**
+   * Run one explicit activation: availability check, then the cancelable
+   * `dateactivate` seam, then selection. Click, keyboard and any other input
+   * device share this single path, so an application that cancels
+   * `dateactivate` cannot be bypassed by a new interaction.
+   * @public
+   * @param {string} date @returns {Promise<boolean>}
+   */
+  async activateDate(date) {
     // Guarantee remote state before deciding: a date clicked before the
     // source resolves must not be treated as available, and a cancelled or
     // failed load must not authorize it either.
@@ -633,7 +685,7 @@ export class DateCalendarElement extends HTMLElement {
     this._model.setFocused(this._clamp(date));
     this._reflect("display", this._model.display);
     if (previousDisplay !== this.display) this._emitDisplayChange();
-    void this._activate(date);
+    void this.activateDate(date);
   }
 
   /** @param {Event} event */
@@ -653,12 +705,22 @@ export class DateCalendarElement extends HTMLElement {
     }
   }
 
-  /** @param {FocusEvent} event */
+  /**
+   * Real DOM focus is the single source of truth for `datefocus`: the model is
+   * synced here and the event is announced from here, so the temporary focus
+   * arithmetic in `_onKeyDown` cannot emit phantom events, and setting
+   * `focusedDate` without moving focus stays silent.
+   * @param {FocusEvent} event
+   */
   _onFocusIn(event) {
     const target = event.target;
     if (!(target instanceof HTMLTableCellElement) || !target.matches(".dp-day[data-date]")) return;
     const date = target.dataset.date || "";
-    if (isDate(date)) this._model.focused = date;
+    if (!isDate(date)) return;
+    this._model.focused = date;
+    this.dispatchEvent(
+      new CustomEvent("datefocus", { detail: { date, state: this.getDateState(date) }, bubbles: true }),
+    );
   }
 
   /** @param {KeyboardEvent} event */
@@ -668,7 +730,7 @@ export class DateCalendarElement extends HTMLElement {
     const date = target.dataset.date || this.focusedDate;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      void this._activate(date);
+      void this.activateDate(date);
       return;
     }
     // Movement primitives live in CalendarModel; the DOM only syncs render/focus.
@@ -750,16 +812,7 @@ export class DateCalendarElement extends HTMLElement {
             const focused = this.focusedDate === date;
             const isToday = date === today;
             const position = rangePosition(date, this._highlightedRange);
-            const rangeLabel = rangeLabelKey(position);
-            const description = typeof state.description === "string" ? state.description : "";
-            const label = [
-              formatLongDate(date, locale),
-              description,
-              rangeLabel ? this._messages[rangeLabel] : "",
-              state.disabled ? this._messages.unavailable : "",
-            ]
-              .filter(Boolean)
-              .join(". ");
+            const label = this._dayLabel(date, state, position);
             return `<td class="dp-day" data-date="${date}"${outside ? ' data-outside-month="true"' : ""}${isToday ? ' data-today="true" aria-current="date"' : ""}${selected ? ' data-selected="true" aria-selected="true"' : ""}${rangeAttributes(position)}${state.disabled ? ' data-disabled="true" aria-disabled="true"' : ""} tabindex="${focused ? "0" : "-1"}" aria-label="${escapeHtml(label)}"><span class="dp-day-number" aria-hidden="true">${Number(date.slice(8, 10))}</span><span class="dp-day-extra" aria-hidden="true"></span></td>`;
           })
           .join("");

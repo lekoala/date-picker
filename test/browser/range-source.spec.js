@@ -142,3 +142,37 @@ test("a newer selection supersedes a still-pending older one", async ({ page }) 
   const events = await page.evaluate(() => window.__events);
   expect(events.filter((entry) => entry.startsWith("rangechange"))).toHaveLength(1);
 });
+
+test("a drop resolving after the popup closed never moves a bound", async ({ page }) => {
+  await page.locator("#start-date").focus();
+  await expect(page.locator("#range-picker .dp-picker-panel")).toBeVisible();
+  await page.evaluate(() => {
+    window.__hang = true;
+  });
+
+  // Drag the start handle onto the previous month's padding, so the drop has
+  // to wait for that month's availability before it can commit.
+  const box = async (date) => {
+    const found = await page.locator(`#range-picker .dp-day[data-date="${date}"]`).boundingBox();
+    if (!found) throw new Error(`No box for ${date}`);
+    return { x: found.x + found.width / 2, y: found.y + found.height / 2 };
+  };
+  const origin = await box("2026-09-10");
+  const target = await box("2026-08-31");
+  await page.mouse.move(origin.x, origin.y);
+  await page.mouse.down();
+  await page.mouse.move(target.x, target.y, { steps: 8 });
+  await page.mouse.up();
+
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#range-picker")).toHaveJSProperty("open", false);
+  await page.evaluate(() => {
+    window.__hang = false;
+  });
+  await page.waitForTimeout(300);
+
+  await expect(page.locator("#start-date")).toHaveValue("10/09/2026");
+  await expect(page.locator("#end-date")).toHaveValue("15/09/2026");
+  const events = await page.evaluate(() => window.__events);
+  expect(events.some((entry) => entry.startsWith("rangechange"))).toBe(false);
+});

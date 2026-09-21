@@ -646,3 +646,66 @@ test("forced colors keep selected, today and disabled days visually distinct", a
   expect(Number(styles.disabled.opacity)).toBeLessThan(Number(styles.today.opacity));
   expect(styles.disabled.color).toBe(styles.today.color);
 });
+
+test("datefocus observes the roving focus without activating anything", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__focus = [];
+    window.__other = [];
+    const calendar = document.getElementById("inline");
+    calendar.addEventListener("datefocus", (event) => window.__focus.push(event.detail.date));
+    for (const name of ["dateactivate", "datechange"]) {
+      calendar.addEventListener(name, () => window.__other.push(name));
+    }
+  });
+  const roving = page.locator('#inline .dp-day[tabindex="0"]');
+  const origin = await roving.getAttribute("data-date");
+  await roving.focus();
+  await page.evaluate(() => {
+    window.__focus = [];
+  });
+
+  await page.keyboard.press("ArrowRight");
+  const next = await page.evaluate(() => document.getElementById("inline").focusedDate);
+  expect(next).not.toBe(origin);
+  await expect(page.locator(`#inline .dp-day[data-date="${next}"]`)).toBeFocused();
+  // One cell moved, one datefocus: the temporary navigation arithmetic in the
+  // key handler never announces an intermediate date.
+  expect(await page.evaluate(() => window.__focus)).toEqual([next]);
+
+  await page.keyboard.press("ArrowDown");
+  const after = await page.evaluate(() => document.getElementById("inline").focusedDate);
+  expect(await page.evaluate(() => window.__focus)).toEqual([next, after]);
+  // Navigation observes; it never selects.
+  expect(await page.evaluate(() => window.__other)).toEqual([]);
+  await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
+
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => window.__other)).toEqual(["dateactivate", "datechange"]);
+  await expect(page.locator("#inline")).toHaveAttribute("value", after);
+});
+
+test("datefocus follows real focus only, not the focusedDate setter", async ({ page }) => {
+  const events = await page.evaluate(async () => {
+    /** @type {string[]} */
+    const seen = [];
+    const calendar = document.getElementById("inline");
+    calendar.addEventListener("datefocus", (event) => seen.push(event.detail.date));
+    calendar.focusedDate = "2026-09-20";
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    return { seen, focusedDate: calendar.focusedDate };
+  });
+  expect(events.seen).toEqual([]);
+  expect(events.focusedDate).toBe("2026-09-20");
+});
+
+test("a disabled day still reports datefocus so navigation stays discoverable", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__focus = [];
+    const calendar = document.getElementById("constrained");
+    calendar.addEventListener("datefocus", (event) =>
+      window.__focus.push(`${event.detail.date}:${event.detail.state.disabled}`),
+    );
+  });
+  await page.locator('#constrained .dp-day[data-date="2026-09-05"]').focus();
+  expect(await page.evaluate(() => window.__focus)).toEqual(["2026-09-05:true"]);
+});

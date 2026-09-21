@@ -312,35 +312,139 @@
     focus(endpoint) {
       this.activeEndpoint = endpoint;
     }
-    activate(date, editable = () => true) {
+    _refuse(endpoint) {
+      return {
+        status: "refused",
+        endpoint,
+        changedEndpoints: [],
+        range: this.range,
+        activeEndpoint: this.activeEndpoint
+      };
+    }
+    project(date, editable = () => true) {
       if (!isDate(date))
         throw new TypeError(`Invalid range activation: ${date}`);
-      if (this.complete && (compareDates(date, this.start) < 0 || compareDates(date, this.end) > 0)) {
-        const endpoint = compareDates(date, this.start) < 0 ? "start" : "end";
+      const { start, end } = this;
+      if (this.complete && (compareDates(date, start) < 0 || compareDates(date, end) > 0)) {
+        const endpoint = compareDates(date, start) < 0 ? "start" : "end";
         if (!editable(endpoint))
-          return { status: "refused", endpoint };
-        this[endpoint] = date;
-        this.activeEndpoint = endpoint;
-        return { status: "complete", endpoint };
+          return this._refuse(endpoint);
+        return {
+          status: "complete",
+          endpoint,
+          changedEndpoints: [endpoint],
+          range: endpoint === "start" ? { start: date, end } : { start, end: date },
+          activeEndpoint: endpoint
+        };
       }
       if (this.activeEndpoint === "end") {
-        if (this.start && compareDates(date, this.start) < 0) {
-          return { status: "refused", endpoint: "end" };
+        if (start && !end && compareDates(date, start) < 0) {
+          if (!editable("start"))
+            return this._refuse("start");
+          if (!editable("end"))
+            return this._refuse("end");
+          return {
+            status: "complete",
+            endpoint: "end",
+            changedEndpoints: ["start", "end"],
+            range: { start: date, end: start },
+            activeEndpoint: "end"
+          };
         }
+        if (start && compareDates(date, start) < 0)
+          return this._refuse("end");
         if (!editable("end"))
-          return { status: "refused", endpoint: "end" };
-        this.end = date;
-        return { status: this.start ? "complete" : "pending", endpoint: "end" };
+          return this._refuse("end");
+        return {
+          status: start ? "complete" : "pending",
+          endpoint: "end",
+          changedEndpoints: ["end"],
+          range: { start, end: date },
+          activeEndpoint: "end"
+        };
+      }
+      if (end && !start && compareDates(date, end) > 0) {
+        if (!editable("start"))
+          return this._refuse("start");
+        if (!editable("end"))
+          return this._refuse("end");
+        return {
+          status: "complete",
+          endpoint: "start",
+          changedEndpoints: ["start", "end"],
+          range: { start: end, end: date },
+          activeEndpoint: "start"
+        };
       }
       if (!editable("start"))
-        return { status: "refused", endpoint: "start" };
-      this.start = date;
-      if (!editable("end")) {
-        return { status: "pending", endpoint: "start", close: true };
-      }
-      this.activeEndpoint = "end";
-      return { status: "pending", endpoint: "start" };
+        return this._refuse("start");
+      const canContinue = editable("end");
+      return {
+        status: "pending",
+        endpoint: "start",
+        changedEndpoints: ["start"],
+        range: { start: date, end },
+        activeEndpoint: canContinue ? "end" : this.activeEndpoint,
+        ...canContinue ? {} : { close: true }
+      };
     }
+    projectEndpoint(date, endpoint, editable = () => true) {
+      if (!isDate(date))
+        throw new TypeError(`Invalid range activation: ${date}`);
+      if (!this.complete || !editable(endpoint))
+        return this._refuse(endpoint);
+      const { start, end } = this;
+      const previous = endpoint === "start" ? start : end;
+      const target = endpoint === "start" ? earlier(date, end) : later(date, start);
+      return {
+        status: "complete",
+        endpoint,
+        changedEndpoints: target === previous ? [] : [endpoint],
+        range: endpoint === "start" ? { start: target, end } : { start, end: target },
+        activeEndpoint: endpoint
+      };
+    }
+    previewRange(date, endpoint = "", editable = () => true) {
+      if (!isDate(date))
+        return null;
+      if (!endpoint && Boolean(this.start) === Boolean(this.end))
+        return null;
+      const transition = endpoint ? this.projectEndpoint(date, endpoint, editable) : this.project(date, editable);
+      if (transition.status === "refused")
+        return null;
+      const { start, end } = transition.range;
+      if (!start || end && compareDates(end, start) < 0)
+        return null;
+      return { start, end };
+    }
+    _apply(transition) {
+      if (transition.status === "refused")
+        return transition;
+      this.start = transition.range.start;
+      this.end = transition.range.end;
+      this.activeEndpoint = transition.activeEndpoint;
+      return transition;
+    }
+    activate(date, editable = () => true) {
+      return this._apply(this.project(date, editable));
+    }
+    moveEndpoint(date, endpoint, editable = () => true) {
+      return this._apply(this.projectEndpoint(date, endpoint, editable));
+    }
+  }
+  function later(a, b) {
+    if (!a)
+      return b;
+    if (!b)
+      return a;
+    return compareDates(a, b) >= 0 ? a : b;
+  }
+  function earlier(a, b) {
+    if (!a)
+      return b;
+    if (!b)
+      return a;
+    return compareDates(a, b) <= 0 ? a : b;
   }
 
   // src/intl.js
@@ -557,19 +661,15 @@
   function yearOf(month) {
     return Number(month.slice(0, 4));
   }
+  function rangeAttributeMap(position) {
+    return {
+      "data-range-start": position === "start" || position === "single",
+      "data-range-end": position === "end" || position === "single",
+      "data-in-range": position === "in"
+    };
+  }
   function rangeAttributes(position) {
-    switch (position) {
-      case "single":
-        return ' data-range-start="true" data-range-end="true"';
-      case "start":
-        return ' data-range-start="true"';
-      case "end":
-        return ' data-range-end="true"';
-      case "in":
-        return ' data-in-range="true"';
-      default:
-        return "";
-    }
+    return Object.entries(rangeAttributeMap(position)).filter(([, on]) => on).map(([name]) => ` ${name}="true"`).join("");
   }
   function rangeLabelKey(position) {
     if (position === "single")
@@ -734,7 +834,7 @@
         return;
       this._highlightedRange = next;
       if (this._connected)
-        this.render();
+        this._updateRangeDom();
     }
     get fixedWeeks() {
       return this.hasAttribute("fixed-weeks");
@@ -1007,12 +1107,37 @@
       }
       return false;
     }
+    _dayLabel(date, state, position) {
+      const rangeLabel = this.hasAttribute("data-range-preview") ? "" : rangeLabelKey(position);
+      const description = typeof state.description === "string" ? state.description : "";
+      return [
+        formatLongDate(date, this.locale),
+        description,
+        rangeLabel ? this._messages[rangeLabel] : "",
+        state.disabled ? this._messages.unavailable : ""
+      ].filter(Boolean).join(". ");
+    }
+    _updateRangeDom() {
+      for (const cell of this.querySelectorAll(".dp-day[data-date]")) {
+        if (!(cell instanceof HTMLTableCellElement))
+          continue;
+        const date = cell.dataset.date || "";
+        const position = rangePosition(date, this._highlightedRange);
+        for (const [name, on] of Object.entries(rangeAttributeMap(position))) {
+          if (on)
+            cell.setAttribute(name, "true");
+          else
+            cell.removeAttribute(name);
+        }
+        cell.setAttribute("aria-label", this._dayLabel(date, this.getDateState(date), position));
+      }
+    }
     focusGrid() {
       const target = this.querySelector(`.dp-day[data-date="${CSS.escape(this.focusedDate)}"]`);
       if (target instanceof HTMLElement)
         target.focus();
     }
-    async _activate(date) {
+    async activateDate(date) {
       const confirmed = await this.ensureDate(date);
       const state = this.getDateState(date);
       if (!confirmed || state.disabled) {
@@ -1068,7 +1193,7 @@
       this._reflect("display", this._model.display);
       if (previousDisplay !== this.display)
         this._emitDisplayChange();
-      this._activate(date);
+      this.activateDate(date);
     }
     _onChange(event) {
       const target = event.target;
@@ -1091,8 +1216,10 @@
       if (!(target instanceof HTMLTableCellElement) || !target.matches(".dp-day[data-date]"))
         return;
       const date = target.dataset.date || "";
-      if (isDate(date))
-        this._model.focused = date;
+      if (!isDate(date))
+        return;
+      this._model.focused = date;
+      this.dispatchEvent(new CustomEvent("datefocus", { detail: { date, state: this.getDateState(date) }, bubbles: true }));
     }
     _onKeyDown(event) {
       const target = event.target;
@@ -1101,7 +1228,7 @@
       const date = target.dataset.date || this.focusedDate;
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        this._activate(date);
+        this.activateDate(date);
         return;
       }
       const anchorFocused = this._model.focused;
@@ -1172,14 +1299,7 @@
           const focused = this.focusedDate === date;
           const isToday = date === today;
           const position = rangePosition(date, this._highlightedRange);
-          const rangeLabel = rangeLabelKey(position);
-          const description = typeof state.description === "string" ? state.description : "";
-          const label = [
-            formatLongDate(date, locale),
-            description,
-            rangeLabel ? this._messages[rangeLabel] : "",
-            state.disabled ? this._messages.unavailable : ""
-          ].filter(Boolean).join(". ");
+          const label = this._dayLabel(date, state, position);
           return `<td class="dp-day" data-date="${date}"${outside ? ' data-outside-month="true"' : ""}${isToday ? ' data-today="true" aria-current="date"' : ""}${selected ? ' data-selected="true" aria-selected="true"' : ""}${rangeAttributes(position)}${state.disabled ? ' data-disabled="true" aria-disabled="true"' : ""} tabindex="${focused ? "0" : "-1"}" aria-label="${escapeHtml(label)}"><span class="dp-day-number" aria-hidden="true">${Number(date.slice(8, 10))}</span><span class="dp-day-extra" aria-hidden="true"></span></td>`;
         }).join("");
         return `<tr>${weekNumber}${cells}</tr>`;
@@ -1778,6 +1898,7 @@
 
   // src/date-picker.js
   var uid2 = 0;
+  var DRAG_THRESHOLD = 4;
 
   class DatePickerElement extends HTMLElement {
     static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
@@ -1797,6 +1918,9 @@
       this._lastFocusEndpoint = "";
       this._rangeCommitId = 0;
       this._pendingIntents = new Map;
+      this._previewDate = "";
+      this._drag = null;
+      this._suppressGridClick = false;
       this._buttons = [];
       this._returnFocus = null;
       this._panel = null;
@@ -2148,6 +2272,7 @@
         const field = this._fields[index];
         button.disabled = Boolean(field?.input.disabled || field?.input.readOnly);
       }
+      this._syncDragAffordance();
       const active = this._range?.activeEndpoint === "end" ? 1 : 0;
       if (this._open && (this._fields[active]?.input.disabled || this._fields[active]?.input.readOnly)) {
         this.hide(false);
@@ -2331,7 +2456,15 @@
           signal
         });
       }
-      calendar.addEventListener("click", (event) => this._captureGridIntent(event), { capture: true, signal });
+      calendar.addEventListener("click", (event) => {
+        if (this._suppressGridClick) {
+          this._suppressGridClick = false;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
+        this._captureGridIntent(event);
+      }, { capture: true, signal });
       calendar.addEventListener("keydown", (event) => this._captureGridIntent(event), {
         capture: true,
         signal
@@ -2344,15 +2477,12 @@
         queueMicrotask(() => {
           if (custom.defaultPrevented || !this._connected || !this._range)
             return;
-          const pending = this._pendingIntents.get(date);
-          if (pending === undefined || pending !== this._rangeCommitId)
+          const intent = this._pendingIntents.get(date);
+          if (intent === undefined || intent.id !== this._rangeCommitId)
             return;
           this._pendingIntents.delete(date);
-          const result = this._range.activate(date, (which) => {
-            const index = which === "end" ? 1 : 0;
-            const field = this._fields?.[index];
-            return field != null && !field.input.disabled && !field.input.readOnly;
-          });
+          const editable = (bound) => this._boundEditable(bound);
+          const result = intent.endpoint ? this._range.moveEndpoint(date, intent.endpoint, editable) : this._range.activate(date, editable);
           if (result.status === "refused") {
             this._calendar?.dispatchEvent(new CustomEvent("dateinvalid", {
               detail: { date, state: this._calendar.getDateState(date) },
@@ -2360,13 +2490,23 @@
             }));
             return;
           }
-          this._setBound(result.endpoint, date, { emit: true, user: true });
+          this._applyRangeTransition(result);
+          if (intent.endpoint)
+            return;
           if (result.close || result.status === "complete") {
             this.hide(false);
             this._focusField(result.endpoint);
           }
         });
       }, { signal });
+      calendar.addEventListener("datefocus", (event) => this._onGridDateFocus(event), { signal });
+      calendar.addEventListener("pointerover", (event) => this._onGridPointerOver(event), { signal });
+      calendar.addEventListener("pointerleave", () => this._onGridPointerLeave(), { signal });
+      calendar.addEventListener("pointerdown", (event) => this._onGridPointerDown(event), { signal });
+      calendar.addEventListener("pointermove", (event) => this._onGridPointerMove(event), { signal });
+      calendar.addEventListener("pointerup", (event) => this._onGridPointerUp(event), { signal });
+      calendar.addEventListener("pointercancel", (event) => this._onGridPointerCancel(event), { signal });
+      calendar.addEventListener("lostpointercapture", (event) => this._onGridPointerCancel(event), { signal });
       calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
       this.ownerDocument.addEventListener("pointerdown", (event) => {
         if (!this._open || event.composedPath().includes(this))
@@ -2396,6 +2536,7 @@
       const target = this._boundCanonical(endpoint) || todayISO();
       calendar.display = monthKey(target);
       calendar.focusedDate = target;
+      this._clearPreview();
     }
     _onRangeTriggerClick(endpoint, event) {
       if (!this._open) {
@@ -2478,7 +2619,190 @@
       if (!isDate(date))
         return;
       this._pendingIntents.clear();
-      this._pendingIntents.set(date, ++this._rangeCommitId);
+      this._pendingIntents.set(date, { id: ++this._rangeCommitId, endpoint: "" });
+    }
+    _boundEditable(bound) {
+      const field = this._fields?.[bound === "end" ? 1 : 0];
+      return field != null && !field.input.disabled && !field.input.readOnly;
+    }
+    _applyRangeTransition(transition) {
+      const fields = this._fields;
+      if (!fields || !this._range || transition.status === "refused")
+        return;
+      const moved = [];
+      for (const which of transition.changedEndpoints) {
+        const field = fields[which === "end" ? 1 : 0];
+        const next = which === "end" ? transition.range.end : transition.range.start;
+        if (!field || field.canonical === next)
+          continue;
+        field.setCanonical(next, { format: true });
+        moved.push(field);
+      }
+      this._syncHighlight();
+      this._refreshRangeButtonLabel();
+      this._revalidateRange(transition.endpoint);
+      if (!moved.length)
+        return;
+      this._emitRangeChange();
+      for (const field of moved) {
+        field.input.dispatchEvent(new Event("input", { bubbles: true }));
+        field.input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+    _setPreview(date, endpoint = "") {
+      const calendar = this._calendar;
+      if (!calendar || !this._range || !this._open)
+        return;
+      const candidate = isDate(date) && !calendar.getDateState(date).disabled ? date : "";
+      const preview = candidate ? this._range.previewRange(candidate, endpoint, (bound) => this._boundEditable(bound)) : null;
+      if (!preview) {
+        this._clearPreview();
+        return;
+      }
+      this._previewDate = candidate;
+      calendar.toggleAttribute("data-range-preview", true);
+      calendar.highlightedRange = preview;
+    }
+    _clearPreview() {
+      if (!this._previewDate)
+        return;
+      this._syncHighlight();
+    }
+    _onGridDateFocus(event) {
+      if (this._drag)
+        return;
+      const date = event.detail?.date;
+      if (isDate(date))
+        this._setPreview(date);
+    }
+    _onGridPointerOver(event) {
+      const pointer = event;
+      if (this._drag || pointer.pointerType === "touch")
+        return;
+      this._setPreview(this._cellDate(pointer.target));
+    }
+    _onGridPointerLeave() {
+      if (this._drag?.active === false)
+        this._drag = null;
+      if (this._drag)
+        return;
+      this._clearPreview();
+    }
+    _cellDate(target) {
+      const cell = target instanceof Element ? target.closest(".dp-day[data-date]") : null;
+      const date = cell?.getAttribute("data-date") || "";
+      return isDate(date) ? date : "";
+    }
+    _dateAtPoint(x, y) {
+      const element = this.ownerDocument.elementFromPoint(x, y);
+      if (!(element instanceof Element) || !this._calendar?.contains(element))
+        return "";
+      return this._cellDate(element);
+    }
+    _onGridPointerDown(event) {
+      const pointer = event;
+      this._suppressGridClick = false;
+      if (this._drag?.active === false)
+        this._drag = null;
+      if (!this._open || !this._range || this._drag)
+        return;
+      if (!pointer.isPrimary || pointer.button !== 0)
+        return;
+      if (pointer.pointerType !== "mouse" && pointer.pointerType !== "pen")
+        return;
+      if (!this._range.complete)
+        return;
+      const cell = pointer.target instanceof Element ? pointer.target.closest(".dp-day[data-date]") : null;
+      if (!(cell instanceof HTMLElement))
+        return;
+      const isStart = cell.hasAttribute("data-range-start");
+      const isEnd = cell.hasAttribute("data-range-end");
+      if (isStart === isEnd)
+        return;
+      const endpoint = isStart ? "start" : "end";
+      const date = this._cellDate(cell);
+      if (!date || !this._boundEditable(endpoint))
+        return;
+      this._drag = {
+        pointerId: pointer.pointerId,
+        endpoint,
+        x: pointer.clientX,
+        y: pointer.clientY,
+        date,
+        active: false
+      };
+    }
+    _onGridPointerMove(event) {
+      const pointer = event;
+      const drag = this._drag;
+      if (!drag || pointer.pointerId !== drag.pointerId)
+        return;
+      if (!drag.active) {
+        const travelled = Math.abs(pointer.clientX - drag.x) > DRAG_THRESHOLD || Math.abs(pointer.clientY - drag.y) > DRAG_THRESHOLD;
+        if (!travelled)
+          return;
+        drag.active = true;
+        try {
+          this._calendar?.setPointerCapture(drag.pointerId);
+        } catch {}
+        this._syncDragAffordance();
+      }
+      const date = this._dateAtPoint(pointer.clientX, pointer.clientY);
+      if (!date || this._calendar?.getDateState(date).disabled)
+        return;
+      drag.date = date;
+      this._setPreview(date, drag.endpoint);
+    }
+    _onGridPointerUp(event) {
+      const pointer = event;
+      const drag = this._drag;
+      if (!drag || pointer.pointerId !== drag.pointerId)
+        return;
+      this._drag = null;
+      this._releaseDragCapture(drag.pointerId);
+      if (!drag.active) {
+        this._syncDragAffordance();
+        return;
+      }
+      this._suppressGridClick = true;
+      const transition = this._range?.projectEndpoint(drag.date, drag.endpoint, (bound) => this._boundEditable(bound));
+      if (!transition || transition.status === "refused" || !transition.changedEndpoints.length) {
+        this._syncHighlight();
+        return;
+      }
+      const target = drag.endpoint === "start" ? transition.range.start : transition.range.end;
+      this._pendingIntents.clear();
+      this._pendingIntents.set(target, { id: ++this._rangeCommitId, endpoint: drag.endpoint });
+      this._calendar?.activateDate(target);
+    }
+    _onGridPointerCancel(event) {
+      const pointer = event;
+      const drag = this._drag;
+      if (!drag || pointer.pointerId !== drag.pointerId)
+        return;
+      this._drag = null;
+      this._releaseDragCapture(drag.pointerId);
+      this._syncHighlight();
+    }
+    _releaseDragCapture(pointerId) {
+      const calendar = this._calendar;
+      if (calendar?.hasPointerCapture(pointerId))
+        calendar.releasePointerCapture(pointerId);
+    }
+    _syncDragAffordance() {
+      const calendar = this._calendar;
+      if (!calendar || !this._range)
+        return;
+      if (this._drag?.active) {
+        calendar.setAttribute("data-range-drag", "active");
+        return;
+      }
+      const { start, end } = this._range;
+      const draggable = this._range.complete && start !== end && (this._boundEditable("start") || this._boundEditable("end"));
+      if (draggable)
+        calendar.setAttribute("data-range-drag", "ready");
+      else
+        calendar.removeAttribute("data-range-drag");
     }
     _onEscape(event) {
       if (event.key === "Escape" && this._open) {
@@ -2691,19 +3015,21 @@
         return;
       this.dispatchEvent(new CustomEvent("rangechange", { detail: { ...this._range.range }, bubbles: true }));
     }
+    _displayRange() {
+      const { start, end } = this._range?.range ?? { start: "", end: "" };
+      if (!start)
+        return { start: "", end: "" };
+      if (end && compareDates(end, start) < 0)
+        return { start, end: "" };
+      return { start, end };
+    }
     _syncHighlight() {
       if (!this._calendar || !this._range)
         return;
-      const { start, end } = this._range;
-      if (!start) {
-        this._calendar.highlightedRange = { start: "", end: "" };
-        return;
-      }
-      if (end && compareDates(end, start) < 0) {
-        this._calendar.highlightedRange = { start, end: "" };
-      } else {
-        this._calendar.highlightedRange = { start, end };
-      }
+      this._previewDate = "";
+      this._calendar.removeAttribute("data-range-preview");
+      this._calendar.highlightedRange = this._displayRange();
+      this._syncDragAffordance();
     }
     _revalidateRange(which) {
       if (!this._fields || !this._range)
@@ -2904,6 +3230,12 @@
       this._setExpanded(false);
       this._rangeCommitId++;
       this._pendingIntents.clear();
+      this._suppressGridClick = false;
+      if (this._drag) {
+        this._releaseDragCapture(this._drag.pointerId);
+        this._drag = null;
+      }
+      this._syncHighlight();
       if (restoreFocus) {
         if (this._rangeMode()) {
           const endpoint = this._restoreFocusEndpoint();

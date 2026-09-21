@@ -21,9 +21,27 @@ export declare class DatePickerElement extends HTMLElement {
     /** @type {"" | "start" | "end"} */
     _lastFocusEndpoint: "" | "start" | "end";
     _rangeCommitId: number;
-    /** Map of clicked/keyboard-activated grid dates to the generation at click
-     * time (range mode supersession/stale protection). @type {Map<string, number>} */
-    _pendingIntents: Map<string, number>;
+    /** Grid activation intents, keyed by date: the generation at interaction
+     * time (range mode supersession/stale protection) plus the bound a drag
+     * drop targets, empty for a normal pick.
+     * @type {Map<string, {id: number, endpoint: "" | "start" | "end"}>} */
+    _pendingIntents: Map<string, {
+        id: number;
+        endpoint: "" | "start" | "end";
+    }>;
+    /** Candidate date currently projected onto the calendar band, if any. */
+    _previewDate: string;
+    /** Live endpoint drag, or null. @type {{pointerId:number, endpoint:"start"|"end", x:number, y:number, date:string, active:boolean} | null} */
+    _drag: {
+        pointerId: number;
+        endpoint: "start" | "end";
+        x: number;
+        y: number;
+        date: string;
+        active: boolean;
+    } | null;
+    /** A real drag already committed; swallow the click that follows it. */
+    _suppressGridClick: boolean;
     /** Overlaid calendar triggers, one per field (single) or per bound (range). @type {{button: HTMLButtonElement, endpoint: "" | "start" | "end"}[]} */
     _buttons: {
         button: HTMLButtonElement;
@@ -236,6 +254,59 @@ export declare class DatePickerElement extends HTMLElement {
      * activation supersedes every earlier pending one.
      * @param {Event} event */
     _captureGridIntent(event: Event): void;
+    /** Whether one bound can receive a user pick right now.
+     * @param {"start" | "end"} bound */
+    _boundEditable(bound: "start" | "end"): boolean;
+    /**
+     * Single write path for a calendar-driven range change. Both fields are
+     * synchronized before anything is announced, because one transition can move
+     * both bounds at once (`10` then `5` commits `start 10 -> 5` together with
+     * `end "" -> 10`); writing bound by bound would expose an intermediate
+     * inverted pair. Synthetic `input`/`change` stay on the bounds that moved.
+     * @param {import("./date-range.js").RangeTransition} transition
+     */
+    _applyRangeTransition(transition: import("./date-range.js").RangeTransition): void;
+    /**
+     * Project a candidate date onto the calendar band. Purely visual: no
+     * `rangechange`, no field write, no validation and no source request — the
+     * projection reads the month state already loaded, and the real availability
+     * check still runs on commit.
+     * @param {string} date @param {"" | "start" | "end"} [endpoint]
+     */
+    _setPreview(date: string, endpoint?: "" | "start" | "end"): void;
+    /** Drop the projection and put the committed range back on the band. */
+    _clearPreview(): void;
+    /** @param {Event} event */
+    _onGridDateFocus(event: Event): void;
+    /**
+     * Hover candidate. `focusedDate` stays the keyboard target only: pointer
+     * hover never moves it, it just feeds the same projection.
+     * @param {Event} event
+     */
+    _onGridPointerOver(event: Event): void;
+    _onGridPointerLeave(): void;
+    /** @param {EventTarget | null} target @returns {string} */
+    _cellDate(target: EventTarget | null): string;
+    /** @param {number} x @param {number} y @returns {string} */
+    _dateAtPoint(x: number, y: number): string;
+    /**
+     * Arm an endpoint drag. Only a complete, ordered range offers two distinct
+     * handles; a one-day range carries both markers on the same cell, and
+     * guessing which one the user meant would be worse than not dragging.
+     * @param {Event} event
+     */
+    _onGridPointerDown(event: Event): void;
+    /** @param {Event} event */
+    _onGridPointerMove(event: Event): void;
+    /** @param {Event} event */
+    _onGridPointerUp(event: Event): void;
+    /** @param {Event} event */
+    _onGridPointerCancel(event: Event): void;
+    /** @param {number} pointerId */
+    _releaseDragCapture(pointerId: number): void;
+    /** Expose whether the band currently offers draggable handles, and whether
+     * one is being dragged, so the cursor can say so. */
+    _syncDragAffordance(): void;
     /** @param {KeyboardEvent} event */
     _onEscape(event: KeyboardEvent): void;
     _syncCalendarOptions(): void;
@@ -284,8 +355,14 @@ export declare class DatePickerElement extends HTMLElement {
     /** @param {"start" | "end"} which */
     _boundCanonical(which: "start" | "end"): string;
     _emitRangeChange(): void;
-    /** Forward only a displayable range to the calendar band. An inverted or
-     * start-less business range shows no misleading band. */
+    /** Displayable projection of the business range. An inverted or start-less
+     * pair shows no misleading band. @returns {{start:string, end:string}} */
+    _displayRange(): {
+        start: string;
+        end: string;
+    };
+    /** Put the committed range back on the calendar band, dropping any
+     * projection currently shown over it. */
     _syncHighlight(): void;
     /**
      * Cross-bound validity: the order error is attributed to the bound that was

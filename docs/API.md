@@ -62,6 +62,7 @@ calendar.nextMonth();
 calendar.focusDate("2026-09-10");
 calendar.focusGrid();
 calendar.getDateState("2026-09-10");
+await calendar.activateDate("2026-09-10");
 await calendar.ensureDate("2026-09-10");
 await calendar.refreshSource();
 calendar.render();
@@ -86,6 +87,28 @@ calendar.addEventListener("dateactivate", (event) => {
   if (applicationRule(event.detail.date)) event.preventDefault();
 });
 ```
+
+`activateDate(date)` runs that same path on demand: availability check, then
+the cancelable event, then selection. Click, keyboard and the range endpoint
+drag all go through it, so an application that cancels `dateactivate` cannot be
+bypassed by a different input device.
+
+#### `datefocus`
+
+Fired when a date cell actually receives focus, with `{ date, state }`. Arrow,
+Home, End, PageUp and PageDown all emit one through the cell that took focus.
+
+```js
+calendar.addEventListener("datefocus", (event) => {
+  console.log(event.detail.date);
+});
+```
+
+It observes navigation and nothing else: a disabled day still reports it (grid
+navigation stays discoverable), hover never does, and assigning `focusedDate`
+without moving DOM focus stays silent. The three verbs are distinct —
+`datefocus` observes, `dateactivate` requests an activation, `datechange`
+observes a selection.
 
 #### `datechange`
 
@@ -272,7 +295,11 @@ The business range may be temporarily incomplete or inverted; `calendar.highligh
 ### Interaction
 
 - When an ordered range is complete, picking before its start updates only the start; picking after its end updates only the end, regardless of the opening field. The popup closes after this update. An uneditable target bound refuses the activation.
-- Otherwise, opening through a field targets that bound (`activeEndpoint`). Picking from `start` commits it, moves the endpoint to `end` without closing, and a second pick commits and closes. Opening from `end` refuses a date before `start` (`dateinvalid`, nothing changes).
+- Otherwise, opening through a field targets that bound (`activeEndpoint`). Picking from `start` commits it, moves the endpoint to `end` without closing, and a second pick commits and closes.
+- **Calendar interaction never produces an inverted range.** While a range is being created, a second pick before the anchor is sorted rather than refused: `10` then `15` gives `10 -> 15`, `10` then `5` gives `5 -> 10`, and `10` then `10` a one-day range. That transition moves **both** bounds at once and is applied in a single write — one `rangechange`, with synthetic `input`/`change` on each bound that moved, and no intermediate inverted pair ever observable. Typed text keeps the opposite contract and may be temporarily inverted (see [DECISIONS D6](DECISIONS.md)).
+- Changing one bound of an already complete pair keeps that bound's identity: moving `end` before `start` is refused (`dateinvalid`, nothing changes) instead of rewriting the other field.
+- **Preview.** While a range is being created, hovering a day or moving the keyboard focus projects the range the next pick would commit onto `calendar.highlightedRange`, and the pick commits exactly what was projected. The projection is visual only: no `rangechange`, no field write, no validation and no source request. It reads the month already loaded, so a day known to be unavailable promises nothing; the real availability check still runs on commit. Pointer hover never moves `focusedDate`, which stays the keyboard target. Leaving the grid, Escape and closing the popup restore the committed band.
+- **Endpoint drag.** On a complete, ordered range whose two ends sit on different days, each endpoint can be dragged with a mouse or pen (pointer events plus capture, armed only once the pointer travels). A handle never crosses the other one — the candidate is clamped to it, equality allowed — an unavailable cell is not a drop target, and `pointercancel` restores the committed band. The drop runs the same projection and the same `ensureDate` + cancelable `dateactivate` path as a click, emits one `rangechange`, and keeps the popup open: a drag adjusts a range, it does not validate it. A press without travel stays a plain click. Touch keeps native scrolling and stays a plain tap.
 - Each bound owns its trigger (`input[data-range-start]` then its trigger, `input[data-range-end]` then its trigger); the two triggers share **one** popup, calendar, source and state. Pressing the other bound's trigger while the popup is open switches the active bound and keeps it open instead of toggling it shut. A trigger never opens a `readonly`/`disabled` bound.
 - Typing stays independent per field. Moving `start` past `end` keeps both values and flags the *modified* bound with `rangeOrderStart`; fixing either side revalidates both. Parse/source errors are never cleared by cross-bound revalidation.
 - A stale availability response resolving after the active endpoint changed (or after a newer selection) never commits; a field focus that switches the endpoint invalidates in-flight activations.
@@ -296,6 +323,29 @@ rangePosition("2026-09-12", range); // "start" | "in" | "end" | "single" | ""
 ```
 
 `normalizeRange` validates an ordered displayable range and never reorders: an inversion or an `end` without a `start` throws. `rangePosition` classifies one day within a displayable range (see [`highlightedRange`](#highlightedrange)).
+
+## `DateRangeController`
+
+The pure two-bound state machine behind `date-picker[range]`. It owns the
+selection rules and knows nothing about DOM, popups or async availability.
+
+```js
+const model = new DateRangeController();
+model.focus("start");
+model.activate("2026-09-10"); // { status: "pending", endpoint: "start", … }
+model.previewRange("2026-09-05"); // { start: "2026-09-05", end: "2026-09-10" }
+model.activate("2026-09-05"); // changedEndpoints: ["start", "end"]
+```
+
+- `project(date, editable?)` / `projectEndpoint(date, endpoint, editable?)` describe a transition without applying it;
+- `activate(date, editable?)` / `moveEndpoint(date, endpoint, editable?)` apply one;
+- `previewRange(date, endpoint?, editable?)` returns the displayable band a candidate would produce, or `null` when there is nothing to promise.
+
+A transition is `{ status, endpoint, changedEndpoints, range, activeEndpoint, close? }`.
+`range` is the whole resulting pair, because one interaction can move both
+bounds; `changedEndpoints` names the ones that actually move. Every rule exists
+once, as a projection, and the previews read the same projections the commit
+applies.
 
 ## `createDateAdapter(locale)`
 

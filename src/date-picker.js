@@ -9,6 +9,9 @@ import { compareTimes, isTime } from "./time.js";
 
 let uid = 0;
 
+/** Pointer travel, in CSS pixels, that turns a press into an endpoint drag. */
+const DRAG_THRESHOLD = 4;
+
 export class DatePickerElement extends HTMLElement {
   static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
 
@@ -33,9 +36,17 @@ export class DatePickerElement extends HTMLElement {
     /** @type {"" | "start" | "end"} */
     this._lastFocusEndpoint = "";
     this._rangeCommitId = 0;
-    /** Map of clicked/keyboard-activated grid dates to the generation at click
-     * time (range mode supersession/stale protection). @type {Map<string, number>} */
+    /** Grid activation intents, keyed by date: the generation at interaction
+     * time (range mode supersession/stale protection) plus the bound a drag
+     * drop targets, empty for a normal pick.
+     * @type {Map<string, {id: number, endpoint: "" | "start" | "end"}>} */
     this._pendingIntents = new Map();
+    /** Candidate date currently projected onto the calendar band, if any. */
+    this._previewDate = "";
+    /** Live endpoint drag, or null. @type {{pointerId:number, endpoint:"start"|"end", x:number, y:number, date:string, active:boolean} | null} */
+    this._drag = null;
+    /** A real drag already committed; swallow the click that follows it. */
+    this._suppressGridClick = false;
     /** Overlaid calendar triggers, one per field (single) or per bound (range). @type {{button: HTMLButtonElement, endpoint: "" | "start" | "end"}[]} */
     this._buttons = [];
     /** Control that opened the popover, so single mode can restore focus to it.
@@ -437,6 +448,7 @@ export class DatePickerElement extends HTMLElement {
       const field = this._fields[index];
       button.disabled = Boolean(field?.input.disabled || field?.input.readOnly);
     }
+    this._syncDragAffordance();
     const active = this._range?.activeEndpoint === "end" ? 1 : 0;
     if (this._open && (this._fields[active]?.input.disabled || this._fields[active]?.input.readOnly)) {
       this.hide(false);
@@ -686,7 +698,21 @@ export class DatePickerElement extends HTMLElement {
     // picker only commits a dateactivate whose generation still matches, so a
     // response that resolves after the active endpoint changed (or after a
     // newer activation) is dropped without touching either bound.
-    calendar.addEventListener("click", (event) => this._captureGridIntent(event), { capture: true, signal });
+    calendar.addEventListener(
+      "click",
+      (event) => {
+        if (this._suppressGridClick) {
+          // The gesture already committed through the drop path; this click is
+          // only the tail of the drag and must not activate a second time.
+          this._suppressGridClick = false;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
+        this._captureGridIntent(event);
+      },
+      { capture: true, signal },
+    );
     calendar.addEventListener("keydown", (event) => this._captureGridIntent(event), {
       capture: true,
       signal,
@@ -699,16 +725,17 @@ export class DatePickerElement extends HTMLElement {
         if (!isDate(date)) return;
         queueMicrotask(() => {
           if (custom.defaultPrevented || !this._connected || !this._range) return;
-          const pending = this._pendingIntents.get(date);
+          const intent = this._pendingIntents.get(date);
           // A response is dropped when the active endpoint changed, the popup
           // closed or a newer activation superseded this one.
-          if (pending === undefined || pending !== this._rangeCommitId) return;
+          if (intent === undefined || intent.id !== this._rangeCommitId) return;
           this._pendingIntents.delete(date);
-          const result = this._range.activate(date, (which) => {
-            const index = which === "end" ? 1 : 0;
-            const field = this._fields?.[index];
-            return field != null && !field.input.disabled && !field.input.readOnly;
-          });
+          const editable = (/** @type {"start" | "end"} */ bound) => this._boundEditable(bound);
+          // Click, keyboard and drop share this one machine; only the entry
+          // point differs, a drag naming the handle it grabbed.
+          const result = intent.endpoint
+            ? this._range.moveEndpoint(date, intent.endpoint, editable)
+            : this._range.activate(date, editable);
           if (result.status === "refused") {
             this._calendar?.dispatchEvent(
               new CustomEvent("dateinvalid", {
@@ -718,7 +745,10 @@ export class DatePickerElement extends HTMLElement {
             );
             return;
           }
-          this._setBound(result.endpoint, date, { emit: true, user: true });
+          this._applyRangeTransition(result);
+          // A drop adjusts an existing range rather than validating it, so the
+          // popup stays open for the next adjustment.
+          if (intent.endpoint) return;
           if (result.close || result.status === "complete") {
             this.hide(false);
             this._focusField(result.endpoint);
@@ -727,6 +757,16 @@ export class DatePickerElement extends HTMLElement {
       },
       { signal },
     );
+    // Preview seams. Hover and keyboard only supply a candidate date; the range
+    // machine decides what that candidate would produce.
+    calendar.addEventListener("datefocus", (event) => this._onGridDateFocus(event), { signal });
+    calendar.addEventListener("pointerover", (event) => this._onGridPointerOver(event), { signal });
+    calendar.addEventListener("pointerleave", () => this._onGridPointerLeave(), { signal });
+    calendar.addEventListener("pointerdown", (event) => this._onGridPointerDown(event), { signal });
+    calendar.addEventListener("pointermove", (event) => this._onGridPointerMove(event), { signal });
+    calendar.addEventListener("pointerup", (event) => this._onGridPointerUp(event), { signal });
+    calendar.addEventListener("pointercancel", (event) => this._onGridPointerCancel(event), { signal });
+    calendar.addEventListener("lostpointercapture", (event) => this._onGridPointerCancel(event), { signal });
     calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
     this.ownerDocument.addEventListener(
       "pointerdown",
@@ -766,7 +806,10 @@ export class DatePickerElement extends HTMLElement {
     this._lastFocusEndpoint = endpoint;
     const target = this._boundCanonical(endpoint) || todayISO();
     calendar.display = monthKey(target);
+    // Roving-focus target only: `focusedDate` without a DOM focus move emits no
+    // `datefocus`, so pointing the calendar at a bound never previews anything.
     calendar.focusedDate = target;
+    this._clearPreview();
   }
 
   /**
@@ -870,7 +913,247 @@ export class DatePickerElement extends HTMLElement {
     if (!isDate(date)) return;
     // Each activation supersedes every earlier pending one.
     this._pendingIntents.clear();
-    this._pendingIntents.set(date, ++this._rangeCommitId);
+    this._pendingIntents.set(date, { id: ++this._rangeCommitId, endpoint: "" });
+  }
+
+  /** Whether one bound can receive a user pick right now.
+   * @param {"start" | "end"} bound */
+  _boundEditable(bound) {
+    const field = this._fields?.[bound === "end" ? 1 : 0];
+    return field != null && !field.input.disabled && !field.input.readOnly;
+  }
+
+  /**
+   * Single write path for a calendar-driven range change. Both fields are
+   * synchronized before anything is announced, because one transition can move
+   * both bounds at once (`10` then `5` commits `start 10 -> 5` together with
+   * `end "" -> 10`); writing bound by bound would expose an intermediate
+   * inverted pair. Synthetic `input`/`change` stay on the bounds that moved.
+   * @param {import("./date-range.js").RangeTransition} transition
+   */
+  _applyRangeTransition(transition) {
+    const fields = this._fields;
+    if (!fields || !this._range || transition.status === "refused") return;
+    /** @type {import("./date-field.js").DateFieldController[]} */
+    const moved = [];
+    for (const which of transition.changedEndpoints) {
+      const field = fields[which === "end" ? 1 : 0];
+      const next = which === "end" ? transition.range.end : transition.range.start;
+      if (!field || field.canonical === next) continue;
+      field.setCanonical(next, { format: true });
+      moved.push(field);
+    }
+    this._syncHighlight();
+    this._refreshRangeButtonLabel();
+    this._revalidateRange(transition.endpoint);
+    if (!moved.length) return;
+    this._emitRangeChange();
+    for (const field of moved) {
+      field.input.dispatchEvent(new Event("input", { bubbles: true }));
+      field.input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  /**
+   * Project a candidate date onto the calendar band. Purely visual: no
+   * `rangechange`, no field write, no validation and no source request — the
+   * projection reads the month state already loaded, and the real availability
+   * check still runs on commit.
+   * @param {string} date @param {"" | "start" | "end"} [endpoint]
+   */
+  _setPreview(date, endpoint = "") {
+    const calendar = this._calendar;
+    if (!calendar || !this._range || !this._open) return;
+    // A cell already known to be unavailable must not promise a band that the
+    // commit would refuse.
+    const candidate = isDate(date) && !calendar.getDateState(date).disabled ? date : "";
+    const preview = candidate
+      ? this._range.previewRange(candidate, endpoint, (bound) => this._boundEditable(bound))
+      : null;
+    if (!preview) {
+      this._clearPreview();
+      return;
+    }
+    this._previewDate = candidate;
+    calendar.toggleAttribute("data-range-preview", true);
+    calendar.highlightedRange = preview;
+  }
+
+  /** Drop the projection and put the committed range back on the band. */
+  _clearPreview() {
+    if (!this._previewDate) return;
+    this._syncHighlight();
+  }
+
+  /** @param {Event} event */
+  _onGridDateFocus(event) {
+    // The keyboard candidate is the cell that actually took focus, so Enter
+    // commits exactly what the roving focus was previewing.
+    if (this._drag) return;
+    const date = /** @type {CustomEvent} */ (event).detail?.date;
+    if (isDate(date)) this._setPreview(date);
+  }
+
+  /**
+   * Hover candidate. `focusedDate` stays the keyboard target only: pointer
+   * hover never moves it, it just feeds the same projection.
+   * @param {Event} event
+   */
+  _onGridPointerOver(event) {
+    const pointer = /** @type {PointerEvent} */ (event);
+    if (this._drag || pointer.pointerType === "touch") return;
+    this._setPreview(this._cellDate(pointer.target));
+  }
+
+  _onGridPointerLeave() {
+    // Before capture, a gesture that leaves the grid can no longer become a
+    // drag; drop it so it cannot block the next press.
+    if (this._drag?.active === false) this._drag = null;
+    if (this._drag) return;
+    this._clearPreview();
+  }
+
+  /** @param {EventTarget | null} target @returns {string} */
+  _cellDate(target) {
+    const cell = target instanceof Element ? target.closest(".dp-day[data-date]") : null;
+    const date = cell?.getAttribute("data-date") || "";
+    return isDate(date) ? date : "";
+  }
+
+  /** @param {number} x @param {number} y @returns {string} */
+  _dateAtPoint(x, y) {
+    const element = this.ownerDocument.elementFromPoint(x, y);
+    if (!(element instanceof Element) || !this._calendar?.contains(element)) return "";
+    return this._cellDate(element);
+  }
+
+  /**
+   * Arm an endpoint drag. Only a complete, ordered range offers two distinct
+   * handles; a one-day range carries both markers on the same cell, and
+   * guessing which one the user meant would be worse than not dragging.
+   * @param {Event} event
+   */
+  _onGridPointerDown(event) {
+    const pointer = /** @type {PointerEvent} */ (event);
+    this._suppressGridClick = false;
+    // An armed gesture that never started and never released (the pointer left
+    // the grid) must not block the next one.
+    if (this._drag?.active === false) this._drag = null;
+    if (!this._open || !this._range || this._drag) return;
+    if (!pointer.isPrimary || pointer.button !== 0) return;
+    // Mouse and pen first: touch keeps native scrolling (no global
+    // `touch-action: none`) and stays a plain tap.
+    if (pointer.pointerType !== "mouse" && pointer.pointerType !== "pen") return;
+    if (!this._range.complete) return;
+    const cell = pointer.target instanceof Element ? pointer.target.closest(".dp-day[data-date]") : null;
+    if (!(cell instanceof HTMLElement)) return;
+    const isStart = cell.hasAttribute("data-range-start");
+    const isEnd = cell.hasAttribute("data-range-end");
+    if (isStart === isEnd) return;
+    const endpoint = isStart ? "start" : "end";
+    const date = this._cellDate(cell);
+    if (!date || !this._boundEditable(endpoint)) return;
+    this._drag = {
+      pointerId: pointer.pointerId,
+      endpoint,
+      x: pointer.clientX,
+      y: pointer.clientY,
+      date,
+      active: false,
+    };
+  }
+
+  /** @param {Event} event */
+  _onGridPointerMove(event) {
+    const pointer = /** @type {PointerEvent} */ (event);
+    const drag = this._drag;
+    if (!drag || pointer.pointerId !== drag.pointerId) return;
+    if (!drag.active) {
+      // A press and release without travel stays a plain click.
+      const travelled =
+        Math.abs(pointer.clientX - drag.x) > DRAG_THRESHOLD ||
+        Math.abs(pointer.clientY - drag.y) > DRAG_THRESHOLD;
+      if (!travelled) return;
+      drag.active = true;
+      // Capture only once the gesture is a drag. Capturing on the press would
+      // retarget the trailing click to the calendar and swallow a plain pick
+      // on the very cell that carries a handle.
+      try {
+        this._calendar?.setPointerCapture(drag.pointerId);
+      } catch {
+        // No active pointer for this id (synthetic event): move and up still
+        // arrive through normal bubbling.
+      }
+      this._syncDragAffordance();
+    }
+    const date = this._dateAtPoint(pointer.clientX, pointer.clientY);
+    // An unavailable cell is not a drop target: hold the last valid projection
+    // instead of promising a move that would be refused.
+    if (!date || this._calendar?.getDateState(date).disabled) return;
+    drag.date = date;
+    this._setPreview(date, drag.endpoint);
+  }
+
+  /** @param {Event} event */
+  _onGridPointerUp(event) {
+    const pointer = /** @type {PointerEvent} */ (event);
+    const drag = this._drag;
+    if (!drag || pointer.pointerId !== drag.pointerId) return;
+    this._drag = null;
+    this._releaseDragCapture(drag.pointerId);
+    if (!drag.active) {
+      this._syncDragAffordance();
+      return;
+    }
+    this._suppressGridClick = true;
+    const transition = this._range?.projectEndpoint(drag.date, drag.endpoint, (bound) =>
+      this._boundEditable(bound),
+    );
+    if (!transition || transition.status === "refused" || !transition.changedEndpoints.length) {
+      this._syncHighlight();
+      return;
+    }
+    // The drop goes through the same availability check and the same
+    // cancelable `dateactivate` seam as a click, under the same generation
+    // guard: a late response can never move a bound after the popup closed or
+    // after a newer interaction.
+    const target = drag.endpoint === "start" ? transition.range.start : transition.range.end;
+    this._pendingIntents.clear();
+    this._pendingIntents.set(target, { id: ++this._rangeCommitId, endpoint: drag.endpoint });
+    void this._calendar?.activateDate(target);
+  }
+
+  /** @param {Event} event */
+  _onGridPointerCancel(event) {
+    const pointer = /** @type {PointerEvent} */ (event);
+    const drag = this._drag;
+    if (!drag || pointer.pointerId !== drag.pointerId) return;
+    this._drag = null;
+    this._releaseDragCapture(drag.pointerId);
+    // A cancelled gesture commits nothing and restores the committed band.
+    this._syncHighlight();
+  }
+
+  /** @param {number} pointerId */
+  _releaseDragCapture(pointerId) {
+    const calendar = this._calendar;
+    if (calendar?.hasPointerCapture(pointerId)) calendar.releasePointerCapture(pointerId);
+  }
+
+  /** Expose whether the band currently offers draggable handles, and whether
+   * one is being dragged, so the cursor can say so. */
+  _syncDragAffordance() {
+    const calendar = this._calendar;
+    if (!calendar || !this._range) return;
+    if (this._drag?.active) {
+      calendar.setAttribute("data-range-drag", "active");
+      return;
+    }
+    const { start, end } = this._range;
+    const draggable =
+      this._range.complete && start !== end && (this._boundEditable("start") || this._boundEditable("end"));
+    if (draggable) calendar.setAttribute("data-range-drag", "ready");
+    else calendar.removeAttribute("data-range-drag");
   }
 
   /** @param {KeyboardEvent} event */
@@ -1092,20 +1375,23 @@ export class DatePickerElement extends HTMLElement {
     this.dispatchEvent(new CustomEvent("rangechange", { detail: { ...this._range.range }, bubbles: true }));
   }
 
-  /** Forward only a displayable range to the calendar band. An inverted or
-   * start-less business range shows no misleading band. */
+  /** Displayable projection of the business range. An inverted or start-less
+   * pair shows no misleading band. @returns {{start:string, end:string}} */
+  _displayRange() {
+    const { start, end } = this._range?.range ?? { start: "", end: "" };
+    if (!start) return { start: "", end: "" };
+    if (end && compareDates(end, start) < 0) return { start, end: "" };
+    return { start, end };
+  }
+
+  /** Put the committed range back on the calendar band, dropping any
+   * projection currently shown over it. */
   _syncHighlight() {
     if (!this._calendar || !this._range) return;
-    const { start, end } = this._range;
-    if (!start) {
-      this._calendar.highlightedRange = { start: "", end: "" };
-      return;
-    }
-    if (end && compareDates(end, start) < 0) {
-      this._calendar.highlightedRange = { start, end: "" };
-    } else {
-      this._calendar.highlightedRange = { start, end };
-    }
+    this._previewDate = "";
+    this._calendar.removeAttribute("data-range-preview");
+    this._calendar.highlightedRange = this._displayRange();
+    this._syncDragAffordance();
   }
 
   /**
@@ -1345,6 +1631,12 @@ export class DatePickerElement extends HTMLElement {
     this._setExpanded(false);
     this._rangeCommitId++;
     this._pendingIntents.clear();
+    this._suppressGridClick = false;
+    if (this._drag) {
+      this._releaseDragCapture(this._drag.pointerId);
+      this._drag = null;
+    }
+    this._syncHighlight();
     if (restoreFocus) {
       if (this._rangeMode()) {
         // Range owns a workflow: after a first pick the active bound moved, so
