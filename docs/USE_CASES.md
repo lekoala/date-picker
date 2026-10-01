@@ -23,7 +23,6 @@ Acceptance:
 - arrow-key focus does not change the value;
 - click/Enter/Space activates and selects;
 - today, focused and selected are visually/semantically distinct.
-- month transitions provide a directional grid entrance, respecting reduced motion.
 
 ## U3 — Mini calendar navigator
 

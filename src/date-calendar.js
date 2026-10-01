@@ -115,7 +115,6 @@ export class DateCalendarElement extends HTMLElement {
     this._model = new CalendarModel();
     this._connected = false;
     this._rendering = false;
-    this._renderedDisplay = "";
     /** @type {DateSource | null} */
     this._source = null;
     this._sourceStates = new Map();
@@ -152,7 +151,6 @@ export class DateCalendarElement extends HTMLElement {
 
   disconnectedCallback() {
     this._connected = false;
-    this._renderedDisplay = "";
     this._loadController?.abort();
     this._loadController = null;
     this._loadingKey = "";
@@ -765,7 +763,6 @@ export class DateCalendarElement extends HTMLElement {
     if (!this._connected) return;
     const locale = this.locale;
     const display = this.display;
-    const previousDisplay = this._renderedDisplay;
     const displayYear = yearOf(display);
     const displayMonth = Number(display.slice(5, 7));
     const names = monthNames(locale, this.monthFormat);
@@ -845,8 +842,8 @@ export class DateCalendarElement extends HTMLElement {
         <div class="dp-calendar-header">
           ${yearFirst ? yearControl : monthControl}
           ${yearFirst ? monthControl : yearControl}
-          <button type="button" class="dp-nav dp-prev" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
-          <button type="button" class="dp-nav dp-next" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
+          <button type="button" class="dp-nav dp-prev" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10 4-4 4 4 4"/></svg></button>
+          <button type="button" class="dp-nav dp-next" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></button>
         </div>
         <h2 id="${headingId}" class="dp-calendar-heading dp-visually-hidden" aria-live="polite">${escapeHtml(formatMonthYear(`${display}-15`, locale))}</h2>
         <table id="${gridId}" class="dp-grid" role="grid" aria-labelledby="${headingId}">
@@ -884,20 +881,6 @@ export class DateCalendarElement extends HTMLElement {
       }
     }
 
-    this._renderedDisplay = display;
-    if (
-      previousDisplay &&
-      previousDisplay !== display &&
-      matchMedia("(prefers-reduced-motion: no-preference)").matches
-    ) {
-      this.querySelector(".dp-grid")?.animate(
-        [
-          { opacity: 0, translate: `0 ${display > previousDisplay ? "" : "-"}0.5rem` },
-          { opacity: 1, translate: "0 0" },
-        ],
-        { duration: 180, easing: "ease-out" },
-      );
-    }
     if (load) void this._loadDisplay(display);
   }
 }

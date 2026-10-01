@@ -60,7 +60,7 @@ test.describe("rtl", () => {
     });
   });
 
-  test("previous sits right of next with vertical chevrons; actions stay chronological", async ({ page }) => {
+  test("previous sits right of next with mirrored glyphs; actions stay chronological", async ({ page }) => {
     await page.evaluate(() => {
       const element = document.createElement("date-calendar");
       element.id = "rtl-cal";
@@ -73,9 +73,7 @@ test.describe("rtl", () => {
     const transform = await page
       .locator("#rtl-cal .dp-prev svg")
       .evaluate((svg) => getComputedStyle(svg).transform);
-    expect(transform).toBe("none");
-    await expect(page.locator("#rtl-cal .dp-prev path")).toHaveAttribute("d", "m4 10 4-4 4 4");
-    await expect(page.locator("#rtl-cal .dp-next path")).toHaveAttribute("d", "m4 6 4 4 4-4");
+    expect(transform).not.toBe("none");
 
     await page.locator("#rtl-cal .dp-prev").click();
     await expect(page.locator("#rtl-cal")).toHaveAttribute("display", "2026-08");
