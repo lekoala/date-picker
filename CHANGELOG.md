@@ -12,6 +12,7 @@
 
 ### Changed
 
+- Month navigation uses vertical chevrons: up for the previous month, down for the next, matching PageUp/PageDown. Their orientation stays the same in RTL; accessible labels and navigation behavior are unchanged.
 - **Calendar interaction never produces an inverted range** (see DECISIONS D6). While a range is being created, a second pick before the anchor is sorted instead of refused: `10` then `5` now commits `5 -> 10` rather than firing `dateinvalid`; `10` then `10` is a one-day range. A pick that completes a range from the other side is sorted the same way. Text entry keeps the opposite contract and may stay temporarily inverted with an order error.
 - A range transition now describes the whole resulting pair (`{ status, endpoint, changedEndpoints, range, activeEndpoint, close? }`) and is applied in a single write, because a sorted second pick moves both bounds at once: one `rangechange`, with synthetic `input`/`change` only on the bounds that moved, and no intermediate inverted pair observable.
 - `highlightedRange` now repaints the band in place instead of rebuilding the grid. A live preview no longer drops `renderDay()` nodes or fights the roving focus on every hover.
