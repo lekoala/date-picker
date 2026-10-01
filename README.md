@@ -144,6 +144,8 @@ const weeks = dates.getMonthWeeks("2026-09-03", { firstDay: 1 });
 
 `getMonthWeeks()` returns the true 4–6 full civil weeks covering the month. It never pads to six rows. `fixed-weeks` is a rendering choice made by `<date-calendar>`.
 
+Month changes play a brief vertical entrance animation on the grid when reduced motion is not requested: the next month enters from below and the previous month from above. The picker uses six rows to keep its popup height stable; use `fixed-weeks` for the same stability on an inline calendar.
+
 ## Accessibility baseline
 
 The calendar follows the WAI-ARIA date-picker/grid interaction model:

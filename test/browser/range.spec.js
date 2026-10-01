@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 8, 15));
   await page.goto("/demo/index.html");
 });
 

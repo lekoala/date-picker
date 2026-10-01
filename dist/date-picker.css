@@ -137,14 +137,6 @@ html[dir="rtl"] .dp-month-select {
   pointer-events: none;
 }
 
-/* Inherited RTL mirrors the header layout via the grid; mirror the nav glyphs
-   so previous/next keep their visual sense. Actions stay chronological: no
-   button swap, no keyboard remapping. */
-[dir="rtl"] .dp-nav svg,
-html[dir="rtl"] .dp-nav svg {
-  transform: scaleX(-1);
-}
-
 .dp-calendar-header :where(button, select, input):disabled,
 .dp-picker-button:disabled {
   cursor: not-allowed;

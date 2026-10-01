@@ -38,6 +38,7 @@ export declare class DateCalendarElement extends HTMLElement {
     _model: CalendarModel;
     _connected: boolean;
     _rendering: boolean;
+    _renderedDisplay: string;
     /** @type {DateSource | null} */
     _source: DateSource | null;
     _sourceStates: Map<any, any>;
