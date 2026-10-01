@@ -6,6 +6,8 @@
   --dp-hover: color-mix(in srgb, var(--dp-fg) 5%, var(--dp-bg));
   --dp-accent: #2563eb;
   --dp-accent-fg: #fff;
+  --dp-focus: var(--dp-accent);
+  --dp-focus-width: 2px;
   --dp-radius: 0.5rem;
   --dp-day-size: 2.75rem;
   --dp-gap: 0.375rem;
@@ -147,12 +149,13 @@ html[dir="rtl"] .dp-month-select {
   background: var(--dp-hover);
 }
 
-/* Shared control focus: accent border + light halo. Day cells keep their
-   dedicated outline ring below; the picker trigger has its own inner ring. */
-.dp-calendar-header :where(button, select, input):focus-visible {
-  outline: none;
-  border-color: var(--dp-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-accent) 22%, transparent);
+/* Inner outlines survive forced colors and keep focus inside each control.
+   The picker trigger uses a tighter inset around its icon below. */
+.dp-calendar-header :where(button, select, input):focus-visible,
+date-picker > input:not([type="hidden"]):focus-visible,
+.dp-day:focus-visible {
+  outline: var(--dp-focus-width) solid var(--dp-focus);
+  outline-offset: calc(var(--dp-focus-width) * -1);
 }
 
 .dp-day:hover:not([data-disabled="true"]):not([data-selected="true"]):not([data-range-start="true"]):not(
@@ -195,15 +198,6 @@ html[dir="rtl"] .dp-month-select {
   outline: none;
   vertical-align: middle;
   font-size: 0.875rem;
-}
-
-/* Inner ring: keyboard focus stays inside the cell instead of reading as a
-   second selected state or bleeding onto a neighbouring range band. It is an
-   `outline` (not an inset box-shadow) because forced colors computes
-   box-shadow to `none`, which would erase the keyboard indicator entirely. */
-.dp-day:focus-visible {
-  outline: 2px solid var(--dp-accent);
-  outline-offset: -2px;
 }
 
 /* On an accent-filled cell the ring inverts so it stays readable. */
@@ -334,14 +328,6 @@ date-picker {
   max-inline-size: 100%;
 }
 
-/* Visible focus is normalized to --dp-accent so the component holds together
-   without a consumer stylesheet; the field's own look stays consumer-owned. */
-date-picker > input:not([type="hidden"]):focus-visible {
-  border-color: var(--dp-accent);
-  outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dp-accent) 20%, transparent);
-}
-
 /* Every authored control is a grid item. */
 date-picker > input:not([type="hidden"]) {
   min-inline-size: 0;
@@ -382,7 +368,7 @@ date-picker > input:not([type="hidden"]):not([type="time"]) {
    field already shows its own ring through :focus-visible). Same radius as
    everywhere else: no bespoke shape. */
 .dp-picker-button:focus-visible {
-  outline: 2px solid var(--dp-accent);
+  outline: var(--dp-focus-width) solid var(--dp-focus);
   outline-offset: -5px;
   border-radius: var(--dp-radius);
 }

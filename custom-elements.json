@@ -198,6 +198,12 @@
               "name": "--dp-accent-fg"
             },
             {
+              "name": "--dp-focus"
+            },
+            {
+              "name": "--dp-focus-width"
+            },
+            {
               "name": "--dp-radius"
             },
             {
@@ -382,6 +388,12 @@
             },
             {
               "name": "--dp-accent-fg"
+            },
+            {
+              "name": "--dp-focus"
+            },
+            {
+              "name": "--dp-focus-width"
             },
             {
               "name": "--dp-radius"

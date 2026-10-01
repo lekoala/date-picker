@@ -164,6 +164,8 @@ The picker popup uses native Popover for the top layer and `@lekoala/floating` f
 
 The calendar trigger is a real button painted inside the field's own box (like the native `input[type=time]` indicator): the field reserves its place with `padding-inline-end`, keeps its own border and background, and its focus ring wraps the trigger too. The trigger draws no chrome of its own and shows a small inner ring when focused.
 
+Fields, header controls and days share an inner outline that survives forced colors. Customize its color with `--dp-focus` (default `var(--dp-accent)`) and thickness with `--dp-focus-width` (default `2px`) on `date-picker` and `date-calendar`. The trigger keeps a `-5px` inset around its icon; selected days and range endpoints use `--dp-accent-fg` for contrast. Fields and header controls now show this solid outline instead of the previous soft halo.
+
 When the popup opens on the field's focus, grid navigation is reachable via `ArrowDown` (or the trigger button) so the focus-restore/Escape flow stays predictable. Closing returns focus to the control that opened the popover: the field when it opened by focus, the trigger when it was activated. In range mode focus follows the active bound instead, because a first pick moves the workflow to the other bound.
 
 See [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md).

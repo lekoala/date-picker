@@ -40,11 +40,15 @@ test("Tab reaches the trigger, month/year controls and the single grid tab stop"
   await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
 });
 
-const shadowOf = (page, selector) =>
-  page.locator(selector).evaluate((element) => getComputedStyle(element).boxShadow);
+const expectInnerRing = async (locator) => {
+  await expect(locator).toHaveCSS("outline-style", "solid");
+  await expect(locator).toHaveCSS("outline-width", "2px");
+  await expect(locator).toHaveCSS("outline-offset", "-2px");
+  await expect(locator).toHaveCSS("outline-color", "rgb(37, 99, 235)");
+  await expect(locator).toHaveCSS("box-shadow", "none");
+};
 
 test("the trigger is painted inside the field box, which owns the focus ring", async ({ page }) => {
-  const accent = "rgb(37, 99, 235)";
   await page.locator("#simple-date").focus();
   const box = await page.evaluate(() => {
     const picker = document.getElementById("simple-picker");
@@ -67,9 +71,7 @@ test("the trigger is painted inside the field box, which owns the focus ring", a
   expect(box.height).toBe(box.inputHeight);
   expect(box.padEnd).toBe("48px");
   // The field is the real box: its own ring wraps the affordance too.
-  const fieldShadow = await shadowOf(page, "#simple-date");
-  expect(fieldShadow).toContain("3px");
-  await expect(page.locator("#simple-date")).toHaveCSS("border-top-color", accent);
+  await expectInnerRing(page.locator("#simple-date"));
   await expect(page.locator("#simple-picker")).toHaveCSS("box-shadow", "none");
   // No chrome of its own: transparent, borderless (the authored field shows).
   await expect(page.locator("#simple-picker .dp-picker-button")).toHaveCSS("border-top-width", "0px");
@@ -91,12 +93,8 @@ test("a focused trigger draws a small inner ring, like the native time indicator
 });
 
 test("a focused time companion keeps its own ring, outside the date field", async ({ page }) => {
-  const accent = "rgb(37, 99, 235)";
   await page.locator("#time-start").focus();
-  const timeShadow = await shadowOf(page, "#time-start");
-  expect(timeShadow).toContain("3px");
-  await expect(page.locator("#time-start")).toHaveCSS("border-top-color", accent);
-  await expect(page.locator("#time-start")).toHaveCSS("outline-style", "none");
+  await expectInnerRing(page.locator("#time-start"));
   await expect(page.locator("#time-picker")).toHaveCSS("box-shadow", "none");
 });
 
@@ -120,8 +118,7 @@ test("the date field beside time companions rings its own box, trigger included"
   expect(boxes.buttonRight).toBe(boxes.inputRight);
   expect(boxes.buttonLeft).toBeLessThan(boxes.inputRight);
   expect(boxes.timeLeft).toBeGreaterThan(boxes.inputRight);
-  const dateShadow = await shadowOf(page, "#time-date");
-  expect(dateShadow).toContain("3px");
+  await expectInnerRing(page.locator("#time-date"));
   await expect(page.locator("#time-picker")).toHaveCSS("box-shadow", "none");
   // The time companions are separate controls: no ring while unfocused.
   await expect(page.locator("#time-start")).toHaveCSS("box-shadow", "none");
@@ -129,11 +126,66 @@ test("the date field beside time companions rings its own box, trigger included"
 
 test("range bounds keep per-bound focus on their own box", async ({ page }) => {
   await page.locator("#stay-start").focus();
-  const boundShadow = await shadowOf(page, "#stay-start");
-  expect(boundShadow).toContain("3px");
+  await expectInnerRing(page.locator("#stay-start"));
   await expect(page.locator("#stay-end")).toHaveCSS("box-shadow", "none");
   await expect(page.locator("#stay-picker")).toHaveCSS("box-shadow", "none");
 });
+
+test("focus tokens style controls and days while filled days keep their contrast", async ({ page }) => {
+  await page.addStyleTag({
+    content: "date-picker, date-calendar { --dp-focus: #b42318; --dp-focus-width: 3px; }",
+  });
+  for (const selector of [
+    "#simple-date",
+    "#simple-picker .dp-picker-button",
+    "#inline .dp-month-select",
+    "#inline .dp-year-input",
+    "#inline .dp-prev",
+    '#inline .dp-day[data-date="2026-09-14"]',
+  ]) {
+    const control = page.locator(selector);
+    await control.focus();
+    await expect(control).toHaveCSS("outline-color", "rgb(180, 35, 24)");
+    await expect(control).toHaveCSS("outline-width", "3px");
+    await expect(control).toHaveCSS(
+      "outline-offset",
+      selector.includes("dp-picker-button") ? "-5px" : "-3px",
+    );
+  }
+  const selected = page.locator('#inline .dp-day[data-selected="true"]');
+  await selected.focus();
+  await expect(selected).toHaveCSS("outline-color", "rgb(255, 255, 255)");
+  await expect(selected).toHaveCSS("outline-width", "3px");
+});
+
+for (const colorScheme of ["light", "dark"]) {
+  test(`control focus survives forced colors (${colorScheme})`, async ({ page, browserName }) => {
+    test.skip(browserName !== "chromium", "forced-colors assertions follow the Chromium capture pipeline");
+    await page.emulateMedia({ forcedColors: "active", colorScheme });
+    for (const selector of [
+      "#simple-date",
+      "#simple-picker .dp-picker-button",
+      "#time-start",
+      "#stay-start",
+      "#stay-end",
+      "#inline .dp-month-select",
+      "#inline .dp-year-input",
+      "#inline .dp-prev",
+      "#inline .dp-next",
+    ]) {
+      const control = page.locator(selector);
+      await control.focus();
+      await expect(control).toHaveCSS("outline-style", "solid");
+      await expect(control).toHaveCSS("outline-width", "2px");
+      const colors = await control.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { outline: style.outlineColor, background: style.backgroundColor };
+      });
+      expect(colors.outline).not.toBe("rgba(0, 0, 0, 0)");
+      expect(colors.outline).not.toBe(colors.background);
+    }
+  });
+}
 
 test("the month select uses an author-drawn caret and hands it back in forced colors", async ({ page }) => {
   const select = page.locator("#inline .dp-month-select");

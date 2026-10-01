@@ -114,7 +114,7 @@ Guard: re-run the `color-contrast` review and the forced-colors screenshot bundl
 
 ## Visible focus
 
-The default focus language uses `--dp-accent`, so the picker holds together without a consumer stylesheet (`outline: none` plus an accent border and a light halo). Only the focus state is normalized: the resting input appearance stays consumer-owned.
+Fields (including native time companions), calendar header controls and day cells use an inner solid outline. `--dp-focus` defaults to `var(--dp-accent)` and `--dp-focus-width` defaults to `2px`; the inward offset follows the width. This replaces the previous accent border and soft halo on fields and header controls. The resting input appearance stays consumer-owned.
 
 Focus is only ever drawn on a real box. The calendar trigger is a real button painted inside the date field's own box, so the field's focus ring naturally wraps the affordance too — no host-level ring, no pseudo-element. When the trigger itself is focused it shows a small inner ring, like the native `input[type=time]` indicator, instead of pretending the whole field is focused.
 
