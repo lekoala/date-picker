@@ -1,6 +1,6 @@
 # Flatpickr / Formidable migration map
 
-This prototype was scoped against the existing `FlatpickrInput` wrapper rather than against Flatpickr's full feature list.
+This project was scoped against the existing `FlatpickrInput` wrapper rather than against Flatpickr's full feature list.
 
 ## Directly covered
 
