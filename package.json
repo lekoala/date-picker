@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/lekoala/date-picker",
   "bugs": "https://github.com/lekoala/date-picker/issues",
-  "packageManager": "bun@1.4.2",
+  "packageManager": "bun@1.4.3",
   "keywords": [
     "date-picker",
     "calendar",
@@ -162,10 +162,10 @@
     "prepublishOnly": "bun run verify"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.13",
-    "@lekoala/calendar": "0.1.0",
-    "@playwright/test": "1.63.0",
-    "temporal-polyfill": "^1.0.4",
+    "@biomejs/biome": "2.5.15",
+    "@lekoala/calendar": "0.2.0",
+    "@playwright/test": "1.64.0",
+    "temporal-polyfill": "^1.0.5",
     "typescript": "7.0.2"
   },
   "dependencies": {

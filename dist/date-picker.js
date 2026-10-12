@@ -2938,7 +2938,7 @@
       this._field?.setCanonical(this._value, { format: options.format !== false });
       if (this._calendar) {
         this._calendar.value = this._value;
-        if (this._value)
+        if (this._value && options.moveDisplay !== false)
           this._calendar.focusedDate = this._value;
       }
       this._refreshButtonLabel();
@@ -2975,7 +2975,11 @@
       const result = await field.commit(options);
       if (result.status === "stale" || result.status === "invalid")
         return false;
-      this._setValue(result.value || "", { emit, format: result.status === "ok" });
+      this._setValue(result.value || "", {
+        emit,
+        format: result.status === "ok",
+        moveDisplay: options.moveDisplay
+      });
       return true;
     }
     async _commitFieldText(which) {

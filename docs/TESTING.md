@@ -68,6 +68,6 @@ Keep explicit tests for these regressions:
 
 ## CI
 
-The included workflow uses Bun 1.4.2 and runs static checks/unit tests before Playwright.
+The included workflow uses Bun 1.4.3 and runs static checks/unit tests before Playwright.
 
 `bun.lock` is committed. Keep installs frozen in CI (`bun install --frozen-lockfile`) so dependency resolution stays deterministic. Regenerate the lock with `bun install` when the manifest changes and commit it in the same change.

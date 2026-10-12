@@ -181,10 +181,10 @@ If a previous `bun run dev` is still holding port `4859`, clear it with `bun run
 
 Tooling is aligned with the current LeKoala component repos:
 
-- Bun 1.4.2
+- Bun 1.4.3
 - TypeScript 7.0.2 (`checkJs` + declaration emit)
-- Biome 2.5.13
-- Playwright 1.63.0
+- Biome 2.5.15
+- Playwright 1.64.0
 - `@lekoala/floating ^0.2.0`
 
 Useful commands:

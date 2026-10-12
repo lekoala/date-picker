@@ -317,11 +317,12 @@ export declare class DatePickerElement extends HTMLElement {
     _refreshRangeButtonLabel(): void;
     /** @param {string} value */
     _reflectValue(value: string): void;
-    /** @param {string} value @param {{emit?:boolean,format?:boolean,reflect?:boolean}} [options] */
+    /** @param {string} value @param {{emit?:boolean,format?:boolean,reflect?:boolean,moveDisplay?:boolean}} [options] */
     _setValue(value: string, options?: {
         emit?: boolean;
         format?: boolean;
         reflect?: boolean;
+        moveDisplay?: boolean;
     }): void;
     /**
      * Calendar-backed availability gate injected into the field controllers.
