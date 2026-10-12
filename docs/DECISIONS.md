@@ -1,6 +1,6 @@
 # Decisions
 
-Frozen contracts for the `0.1.0` surface. A change to a decision below is a breaking change and needs a proposal, not an opportunistic edit.
+Frozen contracts for the public surface. A change to a decision below is a breaking change and needs a proposal, not an opportunistic edit.
 
 ## D1 — Calendar events are flat, verb-named
 
