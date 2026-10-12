@@ -18,6 +18,13 @@
 - `highlightedRange` now repaints the band in place instead of rebuilding the grid. A live preview no longer drops `renderDay()` nodes or fights the roving focus on every hover.
 - A range preview never contributes a range start/end to a day's accessible name, so a proposal is not announced as a committed selection.
 
+### Fixed
+
+- The editable field now accepts the exact text it formats for locales whose `Intl` pattern embeds literal spaces or a suffix (`ko`, `hu-HU`, `bg-BG`, …). Literal segments keep their whitespace and each blank run matches as `\s*`, so `parse(format(d)) === d`; previously retyping `2026. 09. 06.` was rejected and a source load could clear the canonical value (`H1`).
+- A `source` reload no longer re-homes the visible month. Re-validations triggered by `dateloadend` (or an observed attribute or `messages` change) commit with `moveDisplay: false`, so navigating the popup keeps the month the user chose instead of snapping `display` back to the selected value's month (`H2`).
+- Rendering no longer throws at the calendar bounds. `getMonthWeeks()` stops from the last built week instead of advancing its cursor past the canonical window, the year editor is limited to `1..9998`, and `display` is clamped to the last renderable month, so December 9999 (and January 0001 with a Sunday first day) build a grid instead of raising (`B1`).
+- `range.spec.js` freezes the clock in `beforeEach`, so the demo range fixtures stay September-based and the browser suite no longer fails on the current month (`M1`).
+
 
 ## 0.3.0 — 2026-09-15
 

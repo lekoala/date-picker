@@ -33,8 +33,9 @@ export class DateFieldController {
     this.onAttributesChanged = null;
     /**
      * Async availability gate for a parsed date. Returning `{ ok: false }`
-     * marks the target unavailable. Swappable at runtime.
-     * @type {((date: string) => Promise<{ok: boolean, message?: string}>) | null}
+     * marks the target unavailable. Swappable at runtime. The commit options
+     * are forwarded so the gate can honor `moveDisplay`.
+     * @type {((date: string, options?: {moveDisplay?: boolean}) => Promise<{ok: boolean, message?: string}>) | null}
      */
     this.confirm = null;
   }
@@ -144,9 +145,12 @@ export class DateFieldController {
    * Commit the visible text. Returns the parsed canonical date on success, the
    * empty string on a clear, or a falsy marker for invalid/stale commits. The
    * caller applies the canonical value so reflection and events stay central.
+   * `options` is forwarded to the `confirm` gate so a revalidation can ask it
+   * not to move the calendar display (source reloads must not re-home it).
+   * @param {{moveDisplay?: boolean}} [options]
    * @returns {Promise<{status: "ok" | "clear" | "invalid" | "stale", value?: string}>}
    */
-  async commit() {
+  async commit(options = {}) {
     const input = this.input;
     const commitId = ++this._commitId;
     const text = input.value.trim();
@@ -163,7 +167,7 @@ export class DateFieldController {
       return { status: "invalid" };
     }
     if (this.confirm) {
-      const result = await this.confirm(parsed);
+      const result = await this.confirm(parsed, options);
       if (commitId !== this._commitId) return { status: "stale" };
       if (!result?.ok) {
         if (this.hidden) this.hidden.value = "";

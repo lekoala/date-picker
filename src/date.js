@@ -176,13 +176,62 @@ export function getMonthWeeks(value, options = {}) {
   /** @type {string[][]} */
   const weeks = [];
   let cursor = start;
-  while (compareDates(cursor, end) <= 0) {
+  for (;;) {
     const week = [];
     for (let i = 0; i < 7; i++) week.push(addDays(cursor, i));
     weeks.push(week);
+    // Stop from the built week's own end: advancing the cursor past the final
+    // week (e.g. from 9999-12-25 to 10000-01-01) would leave the canonical
+    // window even when every emitted day is valid.
+    if (compareDates(week[6], end) >= 0) break;
     cursor = addDays(cursor, 7);
   }
   return weeks;
+}
+
+/**
+ * 0-based civil day count since 0001-01-01. Used to compare instants that may
+ * fall one day outside the canonical 0001..9999 window without building an
+ * invalid ISO string.
+ * @param {number} year @param {number} month @param {number} day
+ */
+function dayOrdinal(year, month, day) {
+  const base = toUTCDate({ year: 1, month: 1, day: 1 });
+  return Math.round((toUTCDate({ year, month, day }).getTime() - base.getTime()) / 86400000);
+}
+
+/**
+ * Nearest month whose true civil weeks stay inside 0001-01-01..9999-12-31, so a
+ * grid can always be built. A month's covering weeks can reach a few days
+ * before or after it, so the earliest and latest displayable months depend on
+ * `firstDay`.
+ * @param {string} value YYYY-MM or YYYY-MM-DD
+ * @param {number} [firstDay]
+ * @returns {string} YYYY-MM
+ */
+export function clampDisplayMonth(value, firstDay = 1) {
+  const normalized = normalizeFirstDay(firstDay);
+  const maxOrdinal = dayOrdinal(9999, 12, 31);
+  let key = monthKey(value);
+  for (;;) {
+    const parsed = parseDate(`${key}-01`);
+    if (!parsed) throw new TypeError(`Invalid civil date/month: ${value}`);
+    const startOrdinal = dayOrdinal(parsed.year, parsed.month, 1);
+    const startOffset = (toUTCDate(parsed).getUTCDay() - normalized + 7) % 7;
+    if (startOrdinal - startOffset < 0) {
+      key = shiftMonth(key, 1);
+      continue;
+    }
+    const lastDay = daysInMonth(parsed.year, parsed.month);
+    const endParts = { year: parsed.year, month: parsed.month, day: lastDay };
+    const endOrdinal = startOrdinal + lastDay - 1;
+    const endOffset = (toUTCDate(endParts).getUTCDay() - normalized + 7) % 7;
+    if (endOrdinal - endOffset + 6 > maxOrdinal) {
+      key = shiftMonth(key, -1);
+      continue;
+    }
+    return key;
+  }
 }
 
 /** @param {string} value @param {string} [min] @param {string} [max] */

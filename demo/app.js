@@ -1,6 +1,7 @@
 import "../src/define.js";
 import { dates, linkDateRange } from "../src/index.js";
 import fr from "../src/locales/fr.js";
+import ko from "../src/locales/ko.js";
 
 for (const element of document.querySelectorAll("date-calendar, date-picker")) {
   element.messages = fr;
@@ -18,6 +19,19 @@ form.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(form);
   formState.textContent = `submitted date=${data.get("date")}`;
+});
+
+// Exotic-format field: the locale drives the editable text (ko-KR refuses to
+// parse its own "2026. 09. 06." output when spaces are trimmed), while the
+// submitted value stays canonical YYYY-MM-DD.
+const koreanPicker = document.getElementById("korean-picker");
+koreanPicker.messages = ko;
+const koreanForm = document.getElementById("korean-form");
+const koreanState = document.getElementById("korean-state");
+koreanForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(koreanForm);
+  koreanState.textContent = `submitted date=${data.get("date")} ; display=${koreanPicker.input.value}`;
 });
 
 const timeForm = document.getElementById("time-form");

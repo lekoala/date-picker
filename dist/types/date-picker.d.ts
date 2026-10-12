@@ -327,15 +327,19 @@ export declare class DatePickerElement extends HTMLElement {
      * Calendar-backed availability gate injected into the field controllers.
      * A cancelled or failed source load confirms nothing: do not fill the
      * submitted ISO field nor treat the date as available.
-     * @param {string} date @returns {Promise<{ok: boolean, message?: string}>}
+     * @param {string} date @param {{moveDisplay?: boolean}} [options]
+     * @returns {Promise<{ok: boolean, message?: string}>}
      */
-    _confirmDate(date: string): Promise<{
+    _confirmDate(date: string, options?: {
+        moveDisplay?: boolean;
+    }): Promise<{
         ok: boolean;
         message?: string;
     }>;
-    /** @param {boolean} emit @param {{force?: boolean}} [options] */
+    /** @param {boolean} emit @param {{force?: boolean, moveDisplay?: boolean}} [options] */
     _commitText(emit: boolean, options?: {
         force?: boolean;
+        moveDisplay?: boolean;
     }): Promise<boolean>;
     /** @param {"start" | "end"} which */
     _commitFieldText(which: "start" | "end"): Promise<boolean>;

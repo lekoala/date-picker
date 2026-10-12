@@ -143,6 +143,19 @@ test("a newer selection supersedes a still-pending older one", async ({ page }) 
   expect(events.filter((entry) => entry.startsWith("rangechange"))).toHaveLength(1);
 });
 
+test("a source reload during range navigation keeps the visible month", async ({ page }) => {
+  await page.locator("#start-date").focus();
+  await expect(page.locator("#range-picker .dp-picker-panel")).toBeVisible();
+  await expect(page.locator("#range-picker date-calendar")).toHaveAttribute("display", "2026-09");
+
+  await page.click("#range-picker .dp-next");
+  await expect(page.locator("#range-picker date-calendar")).toHaveAttribute("display", "2026-10");
+  // Both bounds re-validate when the 2026-10 source load lands; neither may pull
+  // the shared display back to a bound's month.
+  await page.waitForTimeout(400);
+  await expect(page.locator("#range-picker date-calendar")).toHaveAttribute("display", "2026-10");
+});
+
 test("a drop resolving after the popup closed never moves a bound", async ({ page }) => {
   await page.locator("#start-date").focus();
   await expect(page.locator("#range-picker .dp-picker-panel")).toBeVisible();

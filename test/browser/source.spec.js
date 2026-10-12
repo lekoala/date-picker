@@ -74,3 +74,23 @@ test("a recovering source lets the same text commit on the next validation", asy
   await expect(hidden).toHaveValue("2026-09-10");
   await expect(page.locator("#source-picker")).toHaveAttribute("value", "2026-09-10");
 });
+
+test("a source reload revalidates without resetting the visible month", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__fail = false;
+  });
+  await page.locator("#source-date").focus();
+  await expect(page.locator("#source-picker .dp-picker-panel")).toBeVisible();
+  await expect(page.locator("#source-picker date-calendar")).toHaveAttribute("display", "2026-09");
+
+  await page.click("#source-picker .dp-next");
+  await expect(page.locator("#source-picker date-calendar")).toHaveAttribute("display", "2026-10");
+  // The 2026-10 load finishes and its dateloadend-driven validate() re-runs; the
+  // displayed month must stay where the user navigated (display != value).
+  await page.waitForTimeout(400);
+  await expect(page.locator("#source-picker date-calendar")).toHaveAttribute("display", "2026-10");
+  await expect(page.locator("#source-picker")).toHaveAttribute("value", "2026-09-06");
+  await expect(page.locator('#source-picker input[type="hidden"][name="source-field"]')).toHaveValue(
+    "2026-09-06",
+  );
+});

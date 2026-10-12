@@ -85,6 +85,21 @@
     </section>
 
     <section class="card">
+      <h2>11. Exotic locale — 한국어</h2>
+      <form id="korean-form">
+        <label class="field" for="korean-date">
+          날짜 선택
+          <date-picker id="korean-picker" value="2026-09-06" locale="ko">
+            <input id="korean-date" name="date" required>
+          </date-picker>
+        </label>
+        <button type="submit">Submit</button>
+      </form>
+      <p class="hint">Le format dépend de la locale, pas de la valeur : <code>ko-KR</code> affiche <code>2026. 09. 06.</code> et le champ retape cette même chaîne (espaces littéraux compris). La valeur canonique reste <code>YYYY-MM-DD</code>.</p>
+      <output id="korean-state">submitted ISO value appears here</output>
+    </section>
+
+    <section class="card">
       <h2>3. Constraints</h2>
       <p>September only; weekends unavailable.</p>
       <date-calendar id="constrained" display="2026-09" min="2026-09-01" max="2026-09-30" fixed-weeks></date-calendar>

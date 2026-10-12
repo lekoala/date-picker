@@ -18,11 +18,14 @@ function digitMap(locale) {
   return map;
 }
 
-/** @param {string} text @param {string} locale */
-function normalizeDigits(text, locale) {
-  let result = String(text || "")
-    .replace(BIDI, "")
-    .trim();
+/**
+ * @param {string} text @param {string} locale
+ * @param {{trim?: boolean}} [options] `trim` defaults to true; literal segments
+ * must keep their whitespace so the format's own spacing can be matched.
+ */
+function normalizeDigits(text, locale, options = {}) {
+  let result = String(text || "").replace(BIDI, "");
+  if (options.trim !== false) result = result.trim();
   for (const [local, ascii] of digitMap(locale)) result = result.split(local).join(ascii);
   return result;
 }
@@ -150,8 +153,11 @@ export function createDateAdapter(locale = "") {
     .map((part) => {
       if (part.type === "day" || part.type === "month") return "(\\d{1,2})";
       if (part.type === "year") return "(\\d{4})";
-      const literal = normalizeDigits(part.value, resolved).replace(/\s+/g, " ");
-      return escapeRegExp(literal).replace(/\\ /g, "\\s*");
+      // Literals keep their own spacing, so a run of blanks becomes an optional
+      // separator: locales such as ko-KR ("2026. 09. 06.") or bg-BG ("... г.")
+      // format with spaces the user may omit or retype.
+      const literal = normalizeDigits(part.value, resolved, { trim: false });
+      return escapeRegExp(literal).replace(/\s+/g, "\\s*");
     })
     .join("");
   const regex = new RegExp(`^\\s*${pattern}\\s*$`);

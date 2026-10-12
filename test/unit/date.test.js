@@ -3,6 +3,7 @@ import {
   addDays,
   addMonths,
   addYears,
+  clampDisplayMonth,
   compareDates,
   getMonthWeeks,
   isDate,
@@ -58,4 +59,25 @@ test("canonical dates compare lexically through the public helper", () => {
   expect(compareDates("2026-09-01", "2026-09-02")).toBe(-1);
   expect(compareDates("2026-09-02", "2026-09-02")).toBe(0);
   expect(compareDates("2027-01-01", "2026-12-31")).toBe(1);
+});
+
+test("clampDisplayMonth keeps the grid inside the canonical window", () => {
+  // December 9999 overflows into 10000; November 9999 is the last safe month.
+  expect(clampDisplayMonth("9999-12", 1)).toBe("9999-11");
+  expect(clampDisplayMonth("9999-12", 0)).toBe("9999-11");
+  // January 0001 is only safe when the week starts on Monday.
+  expect(clampDisplayMonth("0001-01", 1)).toBe("0001-01");
+  expect(clampDisplayMonth("0001-01", 0)).toBe("0001-02");
+  // In-range months pass through unchanged.
+  expect(clampDisplayMonth("2026-09", 1)).toBe("2026-09");
+});
+
+test("a clamped display month always yields a buildable grid", () => {
+  for (const firstDay of [0, 1, 6]) {
+    for (const month of ["0001-01", "0001-02", "9999-11", "9999-12"]) {
+      const weeks = getMonthWeeks(clampDisplayMonth(month, firstDay), { firstDay });
+      expect(weeks.length).toBeGreaterThan(0);
+      expect(weeks.every((week) => week.every((date) => isDate(date)))).toBe(true);
+    }
+  }
 });

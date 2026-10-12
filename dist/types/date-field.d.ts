@@ -30,10 +30,13 @@ export declare class DateFieldController {
     onAttributesChanged: (() => void) | null;
     /**
      * Async availability gate for a parsed date. Returning `{ ok: false }`
-     * marks the target unavailable. Swappable at runtime.
-     * @type {((date: string) => Promise<{ok: boolean, message?: string}>) | null}
+     * marks the target unavailable. Swappable at runtime. The commit options
+     * are forwarded so the gate can honor `moveDisplay`.
+     * @type {((date: string, options?: {moveDisplay?: boolean}) => Promise<{ok: boolean, message?: string}>) | null}
      */
-    confirm: ((date: string) => Promise<{
+    confirm: ((date: string, options?: {
+        moveDisplay?: boolean;
+    }) => Promise<{
         ok: boolean;
         message?: string;
     }>) | null;
@@ -74,9 +77,14 @@ export declare class DateFieldController {
      * Commit the visible text. Returns the parsed canonical date on success, the
      * empty string on a clear, or a falsy marker for invalid/stale commits. The
      * caller applies the canonical value so reflection and events stay central.
+     * `options` is forwarded to the `confirm` gate so a revalidation can ask it
+     * not to move the calendar display (source reloads must not re-home it).
+     * @param {{moveDisplay?: boolean}} [options]
      * @returns {Promise<{status: "ok" | "clear" | "invalid" | "stale", value?: string}>}
      */
-    commit(): Promise<{
+    commit(options?: {
+        moveDisplay?: boolean;
+    }): Promise<{
         status: "ok" | "clear" | "invalid" | "stale";
         value?: string;
     }>;

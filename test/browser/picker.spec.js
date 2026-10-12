@@ -223,6 +223,21 @@ test("typing a locale date commits the ISO value", async ({ page }) => {
   await expect(page.locator("#simple-picker")).toHaveAttribute("value", "2026-09-10");
 });
 
+test("an exotic locale retypes its own spaced format and keeps a canonical value", async ({ page }) => {
+  // ko-KR formats as "2026. 09. 06." with literal spaces the user must be able
+  // to retype; the submitted value stays YYYY-MM-DD.
+  await expect(page.locator("#korean-date")).toHaveValue("2026. 09. 06.");
+  await expect(page.locator('#korean-picker input[type="hidden"][name="date"]')).toHaveValue("2026-09-06");
+
+  await page.fill("#korean-date", "2026. 09. 10.");
+  await page.locator("#korean-date").blur();
+  await expect(page.locator('#korean-picker input[type="hidden"][name="date"]')).toHaveValue("2026-09-10");
+  await expect(page.locator("#korean-picker")).toHaveAttribute("value", "2026-09-10");
+
+  await page.click("#korean-form button[type='submit']");
+  await expect(page.locator("#korean-state")).toContainText("date=2026-09-10");
+});
+
 test("Escape returns focus to the trigger that opened the popover", async ({ page }) => {
   await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
   await page.focus("#simple-picker .dp-picker-button");

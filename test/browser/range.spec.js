@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
+  // The demo range picker has no explicit display, so it opens on the current
+  // month. Freeze the clock so the September fixtures used below stay clickable.
+  await page.clock.setFixedTime(new Date("2026-09-20T10:00:00"));
   await page.goto("/demo/index.html");
 });
 

@@ -101,7 +101,7 @@ export class DatePickerElement extends HTMLElement {
     this._discoverTimeFields();
     this._field = new DateFieldController(input, { messages: this._messages, locale: this.locale });
     this._field.onAttributesChanged = () => this._syncInputState();
-    this._field.confirm = (date) => this._confirmDate(date);
+    this._field.confirm = (date, options) => this._confirmDate(date, options);
     this._setupFormValue();
     this._build();
     this._syncInputState();
@@ -179,7 +179,7 @@ export class DatePickerElement extends HTMLElement {
     ];
     for (const field of this._fields) {
       field.onAttributesChanged = () => this._syncRangeFields();
-      field.confirm = (date) => this._confirmDate(date);
+      field.confirm = (date, options) => this._confirmDate(date, options);
       field.setupFormValue();
     }
     this._build();
@@ -638,6 +638,8 @@ export class DatePickerElement extends HTMLElement {
       },
       { signal },
     );
+    // Re-check availability after a source load. validate() commits with
+    // moveDisplay:false, so the visible month stays where the user navigated.
     calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
     this.ownerDocument.addEventListener(
       "pointerdown",
@@ -767,6 +769,8 @@ export class DatePickerElement extends HTMLElement {
     calendar.addEventListener("pointerup", (event) => this._onGridPointerUp(event), { signal });
     calendar.addEventListener("pointercancel", (event) => this._onGridPointerCancel(event), { signal });
     calendar.addEventListener("lostpointercapture", (event) => this._onGridPointerCancel(event), { signal });
+    // Re-check availability after a source load. validate() commits with
+    // moveDisplay:false, so the visible month stays where the user navigated.
     calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
     this.ownerDocument.addEventListener(
       "pointerdown",
@@ -1246,7 +1250,7 @@ export class DatePickerElement extends HTMLElement {
     this._reflecting = false;
   }
 
-  /** @param {string} value @param {{emit?:boolean,format?:boolean,reflect?:boolean}} [options] */
+  /** @param {string} value @param {{emit?:boolean,format?:boolean,reflect?:boolean,moveDisplay?:boolean}} [options] */
   _setValue(value, options = {}) {
     if (value && !isDate(value)) throw new TypeError(`Invalid date-picker value: ${value}`);
     const previous = this._value;
@@ -1255,7 +1259,9 @@ export class DatePickerElement extends HTMLElement {
     this._field?.setCanonical(this._value, { format: options.format !== false });
     if (this._calendar) {
       this._calendar.value = this._value;
-      if (this._value) this._calendar.focusedDate = this._value;
+      // A background revalidation keeps the user's visible month and keyboard
+      // target; only an explicit commit re-homes them onto the value.
+      if (this._value && options.moveDisplay !== false) this._calendar.focusedDate = this._value;
     }
     this._refreshButtonLabel();
     if (previous !== this._value) {
@@ -1272,29 +1278,39 @@ export class DatePickerElement extends HTMLElement {
    * Calendar-backed availability gate injected into the field controllers.
    * A cancelled or failed source load confirms nothing: do not fill the
    * submitted ISO field nor treat the date as available.
-   * @param {string} date @returns {Promise<{ok: boolean, message?: string}>}
+   * @param {string} date @param {{moveDisplay?: boolean}} [options]
+   * @returns {Promise<{ok: boolean, message?: string}>}
    */
-  async _confirmDate(date) {
+  async _confirmDate(date, options = {}) {
     const calendar = this._calendar;
     if (!calendar) return { ok: true };
-    const display = monthKey(date);
-    if (calendar.display !== display) calendar.display = display;
+    // Only a user-initiated commit may re-home the visible month. A revalidation
+    // (source reload, attribute change) must leave `display` where the user left
+    // it, per the display/value separation contract.
+    if (options.moveDisplay !== false) {
+      const display = monthKey(date);
+      if (calendar.display !== display) calendar.display = display;
+    }
     const confirmed = await calendar.ensureDate(date);
     const state = calendar.getDateState(date);
     if (!confirmed || state.disabled) return { ok: false, message: this._messages.unavailableDate };
     return { ok: true };
   }
 
-  /** @param {boolean} emit @param {{force?: boolean}} [options] */
+  /** @param {boolean} emit @param {{force?: boolean, moveDisplay?: boolean}} [options] */
   async _commitText(emit, options = {}) {
     const field = this._field;
     if (!field) return false;
     // Blur/change skip untouched text; explicit validation must recheck the
     // current value against the latest constraints regardless of dirtiness.
     if (!options.force && !field.isDirty) return false;
-    const result = await field.commit();
+    const result = await field.commit(options);
     if (result.status === "stale" || result.status === "invalid") return false;
-    this._setValue(result.value || "", { emit, format: result.status === "ok" });
+    this._setValue(result.value || "", {
+      emit,
+      format: result.status === "ok",
+      moveDisplay: options.moveDisplay,
+    });
     return true;
   }
 
@@ -1545,7 +1561,7 @@ export class DatePickerElement extends HTMLElement {
       // field controller, hidden ISO, range model and events stay coherent.
       // Empty text flows through commit()'s "clear" outcome, not an early exit.
       for (const [index, field] of fields.entries()) {
-        const result = await field.commit();
+        const result = await field.commit({ moveDisplay: false });
         if (result.status === "ok" || result.status === "clear") {
           const which = index === 1 ? "end" : "start";
           this._setBound(which, result.value || "", { format: result.status === "ok" });
@@ -1560,7 +1576,7 @@ export class DatePickerElement extends HTMLElement {
     if (!input.value.trim()) {
       input.setCustomValidity("");
     } else {
-      await this._commitText(false, { force: true });
+      await this._commitText(false, { force: true, moveDisplay: false });
     }
     // Same start-then-end order as the range path, so a from/to inversion
     // ends reported on "end". A programmatic time change resyncs here too.

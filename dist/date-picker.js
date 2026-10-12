@@ -176,14 +176,45 @@
     const end = endOfWeek(endOfMonth(value), firstDay);
     const weeks = [];
     let cursor = start;
-    while (compareDates(cursor, end) <= 0) {
+    for (;; ) {
       const week = [];
       for (let i = 0;i < 7; i++)
         week.push(addDays(cursor, i));
       weeks.push(week);
+      if (compareDates(week[6], end) >= 0)
+        break;
       cursor = addDays(cursor, 7);
     }
     return weeks;
+  }
+  function dayOrdinal(year, month, day) {
+    const base = toUTCDate({ year: 1, month: 1, day: 1 });
+    return Math.round((toUTCDate({ year, month, day }).getTime() - base.getTime()) / 86400000);
+  }
+  function clampDisplayMonth(value, firstDay = 1) {
+    const normalized = normalizeFirstDay(firstDay);
+    const maxOrdinal = dayOrdinal(9999, 12, 31);
+    let key = monthKey(value);
+    for (;; ) {
+      const parsed = parseDate(`${key}-01`);
+      if (!parsed)
+        throw new TypeError(`Invalid civil date/month: ${value}`);
+      const startOrdinal = dayOrdinal(parsed.year, parsed.month, 1);
+      const startOffset = (toUTCDate(parsed).getUTCDay() - normalized + 7) % 7;
+      if (startOrdinal - startOffset < 0) {
+        key = shiftMonth(key, 1);
+        continue;
+      }
+      const lastDay = daysInMonth(parsed.year, parsed.month);
+      const endParts = { year: parsed.year, month: parsed.month, day: lastDay };
+      const endOrdinal = startOrdinal + lastDay - 1;
+      const endOffset = (toUTCDate(endParts).getUTCDay() - normalized + 7) % 7;
+      if (endOrdinal - endOffset + 6 > maxOrdinal) {
+        key = shiftMonth(key, -1);
+        continue;
+      }
+      return key;
+    }
   }
   function clampDate(value, min = "", max = "") {
     if (!isDate(value))
@@ -465,8 +496,10 @@
       map.set(formatter.format(i), String(i));
     return map;
   }
-  function normalizeDigits(text, locale) {
-    let result = String(text || "").replace(BIDI, "").trim();
+  function normalizeDigits(text, locale, options = {}) {
+    let result = String(text || "").replace(BIDI, "");
+    if (options.trim !== false)
+      result = result.trim();
     for (const [local, ascii] of digitMap(locale))
       result = result.split(local).join(ascii);
     return result;
@@ -566,8 +599,8 @@
         return "(\\d{1,2})";
       if (part.type === "year")
         return "(\\d{4})";
-      const literal = normalizeDigits(part.value, resolved).replace(/\s+/g, " ");
-      return escapeRegExp(literal).replace(/\\ /g, "\\s*");
+      const literal = normalizeDigits(part.value, resolved, { trim: false });
+      return escapeRegExp(literal).replace(/\s+/g, "\\s*");
     }).join("");
     const regex = new RegExp(`^\\s*${pattern}\\s*$`);
     return {
@@ -896,7 +929,7 @@
       const attrDisplay = this.getAttribute("display") || "";
       if (attrDisplay) {
         try {
-          this._model.setDisplay(attrDisplay);
+          this._model.setDisplay(clampDisplayMonth(attrDisplay, firstDay));
         } catch {}
       } else if (this._model.value) {
         this._model.display = monthKey(this._model.value);
@@ -920,7 +953,7 @@
       return clampDate(value, this.min, this.max);
     }
     _weeks(display = this.display) {
-      const weeks = getMonthWeeks(display, { firstDay: this.firstDay });
+      const weeks = getMonthWeeks(clampDisplayMonth(display, this.firstDay), { firstDay: this.firstDay });
       if (!this.fixedWeeks || weeks.length >= 6)
         return weeks;
       let cursor = weeks[weeks.length - 1]?.[6] || "";
@@ -1034,7 +1067,7 @@
     }
     _setDisplay(display, options = {}) {
       const previous = this._model.display;
-      this._model.setDisplay(display);
+      this._model.setDisplay(clampDisplayMonth(display, this.firstDay));
       this._model.focused = this._clamp(this._model.focused);
       this._model.display = monthKey(this._model.focused);
       this._reflect("display", this._model.display);
@@ -1203,7 +1236,7 @@
       }
       if (target instanceof HTMLInputElement && target.matches(".dp-year-input")) {
         const year = Number(target.value);
-        if (!Number.isInteger(year) || year < 1 || year > 9999) {
+        if (!Number.isInteger(year) || year < 1 || year > 9998) {
           if (this._connected)
             this.render(false);
           return;
@@ -1806,7 +1839,7 @@
       }
       input.setCustomValidity(text === canonical ? "" : this.messages.invalidDate);
     }
-    async commit() {
+    async commit(options = {}) {
       const input = this.input;
       const commitId = ++this._commitId;
       const text = input.value.trim();
@@ -1826,7 +1859,7 @@
         return { status: "invalid" };
       }
       if (this.confirm) {
-        const result = await this.confirm(parsed);
+        const result = await this.confirm(parsed, options);
         if (commitId !== this._commitId)
           return { status: "stale" };
         if (!result?.ok) {
@@ -1963,7 +1996,7 @@
       this._discoverTimeFields();
       this._field = new DateFieldController(input, { messages: this._messages, locale: this.locale });
       this._field.onAttributesChanged = () => this._syncInputState();
-      this._field.confirm = (date) => this._confirmDate(date);
+      this._field.confirm = (date, options) => this._confirmDate(date, options);
       this._setupFormValue();
       this._build();
       this._syncInputState();
@@ -2027,7 +2060,7 @@
       ];
       for (const field of this._fields) {
         field.onAttributesChanged = () => this._syncRangeFields();
-        field.confirm = (date) => this._confirmDate(date);
+        field.confirm = (date, options) => this._confirmDate(date, options);
         field.setupFormValue();
       }
       this._build();
@@ -2918,13 +2951,15 @@
         }
       }
     }
-    async _confirmDate(date) {
+    async _confirmDate(date, options = {}) {
       const calendar = this._calendar;
       if (!calendar)
         return { ok: true };
-      const display = monthKey(date);
-      if (calendar.display !== display)
-        calendar.display = display;
+      if (options.moveDisplay !== false) {
+        const display = monthKey(date);
+        if (calendar.display !== display)
+          calendar.display = display;
+      }
       const confirmed = await calendar.ensureDate(date);
       const state = calendar.getDateState(date);
       if (!confirmed || state.disabled)
@@ -2937,7 +2972,7 @@
         return false;
       if (!options.force && !field.isDirty)
         return false;
-      const result = await field.commit();
+      const result = await field.commit(options);
       if (result.status === "stale" || result.status === "invalid")
         return false;
       this._setValue(result.value || "", { emit, format: result.status === "ok" });
@@ -3151,7 +3186,7 @@
         if (!fields)
           return true;
         for (const [index, field] of fields.entries()) {
-          const result = await field.commit();
+          const result = await field.commit({ moveDisplay: false });
           if (result.status === "ok" || result.status === "clear") {
             const which = index === 1 ? "end" : "start";
             this._setBound(which, result.value || "", { format: result.status === "ok" });
@@ -3167,7 +3202,7 @@
       if (!input.value.trim()) {
         input.setCustomValidity("");
       } else {
-        await this._commitText(false, { force: true });
+        await this._commitText(false, { force: true, moveDisplay: false });
       }
       this._revalidateTimeOrder("start");
       this._revalidateTimeOrder("end");

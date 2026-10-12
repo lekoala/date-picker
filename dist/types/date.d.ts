@@ -58,6 +58,16 @@ export declare function endOfWeek(value: string, firstDay?: number): string;
 export declare function getMonthWeeks(value: string, options?: {
     firstDay?: number;
 }): string[][];
+/**
+ * Nearest month whose true civil weeks stay inside 0001-01-01..9999-12-31, so a
+ * grid can always be built. A month's covering weeks can reach a few days
+ * before or after it, so the earliest and latest displayable months depend on
+ * `firstDay`.
+ * @param {string} value YYYY-MM or YYYY-MM-DD
+ * @param {number} [firstDay]
+ * @returns {string} YYYY-MM
+ */
+export declare function clampDisplayMonth(value: string, firstDay?: number): string;
 /** @param {string} value @param {string} [min] @param {string} [max] */
 export declare function clampDate(value: string, min?: string, max?: string): string;
 /** Local civil date; no timezone conversion of the selected date model. */

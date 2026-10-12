@@ -2,6 +2,7 @@ import { CalendarModel } from "./calendar-model.js";
 import {
   addDays,
   clampDate,
+  clampDisplayMonth,
   compareDates,
   getMonthWeeks,
   isDate,
@@ -349,7 +350,7 @@ export class DateCalendarElement extends HTMLElement {
     const attrDisplay = this.getAttribute("display") || "";
     if (attrDisplay) {
       try {
-        this._model.setDisplay(attrDisplay);
+        this._model.setDisplay(clampDisplayMonth(attrDisplay, firstDay));
       } catch {
         // Invalid author markup falls back to the current model display.
       }
@@ -378,7 +379,7 @@ export class DateCalendarElement extends HTMLElement {
   }
 
   _weeks(display = this.display) {
-    const weeks = getMonthWeeks(display, { firstDay: this.firstDay });
+    const weeks = getMonthWeeks(clampDisplayMonth(display, this.firstDay), { firstDay: this.firstDay });
     if (!this.fixedWeeks || weeks.length >= 6) return weeks;
     let cursor = weeks[weeks.length - 1]?.[6] || "";
     while (weeks.length < 6 && cursor) {
@@ -497,7 +498,7 @@ export class DateCalendarElement extends HTMLElement {
   /** @param {string} display @param {{emit?:boolean}} [options] */
   _setDisplay(display, options = {}) {
     const previous = this._model.display;
-    this._model.setDisplay(display);
+    this._model.setDisplay(clampDisplayMonth(display, this.firstDay));
     this._model.focused = this._clamp(this._model.focused);
     this._model.display = monthKey(this._model.focused);
     this._reflect("display", this._model.display);
@@ -697,7 +698,9 @@ export class DateCalendarElement extends HTMLElement {
     }
     if (target instanceof HTMLInputElement && target.matches(".dp-year-input")) {
       const year = Number(target.value);
-      if (!Number.isInteger(year) || year < 1 || year > 9999) {
+      // 9999 is a valid civil year but its December grid overflows into 10000,
+      // so the editable range stops one year short of the unrenderable month.
+      if (!Number.isInteger(year) || year < 1 || year > 9998) {
         if (this._connected) this.render(false);
         return;
       }
