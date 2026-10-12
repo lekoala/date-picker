@@ -694,6 +694,15 @@
   function yearOf(month) {
     return Number(month.slice(0, 4));
   }
+  function stepMonthKey(month, amount) {
+    const [year, index] = month.split("-").map(Number);
+    const absolute = year * 12 + (index - 1) + amount;
+    const stepYear = Math.floor(absolute / 12);
+    const stepMonth = (absolute % 12 + 12) % 12 + 1;
+    if (stepYear < 1 || stepYear > 9999)
+      return null;
+    return `${String(stepYear).padStart(4, "0")}-${String(stepMonth).padStart(2, "0")}`;
+  }
   function rangeAttributeMap(position) {
     return {
       "data-range-start": position === "start" || position === "single",
@@ -745,6 +754,8 @@
       this._renderDay = null;
       this._isDateDisabled = null;
       this._highlightedRange = { start: "", end: "" };
+      this._paintedRange = { start: "", end: "" };
+      this._paintedPreview = false;
       this._messages = getDefaultMessages();
       this._onClick = this._onClick.bind(this);
       this._onChange = this._onChange.bind(this);
@@ -863,7 +874,8 @@
     }
     set highlightedRange(value) {
       const next = normalizeRange(value);
-      if (next.start === this._highlightedRange.start && next.end === this._highlightedRange.end)
+      const preview = this.hasAttribute("data-range-preview");
+      if (next.start === this._paintedRange.start && next.end === this._paintedRange.end && preview === this._paintedPreview)
         return;
       this._highlightedRange = next;
       if (this._connected)
@@ -950,7 +962,15 @@
       this._rendering = false;
     }
     _clamp(value) {
-      return clampDate(value, this.min, this.max);
+      const bounded = clampDate(value, this.min, this.max);
+      const month = monthKey(bounded);
+      const safeMonth = clampDisplayMonth(month, this.firstDay);
+      if (safeMonth === month)
+        return bounded;
+      const day = Number(bounded.slice(8, 10)) || 1;
+      const candidate = addDays(`${safeMonth}-01`, day - 1);
+      const last = endOfMonth(safeMonth);
+      return compareDates(candidate, last) > 0 ? last : candidate;
     }
     _weeks(display = this.display) {
       const weeks = getMonthWeeks(clampDisplayMonth(display, this.firstDay), { firstDay: this.firstDay });
@@ -1085,10 +1105,10 @@
       }));
     }
     previousMonth() {
-      return this._setDisplay(shiftMonth(this.display, -1));
+      return this._setDisplay(stepMonthKey(this.display, -1) ?? this.display);
     }
     nextMonth() {
-      return this._setDisplay(shiftMonth(this.display, 1));
+      return this._setDisplay(stepMonthKey(this.display, 1) ?? this.display);
     }
     focusDate(date, options = {}) {
       if (!isDate(date))
@@ -1151,6 +1171,8 @@
       ].filter(Boolean).join(". ");
     }
     _updateRangeDom() {
+      this._paintedRange = { ...this._highlightedRange };
+      this._paintedPreview = this.hasAttribute("data-range-preview");
       for (const cell of this.querySelectorAll(".dp-day[data-date]")) {
         if (!(cell instanceof HTMLTableCellElement))
           continue;
@@ -1310,8 +1332,10 @@
       const gridId = `${this._id}-grid`;
       const minMonth = this.min ? monthKey(this.min) : "";
       const maxMonth = this.max ? monthKey(this.max) : "";
-      const prevDisabled = Boolean(minMonth && shiftMonth(display, -1) < minMonth);
-      const nextDisabled = Boolean(maxMonth && shiftMonth(display, 1) > maxMonth);
+      const prevKey = stepMonthKey(display, -1);
+      const nextKey = stepMonthKey(display, 1);
+      const prevDisabled = Boolean(minMonth && prevKey !== null && prevKey < minMonth);
+      const nextDisabled = Boolean(maxMonth && nextKey !== null && nextKey > maxMonth);
       const minYearAttr = this.min ? ` min="${Number(this.min.slice(0, 4))}"` : "";
       const maxYearAttr = this.max ? ` max="${Number(this.max.slice(0, 4))}"` : "";
       const showWeeks = this.showWeekNumbers && this.firstDay === 1;
@@ -1361,6 +1385,8 @@
         </table>
       </div>`;
       this._rendering = false;
+      this._paintedRange = { ...this._highlightedRange };
+      this._paintedPreview = this.hasAttribute("data-range-preview");
       if (focusKey) {
         queueMicrotask(() => {
           let selector = focusKey;

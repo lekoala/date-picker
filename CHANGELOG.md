@@ -24,6 +24,8 @@
 - A `source` reload no longer re-homes the visible month. Re-validations triggered by `dateloadend` (or an observed attribute or `messages` change) commit with `moveDisplay: false`, so navigating the popup keeps the month the user chose instead of snapping `display` back to the selected value's month (`H2`).
 - Rendering no longer throws at the calendar bounds. `getMonthWeeks()` stops from the last built week instead of advancing its cursor past the canonical window, the year editor is limited to `1..9998`, and `display` is clamped to the last renderable month, so December 9999 (and January 0001 with a Sunday first day) build a grid instead of raising (`B1`).
 - `range.spec.js` freezes the clock in `beforeEach`, so the demo range fixtures stay September-based and the browser suite no longer fails on the current month (`M1`).
+- A live range preview now repaints day labels when it is entered or left even if the band bounds are unchanged, so the "a proposal is not a committed selection" accessible-name contract also holds when hovering the anchor that already carries the band.
+- Focusing a date whose month is outside the renderable window (e.g. `focusedDate = "0001-01-01"` with Sunday as first day) keeps the focused cell inside the rendered grid, so the roving `tabindex="0"` is never lost, and `previousMonth()`/`nextMonth()` no longer throw at the canonical `0001`/`9999` bounds.
 
 
 ## 0.3.0 — 2026-09-15

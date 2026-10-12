@@ -54,6 +54,9 @@ export declare class DateCalendarElement extends HTMLElement {
     _isDateDisabled: DateDisabledPredicate | null;
     /** @type {DateRange} */
     _highlightedRange: DateRange;
+    /** @type {DateRange} */
+    _paintedRange: DateRange;
+    _paintedPreview: boolean;
     _messages: {
         chooseDate: string;
         changeDate: string;

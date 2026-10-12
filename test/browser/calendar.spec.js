@@ -709,3 +709,62 @@ test("a disabled day still reports datefocus so navigation stays discoverable", 
   await page.locator('#constrained .dp-day[data-date="2026-09-05"]').focus();
   expect(await page.evaluate(() => window.__focus)).toEqual(["2026-09-05:true"]);
 });
+
+test("a live preview rewrites day labels even when the band is unchanged", async ({ page }) => {
+  // A proposal must not be announced as a committed range start/end; entering
+  // and leaving the preview mode must repaint labels even when the bounds are
+  // identical, otherwise the previous suffix sticks.
+  const labels = await page.evaluate(() => {
+    const calendar = document.createElement("date-calendar");
+    calendar.setAttribute("display", "2026-09");
+    document.body.append(calendar);
+    const cell = calendar.querySelector('[data-date="2026-09-10"]');
+    const read = () => cell.getAttribute("aria-label");
+    calendar.highlightedRange = { start: "2026-09-10", end: "" };
+    const committed = read();
+    calendar.setAttribute("data-range-preview", "true");
+    calendar.highlightedRange = { start: "2026-09-10", end: "" };
+    const preview = read();
+    calendar.removeAttribute("data-range-preview");
+    calendar.highlightedRange = { start: "2026-09-10", end: "" };
+    const cleared = read();
+    calendar.remove();
+    return { committed, preview, cleared };
+  });
+  expect(labels.committed).toContain("Range start");
+  expect(labels.preview).not.toContain("Range start");
+  expect(labels.cleared).toContain("Range start");
+});
+
+test("focusing a date at the calendar edge keeps it inside the rendered grid", async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const calendar = document.createElement("date-calendar");
+    calendar.setAttribute("display", "2026-09");
+    document.body.append(calendar);
+    // Sunday-first, January 0001: the month itself is outside the renderable
+    // window, so both the display and the focused cell must be pulled in.
+    calendar.firstDay = 0;
+    calendar.display = "0001-01";
+    const clampedDisplay = calendar.display;
+    calendar.focusedDate = "0001-01-01";
+    const focused = calendar.focusedDate;
+    const roving = calendar.querySelectorAll('.dp-day[tabindex="0"]').length;
+    const focusedInGrid = Boolean(calendar.querySelector(`.dp-day[data-date="${focused}"]`));
+
+    // previousMonth() past the first canonical month must not throw.
+    calendar.firstDay = 1;
+    calendar.display = "0001-01";
+    let previous = "threw";
+    try {
+      previous = calendar.previousMonth();
+    } catch (error) {
+      previous = `threw: ${error.message}`;
+    }
+    calendar.remove();
+    return { clampedDisplay, focused, roving, focusedInGrid, previous };
+  });
+  expect(result.focused).toBe("0001-02-01");
+  expect(result.roving).toBe(1);
+  expect(result.focusedInGrid).toBe(true);
+  expect(result.previous).toBe("0001-01");
+});

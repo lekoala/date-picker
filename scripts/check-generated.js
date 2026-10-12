@@ -1,16 +1,18 @@
 /**
- * Drift gate for the committed generated artifact (custom-elements.json).
+ * Drift gate for the committed generated artifacts (custom-elements.json and
+ * the dist bundle/declaration output).
  *
  * Run after `bun run sync`: if a fresh regeneration differs from what is
- * committed, the gate lists the offending file and prints an actionable
- * message, so a stale manifest can never silently ship. It is intentionally
- * part of `verify`/CI and not the daily `check`, because a source edit
- * mid-task legitimately produces temporary drift.
+ * committed, the gate lists the offending files and prints an actionable
+ * message, so a stale manifest or bundle can never silently ship. It is
+ * intentionally part of `verify`/CI and not the daily `check`, because a source
+ * edit mid-task legitimately produces temporary drift.
  */
 
 import { execFileSync } from "node:child_process";
 
-const dirty = execFileSync("git", ["status", "--porcelain", "--", "custom-elements.json"], {
+const artifacts = ["custom-elements.json", "dist"];
+const dirty = execFileSync("git", ["status", "--porcelain", "--", ...artifacts], {
   encoding: "utf8",
 })
   .split(/\r?\n/)

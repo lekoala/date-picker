@@ -4,11 +4,11 @@ import {
   clampDate,
   clampDisplayMonth,
   compareDates,
+  endOfMonth,
   getMonthWeeks,
   isDate,
   isoWeekNumber,
   monthKey,
-  shiftMonth,
   todayISO,
 } from "./date.js";
 import { normalizeRange, rangePosition } from "./date-range.js";
@@ -45,6 +45,23 @@ function parseFirstDay(value) {
 /** @param {string} month */
 function yearOf(month) {
   return Number(month.slice(0, 4));
+}
+
+/**
+ * Step a `YYYY-MM` key by ±1, or `null` when the step leaves the canonical
+ * 0001-01..9999-12 window. Pure arithmetic, so an out-of-range intermediate
+ * date is never constructed and the calendar edges cannot throw.
+ * @param {string} month
+ * @param {number} amount
+ * @returns {string | null}
+ */
+function stepMonthKey(month, amount) {
+  const [year, index] = month.split("-").map(Number);
+  const absolute = year * 12 + (index - 1) + amount;
+  const stepYear = Math.floor(absolute / 12);
+  const stepMonth = (((absolute % 12) + 12) % 12) + 1;
+  if (stepYear < 1 || stepYear > 9999) return null;
+  return `${String(stepYear).padStart(4, "0")}-${String(stepMonth).padStart(2, "0")}`;
 }
 
 /**
@@ -132,6 +149,12 @@ export class DateCalendarElement extends HTMLElement {
     this._isDateDisabled = null;
     /** @type {DateRange} */
     this._highlightedRange = { start: "", end: "" };
+    // Bounds and preview flag the cells were last painted with. The preview
+    // flag changes the accessible names (a proposal drops the committed
+    // range-start/range-end suffix), so a repaint is due when either changes.
+    /** @type {DateRange} */
+    this._paintedRange = { start: "", end: "" };
+    this._paintedPreview = false;
     this._messages = getDefaultMessages();
     this._onClick = this._onClick.bind(this);
     this._onChange = this._onChange.bind(this);
@@ -269,7 +292,15 @@ export class DateCalendarElement extends HTMLElement {
 
   set highlightedRange(value) {
     const next = normalizeRange(value);
-    if (next.start === this._highlightedRange.start && next.end === this._highlightedRange.end) return;
+    const preview = this.hasAttribute("data-range-preview");
+    // Repaint when the preview mode changed even if the bounds are identical:
+    // entering/leaving a preview rewrites every cell's accessible name.
+    if (
+      next.start === this._paintedRange.start &&
+      next.end === this._paintedRange.end &&
+      preview === this._paintedPreview
+    )
+      return;
     this._highlightedRange = next;
     if (this._connected) this._updateRangeDom();
   }
@@ -375,7 +406,17 @@ export class DateCalendarElement extends HTMLElement {
 
   /** @param {string} value */
   _clamp(value) {
-    return clampDate(value, this.min, this.max);
+    const bounded = clampDate(value, this.min, this.max);
+    const month = monthKey(bounded);
+    const safeMonth = clampDisplayMonth(month, this.firstDay);
+    if (safeMonth === month) return bounded;
+    // The renderable window excludes this month (a calendar edge): keep the
+    // day-of-month where the target month has it, else fall back to its last
+    // day, so the focused date always exists in the rendered grid.
+    const day = Number(bounded.slice(8, 10)) || 1;
+    const candidate = addDays(`${safeMonth}-01`, day - 1);
+    const last = endOfMonth(safeMonth);
+    return compareDates(candidate, last) > 0 ? last : candidate;
   }
 
   _weeks(display = this.display) {
@@ -519,12 +560,12 @@ export class DateCalendarElement extends HTMLElement {
 
   /** @public */
   previousMonth() {
-    return this._setDisplay(shiftMonth(this.display, -1));
+    return this._setDisplay(stepMonthKey(this.display, -1) ?? this.display);
   }
 
   /** @public */
   nextMonth() {
-    return this._setDisplay(shiftMonth(this.display, 1));
+    return this._setDisplay(stepMonthKey(this.display, 1) ?? this.display);
   }
 
   /** @public @param {string} date @param {{moveFocus?:boolean}} [options] */
@@ -606,6 +647,8 @@ export class DateCalendarElement extends HTMLElement {
    * hover of a live range preview.
    */
   _updateRangeDom() {
+    this._paintedRange = { ...this._highlightedRange };
+    this._paintedPreview = this.hasAttribute("data-range-preview");
     for (const cell of this.querySelectorAll(".dp-day[data-date]")) {
       if (!(cell instanceof HTMLTableCellElement)) continue;
       const date = cell.dataset.date || "";
@@ -777,8 +820,10 @@ export class DateCalendarElement extends HTMLElement {
     const gridId = `${this._id}-grid`;
     const minMonth = this.min ? monthKey(this.min) : "";
     const maxMonth = this.max ? monthKey(this.max) : "";
-    const prevDisabled = Boolean(minMonth && shiftMonth(display, -1) < minMonth);
-    const nextDisabled = Boolean(maxMonth && shiftMonth(display, 1) > maxMonth);
+    const prevKey = stepMonthKey(display, -1);
+    const nextKey = stepMonthKey(display, 1);
+    const prevDisabled = Boolean(minMonth && prevKey !== null && prevKey < minMonth);
+    const nextDisabled = Boolean(maxMonth && nextKey !== null && nextKey > maxMonth);
     const minYearAttr = this.min ? ` min="${Number(this.min.slice(0, 4))}"` : "";
     const maxYearAttr = this.max ? ` max="${Number(this.max.slice(0, 4))}"` : "";
     const showWeeks = this.showWeekNumbers && this.firstDay === 1;
@@ -855,6 +900,8 @@ export class DateCalendarElement extends HTMLElement {
         </table>
       </div>`;
     this._rendering = false;
+    this._paintedRange = { ...this._highlightedRange };
+    this._paintedPreview = this.hasAttribute("data-range-preview");
 
     if (focusKey) {
       queueMicrotask(() => {
