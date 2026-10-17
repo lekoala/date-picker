@@ -5,10 +5,23 @@ import {
   DateCalendarElement,
   DatePickerElement,
   dates,
+  getDefaultControlClasses,
   linkDateRange,
+  setDefaultControlClasses,
 } from "@lekoala/date-picker";
 
 const calendar = new DateCalendarElement();
+setDefaultControlClasses({ month: "[&>svg]:size-4", nav: "btn" });
+const defaultMonth: string = getDefaultControlClasses().month;
+calendar.controlClasses = { year: "input" };
+const calendarNav: string = calendar.controlClasses.nav;
+calendar.controlClasses = null;
+void defaultMonth;
+void calendarNav;
+// @ts-expect-error control roles are limited to month, year and nav
+setDefaultControlClasses({ day: "button" });
+// @ts-expect-error class values must be strings
+calendar.controlClasses = { month: 42 };
 calendar.value = "2026-09-10";
 calendar.display = "2026-10";
 calendar.selection = "none";
@@ -21,6 +34,12 @@ calendar.focusDate("2026-10-10", { moveFocus: false });
 void calendar.getDateState("2026-10-10");
 
 const start = new DatePickerElement();
+start.controlClasses = { nav: "btn", month: "data-[state=open]:bg-muted" };
+const pickerYear: string = start.controlClasses.year;
+start.controlClasses = null;
+void pickerYear;
+// @ts-expect-error the picker accepts the same named control roles
+start.controlClasses = { trigger: "btn" };
 const end = new DatePickerElement();
 start.value = "2026-09-10";
 end.value = "2026-09-15";

@@ -14,11 +14,15 @@ export function normalizeControlClass(value) {
           (token) =>
             token &&
             !token.startsWith("dp-") &&
-            !/["'<>`=]/.test(token) &&
             ![...token].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127),
         ),
     ),
   ].join(" ");
+}
+
+/** @param {ControlClasses} a @param {ControlClasses} b */
+export function sameControlClasses(a, b) {
+  return a.month === b.month && a.year === b.year && a.nav === b.nav;
 }
 
 /** @type {ControlClasses} */

@@ -18,6 +18,60 @@ test("default skin retains its border, radius, caret and dimensions", async ({ p
   expect(new Set(sizes).size).toBe(1);
 });
 
+test("arbitrary utility classes survive HTML rendering without injecting markup or attributes", async ({
+  page,
+}) => {
+  const result = await page.evaluate(() => {
+    const calendar = document.querySelector("#inline");
+    const tokens = [
+      "btn",
+      "[&>svg]:size-4",
+      "data-[state=open]:bg-muted",
+      "aria-[disabled=true]:opacity-50",
+      '"><img/src=x/onerror=alert(1)>',
+      "content-['x']",
+      "back`tick",
+      "a&quot;b",
+    ];
+    const value = tokens.join(" ");
+    calendar.controlClasses = { month: value, year: value, nav: value };
+    const controls = [
+      ...calendar.querySelectorAll(".dp-calendar-header select, .dp-calendar-header input, .dp-nav"),
+    ];
+    return {
+      tokens,
+      classes: controls.map((el) => [...el.classList].filter((token) => !token.startsWith("dp-"))),
+      injected: calendar.querySelectorAll("img, [onclick], [onerror]").length,
+    };
+  });
+  expect(result.classes).toHaveLength(4);
+  for (const classes of result.classes) expect(classes).toEqual(result.tokens);
+  expect(result.injected).toBe(0);
+});
+
+test("equivalent class assignments retain the grid, controls and focus", async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const elements = [document.querySelector("#inline"), document.querySelector("#simple-picker")];
+    return elements.map((element) => {
+      element.controlClasses = { month: "host select", year: "input", nav: "btn" };
+      if (element.tagName === "DATE-PICKER") element.show({ moveFocus: false });
+      const cell = element.querySelector(".dp-day");
+      const year = element.querySelector(".dp-year-input");
+      year.focus();
+      element.controlClasses = { month: " host  select host ", year: "input", nav: "btn" };
+      return {
+        sameCell: cell === element.querySelector(".dp-day"),
+        sameYear: year === element.querySelector(".dp-year-input"),
+        focused: document.activeElement === year,
+      };
+    });
+  });
+  expect(result).toEqual([
+    { sameCell: true, sameYear: true, focused: true },
+    { sameCell: true, sameYear: true, focused: true },
+  ]);
+});
+
 test("author skin survives rendering and focus restoration without changing selection", async ({ page }) => {
   await page.addStyleTag({
     content: `

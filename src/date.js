@@ -185,7 +185,9 @@ export function getMonthWeeks(value, options = {}) {
     // week (e.g. from 9999-12-25 to 10000-01-01) would leave the canonical
     // window even when every emitted day is valid.
     if (compareDates(week[6], end) >= 0) {
-      if (!options.fixedWeeks || weeks.length >= 6 || compareDates(week[6], "9999-12-24") > 0) break;
+      // Another complete week must fit before the last canonical date.
+      if (!options.fixedWeeks || weeks.length >= 6 || compareDates(week[6], addDays("9999-12-31", -7)) > 0)
+        break;
     }
     cursor = addDays(cursor, 7);
   }

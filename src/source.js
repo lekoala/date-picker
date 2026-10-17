@@ -28,14 +28,27 @@ export function normalizeDateStates(payload) {
 
 /**
  * Small fetch adapter for legacy/configUrl-like endpoints.
+ * Resolve and validate the URL immediately against the document or worker location.
  * @param {string | URL} url
  * @param {{map?:(payload:unknown)=>unknown, params?:(range:{start:string,end:string})=>Record<string,string>}} [options]
  */
 export function createFetchSource(url, options = {}) {
+  const base = typeof document !== "undefined" ? document.baseURI : globalThis.location?.href;
+  let resolved;
+  try {
+    resolved = new URL(String(url), base);
+  } catch (cause) {
+    throw new TypeError(
+      base
+        ? `Invalid date source URL: ${url}`
+        : "Date source: absolute URL required outside a document or worker location",
+      { cause },
+    );
+  }
   return {
     /** @param {{start:string,end:string}} range @param {{signal?:AbortSignal}} [context] */
     async load(range, context = {}) {
-      const target = new URL(String(url), typeof document !== "undefined" ? document.baseURI : undefined);
+      const target = new URL(resolved);
       const params = options.params ? options.params(range) : range;
       for (const [key, value] of Object.entries(params)) target.searchParams.set(key, String(value));
       const response = await fetch(target, { signal: context.signal });

@@ -7,6 +7,7 @@
 export declare function normalizeDateStates(payload: unknown): Map<string, Record<string, unknown>>;
 /**
  * Small fetch adapter for legacy/configUrl-like endpoints.
+ * Resolve and validate the URL immediately against the document or worker location.
  * @param {string | URL} url
  * @param {{map?:(payload:unknown)=>unknown, params?:(range:{start:string,end:string})=>Record<string,string>}} [options]
  */

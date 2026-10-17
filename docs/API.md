@@ -419,7 +419,7 @@ Public helpers:
 
 Both elements expose `controlClasses`. Assignment merges the partial map with current global defaults, not with the previous assignment. An empty string explicitly restores the default skin for a role; `null` resets to global defaults. The picker forwards the map to its shared calendar, including in range mode. There is no HTML attribute.
 
-Each non-empty role uses only the author's skin (including caret, hover, disabled and focus). Grid layout, year track width and month truncation stay component-owned. Day cells and the picker trigger are excluded. Class lists are whitespace-normalized and deduplicated; tokens containing quotes, HTML delimiters, equals signs, backticks or control characters, and the reserved `dp-*` namespace, are ignored. Values are HTML-escaped on rendering.
+Each non-empty role uses only the author's skin (including caret, hover, disabled and focus). Grid layout, year track width and month truncation stay component-owned. Day cells and the picker trigger are excluded. Class lists are whitespace-normalized and deduplicated; tokens containing control characters or using the reserved `dp-*` namespace are ignored. Arbitrary utility classes such as `[&>svg]:size-4`, `data-[state=open]:bg-muted` and `aria-[disabled=true]:opacity-50` are preserved. Values are HTML-escaped on rendering, including quotes and HTML delimiters. Reassigning equivalent normalized classes leaves the rendered controls and grid intact.
 
 ## Render snapshots and range previews
 
@@ -427,4 +427,4 @@ A full `calendar.render()` resolves each visible day's state once through `dateS
 
 `fixed-weeks` requests six complete rows. At the end of the canonical date window, December 9999 with Saturday as the first weekday renders five rows rather than padding beyond `9999-12-31`. `dates.getMonthWeeks(value, { firstDay, fixedWeeks: true })` uses the same rule; its default remains unpadded.
 
-Outside a document, `createFetchSource()` requires an absolute URL. Relative URLs resolve against `document.baseURI` in the browser; there is no implicit localhost base. Cancellation and optional timeouts belong to the caller's `AbortSignal`.
+`createFetchSource()` resolves and validates its URL when the adapter is created. Relative URLs use `document.baseURI` in a document or `globalThis.location.href` in a worker. Without either base, an absolute URL is required and a relative URL throws an explicit `TypeError` immediately. There is no implicit localhost base. Cancellation and optional timeouts belong to the caller's `AbortSignal`.

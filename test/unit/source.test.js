@@ -1,10 +1,36 @@
 import { expect, test } from "bun:test";
 import { createFetchSource, normalizeDateStates } from "../../src/source.js";
 
-test("relative fetch URLs require a document base instead of silently using localhost", async () => {
-  await expect(
-    createFetchSource("/availability").load({ start: "2026-09-01", end: "2026-09-30" }),
-  ).rejects.toThrow();
+test("relative fetch URLs fail immediately with a clear error when no base exists", () => {
+  expect(() => createFetchSource("/availability")).toThrow("absolute URL required outside a document");
+});
+
+test("worker-relative fetch URLs resolve at creation and each load gets fresh query parameters", async () => {
+  const originalLocation = Object.getOwnPropertyDescriptor(globalThis, "location");
+  const originalFetch = globalThis.fetch;
+  const seen = [];
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { href: "https://worker.test/app/worker.js" },
+  });
+  globalThis.fetch = async (url) => {
+    seen.push(String(url));
+    return new Response("{}");
+  };
+  try {
+    const source = createFetchSource("availability");
+    delete globalThis.location;
+    await source.load({ start: "2026-09-01", end: "2026-09-30" });
+    await source.load({ start: "2026-10-01", end: "2026-10-31" });
+    expect(seen).toEqual([
+      "https://worker.test/app/availability?start=2026-09-01&end=2026-09-30",
+      "https://worker.test/app/availability?start=2026-10-01&end=2026-10-31",
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalLocation) Object.defineProperty(globalThis, "location", originalLocation);
+    else delete globalThis.location;
+  }
 });
 
 test("normalizeDateStates accepts the { dates } wrapper", () => {

@@ -1,5 +1,5 @@
 import { CalendarModel } from "./calendar-model.js";
-import { getDefaultControlClasses, resolveControlClasses } from "./control-classes.js";
+import { getDefaultControlClasses, resolveControlClasses, sameControlClasses } from "./control-classes.js";
 import {
   addDays,
   clampDate,
@@ -338,7 +338,9 @@ export class DateCalendarElement extends HTMLElement {
 
   /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
   set controlClasses(value) {
-    this._controlClasses = resolveControlClasses(value);
+    const classes = resolveControlClasses(value);
+    if (sameControlClasses(classes, this._controlClasses)) return;
+    this._controlClasses = classes;
     if (this._connected) this.render();
   }
 
@@ -904,7 +906,7 @@ export class DateCalendarElement extends HTMLElement {
     // select via `data-year-first`.
     const yearFirst = monthYearOrder(locale)[0] === "year";
     this.toggleAttribute("data-year-first", yearFirst);
-    const classes = resolveControlClasses(this._controlClasses);
+    const classes = this._controlClasses;
     const monthClass = escapeHtml(classes.month || "dp-skin");
     const yearClass = escapeHtml(classes.year || "dp-skin");
     const navClass = escapeHtml(classes.nav || "dp-skin");

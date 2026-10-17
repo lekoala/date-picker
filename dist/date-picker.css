@@ -72,7 +72,6 @@ date-calendar[data-year-first] .dp-calendar-header {
 
 .dp-calendar-header .dp-skin {
   min-block-size: var(--dp-header-control-size);
-  box-sizing: border-box;
   /* Shared vertical metrics: UA default padding/line-height differ per control
      (up to ~13px apart), which only shows once --dp-header-control-size drops
      below content size. */
@@ -86,7 +85,6 @@ date-calendar[data-year-first] .dp-calendar-header {
 }
 
 .dp-calendar-header input.dp-skin {
-  min-inline-size: 0;
   padding-inline: 0.45rem;
 }
 
@@ -96,7 +94,6 @@ date-calendar[data-year-first] .dp-calendar-header {
    control and the others stretch to match. */
 .dp-month-select {
   inline-size: 100%;
-  min-inline-size: 0;
   /* Long month names in a narrow track (compact consumers, long locales)
      would paint under the caret: truncate with an ellipsis instead. */
   overflow: hidden;

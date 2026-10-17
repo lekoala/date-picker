@@ -1,5 +1,5 @@
 import { autoUpdate, reposition } from "@lekoala/floating";
-import { getDefaultControlClasses, resolveControlClasses } from "./control-classes.js";
+import { getDefaultControlClasses, resolveControlClasses, sameControlClasses } from "./control-classes.js";
 import { compareDates, isDate, monthKey, todayISO } from "./date.js";
 import { DateCalendarElement } from "./date-calendar.js";
 import { DateFieldController } from "./date-field.js";
@@ -366,7 +366,9 @@ export class DatePickerElement extends HTMLElement {
 
   /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
   set controlClasses(value) {
-    this._controlClasses = resolveControlClasses(value);
+    const classes = resolveControlClasses(value);
+    if (sameControlClasses(classes, this._controlClasses)) return;
+    this._controlClasses = classes;
     if (this._calendar) this._calendar.controlClasses = this._controlClasses;
   }
 

@@ -9,6 +9,8 @@ export type ControlClasses = {
  * @param {unknown} value
  */
 export declare function normalizeControlClass(value: unknown): string;
+/** @param {ControlClasses} a @param {ControlClasses} b */
+export declare function sameControlClasses(a: ControlClasses, b: ControlClasses): boolean;
 export declare function getDefaultControlClasses(): {
     month: string;
     year: string;

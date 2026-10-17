@@ -182,7 +182,7 @@
         week.push(addDays(cursor, i));
       weeks.push(week);
       if (compareDates(week[6], end) >= 0) {
-        if (!options.fixedWeeks || weeks.length >= 6 || compareDates(week[6], "9999-12-24") > 0)
+        if (!options.fixedWeeks || weeks.length >= 6 || compareDates(week[6], addDays("9999-12-31", -7)) > 0)
           break;
       }
       cursor = addDays(cursor, 7);
@@ -303,8 +303,11 @@
     if (typeof value !== "string")
       return "";
     return [
-      ...new Set(value.split(/\s+/).filter((token) => token && !token.startsWith("dp-") && !/["'<>`=]/.test(token) && ![...token].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)))
+      ...new Set(value.split(/\s+/).filter((token) => token && !token.startsWith("dp-") && ![...token].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)))
     ].join(" ");
+  }
+  function sameControlClasses(a, b) {
+    return a.month === b.month && a.year === b.year && a.nav === b.nav;
   }
   var defaults = { month: "", year: "", nav: "" };
   function getDefaultControlClasses() {
@@ -941,7 +944,10 @@
       return { ...this._controlClasses };
     }
     set controlClasses(value) {
-      this._controlClasses = resolveControlClasses(value);
+      const classes = resolveControlClasses(value);
+      if (sameControlClasses(classes, this._controlClasses))
+        return;
+      this._controlClasses = classes;
       if (this._connected)
         this.render();
     }
@@ -1420,7 +1426,7 @@
       const focusKey = focusedElement instanceof HTMLElement && this.contains(focusedElement) ? this._focusTargetKey(focusedElement) : "";
       const yearFirst = monthYearOrder(locale)[0] === "year";
       this.toggleAttribute("data-year-first", yearFirst);
-      const classes = resolveControlClasses(this._controlClasses);
+      const classes = this._controlClasses;
       const monthClass = escapeHtml(classes.month || "dp-skin");
       const yearClass = escapeHtml(classes.year || "dp-skin");
       const navClass = escapeHtml(classes.nav || "dp-skin");
@@ -2311,7 +2317,10 @@
       return { ...this._controlClasses };
     }
     set controlClasses(value) {
-      this._controlClasses = resolveControlClasses(value);
+      const classes = resolveControlClasses(value);
+      if (sameControlClasses(classes, this._controlClasses))
+        return;
+      this._controlClasses = classes;
       if (this._calendar)
         this._calendar.controlClasses = this._controlClasses;
     }

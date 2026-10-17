@@ -13,8 +13,10 @@
 
 ### Fixed
 
+- Preserve arbitrary Tailwind/shadcn control classes while HTML-escaping them on rendering; equivalent class assignments no longer rebuild the calendar. Remove redundant normalization and CSS layout declarations, and cover the control-class API in consumer type checks.
+
 - `fixed-weeks` no longer throws at December 9999 with Saturday-first weeks: padding stops at the canonical boundary and retains five full rows. Civil padding now lives in `getMonthWeeks()` through its optional `fixedWeeks` option.
-- Fetch sources outside the DOM require absolute URLs instead of silently resolving relative URLs against localhost.
+- Fetch source URLs are validated at adapter creation, resolving against the document or worker location. Without either base, relative URLs produce an explicit error instead of silently using localhost.
 - Remove an unreachable validity branch in editable field input handling; document the snapshot semantics of global message defaults.
 
 ## 0.4.0 — 2026-10-12
