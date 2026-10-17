@@ -6,6 +6,10 @@
 
 - `controlClasses` on calendars and pickers, plus `setDefaultControlClasses()` / `getDefaultControlClasses()`, let host design systems own header control styling while preserving calendar layout and accessibility.
 
+## 0.4.0 — 2026-10-12
+
+### Added
+
 - `datefocus` on `<date-calendar>`: a public seam for the date cell that actually took focus (`{ date, state }`, bubbling, not cancelable), so an application can follow keyboard navigation without reading internal `.dp-*` classes. It observes only: hover never emits it, a disabled day still does (grid navigation stays discoverable), and assigning `focusedDate` without moving DOM focus stays silent.
 - `calendar.activateDate(date)`: the availability check plus the cancelable `dateactivate` seam plus selection, as one public path. Click, keyboard and the new endpoint drag all run through it, so a cancelled activation cannot be bypassed by choosing another input device.
 - Range preview. While a range is being created, hovering a day or moving the keyboard focus projects the range the next pick would commit onto the band, and the pick commits exactly what was projected. The projection is visual only — no `rangechange`, no field write, no validation, no source request — it reads the month already loaded, and a day known to be unavailable promises nothing. Pointer hover never moves `focusedDate`.
