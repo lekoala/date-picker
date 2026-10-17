@@ -8,6 +8,7 @@
 
 ### Changed
 
+- Update `@lekoala/floating` to `^0.3.1` without changing the picker integration API.
 - Reuse bounded caches of Intl date formatters and digit maps. Range previews reuse the rendered day states and update only changed band cells; moving a preview no longer rebuilds accessible labels or invokes application state callbacks. `renderDay` receives the same state used for its cell. Call `calendar.render()` when callback-owned data changes; activation still checks current state.
 - Share popup outside-click, reset and Escape listeners between single and range pickers.
 
