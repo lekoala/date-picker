@@ -46,7 +46,7 @@ date-calendar {
 
 .dp-calendar-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) var(--dp-year-inline-size) auto auto;
   /* Stretch (not center): once a UA natural height exceeds
      --dp-header-control-size, the row grows to the tallest control and the
      others stretch to match, so month/year/nav stay equal. */
@@ -62,10 +62,15 @@ date-calendar {
    track stays under the month select so the fixed-width year input never
    stretches. Visual mirroring itself is left to the inherited `dir`. */
 date-calendar[data-year-first] .dp-calendar-header {
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: var(--dp-year-inline-size) minmax(0, 1fr) auto auto;
 }
 
 .dp-calendar-header :where(button, select, input) {
+  box-sizing: border-box;
+  min-inline-size: 0;
+}
+
+.dp-calendar-header .dp-skin {
   min-block-size: var(--dp-header-control-size);
   box-sizing: border-box;
   /* Shared vertical metrics: UA default padding/line-height differ per control
@@ -80,7 +85,7 @@ date-calendar[data-year-first] .dp-calendar-header {
   line-height: 1.2;
 }
 
-.dp-calendar-header input {
+.dp-calendar-header input.dp-skin {
   min-inline-size: 0;
   padding-inline: 0.45rem;
 }
@@ -96,6 +101,9 @@ date-calendar[data-year-first] .dp-calendar-header {
      would paint under the caret: truncate with an ellipsis instead. */
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.dp-month-select.dp-skin {
   appearance: none;
   padding-inline: 0.45rem 2rem;
   background-image:
@@ -111,18 +119,18 @@ date-calendar[data-year-first] .dp-calendar-header {
 /* Inherited RTL mirrors the header layout via the grid. The logical
    `padding-inline` already flips, so only the physically-positioned caret has
    to follow it to the other side. */
-[dir="rtl"] .dp-month-select,
-html[dir="rtl"] .dp-month-select {
+[dir="rtl"] .dp-month-select.dp-skin,
+html[dir="rtl"] .dp-month-select.dp-skin {
   background-position:
     0.9rem 50%,
     0.65rem 50%;
 }
 
 .dp-year-input {
-  inline-size: var(--dp-year-inline-size);
+  inline-size: 100%;
 }
 
-.dp-nav {
+.dp-nav.dp-skin {
   display: grid;
   place-items: center;
   inline-size: var(--dp-header-control-size);
@@ -139,19 +147,19 @@ html[dir="rtl"] .dp-month-select {
   pointer-events: none;
 }
 
-.dp-calendar-header :where(button, select, input):disabled,
+.dp-calendar-header .dp-skin:disabled,
 .dp-picker-button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
 
-.dp-nav:hover:not(:disabled) {
+.dp-nav.dp-skin:hover:not(:disabled) {
   background: var(--dp-hover);
 }
 
 /* Inner outlines survive forced colors and keep focus inside each control.
    The picker trigger uses a tighter inset around its icon below. */
-.dp-calendar-header :where(button, select, input):focus-visible,
+.dp-calendar-header .dp-skin:focus-visible,
 date-picker > input:not([type="hidden"]):focus-visible,
 .dp-day:focus-visible {
   outline: var(--dp-focus-width) solid var(--dp-focus);
@@ -446,8 +454,8 @@ date-picker[range] > .dp-picker-button[data-endpoint="end"] {
 @media (forced-colors: active) {
   /* The author-drawn caret is a gradient and disappears here: hand the
      control back to the browser instead of trying to rebuild it. */
-  .dp-month-select,
-  [dir="rtl"] .dp-month-select {
+  .dp-month-select.dp-skin,
+  [dir="rtl"] .dp-month-select.dp-skin {
     appearance: auto;
     background-image: none;
     padding-inline: 0.45rem;

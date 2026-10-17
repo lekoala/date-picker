@@ -128,6 +128,18 @@ Acceptance:
 - a missing or disabled time lifts the order constraint;
 - calendar selection and form reset keep the entered times.
 
+## U11 — Host design system controls
+
+The calendar header uses application-owned control classes without styling internal `.dp-*` selectors.
+
+Acceptance:
+
+- author classes survive every render;
+- the library applies no border, background, caret, padding, hover, disabled or focus skin to a role with author classes;
+- controls stretch to equal heights, the year keeps its grid-track width and long month names truncate;
+- labels, keyboard navigation and focus restoration are unchanged;
+- controls without author classes keep the default skin.
+
 ## Not a use case for this package
 
 Do not grow the API to cover these without a separate design:

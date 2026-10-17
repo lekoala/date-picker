@@ -60,3 +60,9 @@ Pointing and typing are different contracts, deliberately.
 - Because one interaction can move both bounds at once, a transition describes the whole resulting pair (`{ status, endpoint, changedEndpoints, range, activeEndpoint }`) and is applied in a single write: one `rangechange`, with synthetic `input` / `change` only on the bounds that actually moved.
 - Hover, keyboard focus and endpoint drag read the **same projection** (`previewRange()`) that the commit applies, so what the band promises is what the next selection commits. A preview writes nothing: no `rangechange`, no field write, no validation, no source request.
 - Click, keyboard and drop all end in that one range machine and in the same `ensureDate` plus cancelable `dateactivate` path, so an application veto cannot be bypassed by choosing another input device.
+
+## D7 — Author classes own header control styling
+
+`controlClasses` and `setDefaultControlClasses()` are the public hooks for styling the month, year and navigation roles with a host design system. A role with non-empty author classes receives no library skin, including in forced colors. Layout remains component-owned. Roles without author classes retain the default skin.
+
+The `.dp-*` namespace stays internal (D3); it is reserved and ignored in author class lists. Day grid cells and the picker trigger are outside this API. There is no HTML attribute.

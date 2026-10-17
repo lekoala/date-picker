@@ -1,4 +1,5 @@
 import { autoUpdate, reposition } from "@lekoala/floating";
+import { getDefaultControlClasses, resolveControlClasses } from "./control-classes.js";
 import { compareDates, isDate, monthKey, todayISO } from "./date.js";
 import { DateCalendarElement } from "./date-calendar.js";
 import { DateFieldController } from "./date-field.js";
@@ -63,6 +64,7 @@ export class DatePickerElement extends HTMLElement {
     this._open = false;
     this._suppressFocusOpen = false;
     this._messages = getDefaultMessages();
+    this._controlClasses = getDefaultControlClasses();
     /** @type {any} */
     this._source = null;
     /** @type {any} */
@@ -351,6 +353,21 @@ export class DatePickerElement extends HTMLElement {
   /** @public */
   get open() {
     return this._open;
+  }
+
+  /**
+   * Author classes for header controls; merged with global defaults.
+   * @public
+   * @returns {import("./control-classes.js").ControlClasses}
+   */
+  get controlClasses() {
+    return { ...this._controlClasses };
+  }
+
+  /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
+  set controlClasses(value) {
+    this._controlClasses = resolveControlClasses(value);
+    if (this._calendar) this._calendar.controlClasses = this._controlClasses;
   }
 
   /** @public */
@@ -1177,6 +1194,7 @@ export class DatePickerElement extends HTMLElement {
     calendar.min = this.min;
     calendar.max = this.max;
     calendar.monthFormat = this.monthFormat;
+    calendar.controlClasses = this._controlClasses;
     calendar.messages = this._messages;
     calendar.source = this._source;
     calendar.dateState = this._dateState;

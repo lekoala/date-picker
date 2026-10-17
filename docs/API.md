@@ -6,6 +6,8 @@ The public surface — flat event names, `selection` values, `--dp-*` styling to
 
 ### Attributes / properties
 
+- `controlClasses` — JS-only `{ month, year, nav }` partial class map; see header control styling below.
+
 | Name                | Type             | Default            | Meaning                                      |
 |---------------------|------------------|--------------------|----------------------------------------------|
 | `value`             | `YYYY-MM-DD`     | `""`               | Selected date.                               |
@@ -150,6 +152,8 @@ Markup:
 The direct child text input is required. On enhancement its original `name` moves to an internal hidden input that submits the canonical ISO value.
 
 ### Attributes / properties
+
+- `controlClasses` — JS-only `{ month, year, nav }` partial class map; see header control styling below.
 
 - `value` — canonical selected date;
 - `locale`;
@@ -406,3 +410,11 @@ Public helpers:
 - `isoWeekNumber`
 
 `normalizeFirstDay(firstDay)` maps `7` to `0` (Sunday) and returns `0..6` unchanged; any other value throws a `RangeError`. It backs `startOfWeek`, `getMonthWeeks` and `weekdayNames`, so those accept `7` as the ISO-style Sunday alias `@lekoala/calendar` uses while `2..6` keep their current meaning.
+
+## Header control styling
+
+`setDefaultControlClasses(partial)` and `getDefaultControlClasses()` are named package exports, alongside `setDefaultMessages()` / `getDefaultMessages()`. Set defaults before creating elements; existing elements are unchanged. The getter returns a copy.
+
+Both elements expose `controlClasses`. Assignment merges the partial map with current global defaults, not with the previous assignment. An empty string explicitly restores the default skin for a role; `null` resets to global defaults. The picker forwards the map to its shared calendar, including in range mode. There is no HTML attribute.
+
+Each non-empty role uses only the author's skin (including caret, hover, disabled and focus). Grid layout, year track width and month truncation stay component-owned. Day cells and the picker trigger are excluded. Class lists are whitespace-normalized and deduplicated; tokens containing quotes, HTML delimiters, equals signs, backticks or control characters, and the reserved `dp-*` namespace, are ignored. Values are HTML-escaped on rendering.

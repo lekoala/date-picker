@@ -296,6 +296,27 @@
     }
   }
 
+  // src/control-classes.js
+  function normalizeControlClass(value) {
+    if (typeof value !== "string")
+      return "";
+    return [
+      ...new Set(value.split(/\s+/).filter((token) => token && !token.startsWith("dp-") && !/["'<>`=]/.test(token) && ![...token].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)))
+    ].join(" ");
+  }
+  var defaults = { month: "", year: "", nav: "" };
+  function getDefaultControlClasses() {
+    return { ...defaults };
+  }
+  function resolveControlClasses(classes) {
+    const result = getDefaultControlClasses();
+    for (const role of ["month", "year", "nav"]) {
+      if (classes && Object.hasOwn(classes, role))
+        result[role] = normalizeControlClass(classes[role]);
+    }
+    return result;
+  }
+
   // src/date-range.js
   function normalizeRange(range) {
     if (range == null)
@@ -654,9 +675,9 @@
     rangeOrderStart: "Start must be on or before end",
     rangeOrderEnd: "End must be on or after start"
   };
-  var defaults = { ...DEFAULT_MESSAGES };
+  var defaults2 = { ...DEFAULT_MESSAGES };
   function getDefaultMessages() {
-    return { ...defaults };
+    return { ...defaults2 };
   }
 
   // src/source.js
@@ -757,6 +778,7 @@
       this._paintedRange = { start: "", end: "" };
       this._paintedPreview = false;
       this._messages = getDefaultMessages();
+      this._controlClasses = getDefaultControlClasses();
       this._onClick = this._onClick.bind(this);
       this._onChange = this._onChange.bind(this);
       this._onKeyDown = this._onKeyDown.bind(this);
@@ -892,6 +914,14 @@
     }
     set showWeekNumbers(value) {
       this.toggleAttribute("show-week-numbers", Boolean(value));
+    }
+    get controlClasses() {
+      return { ...this._controlClasses };
+    }
+    set controlClasses(value) {
+      this._controlClasses = resolveControlClasses(value);
+      if (this._connected)
+        this.render();
     }
     get messages() {
       return this._messages;
@@ -1365,18 +1395,22 @@
       const focusKey = focusedElement instanceof HTMLElement && this.contains(focusedElement) ? this._focusTargetKey(focusedElement) : "";
       const yearFirst = monthYearOrder(locale)[0] === "year";
       this.toggleAttribute("data-year-first", yearFirst);
+      const classes = resolveControlClasses(this._controlClasses);
+      const monthClass = escapeHtml(classes.month || "dp-skin");
+      const yearClass = escapeHtml(classes.year || "dp-skin");
+      const navClass = escapeHtml(classes.nav || "dp-skin");
       const monthControl = `<label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this._messages.month)}</label>
-          <select id="${this._id}-month" class="dp-month-select" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>`;
+          <select id="${this._id}-month" class="dp-month-select ${monthClass}" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>`;
       const yearControl = `<label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this._messages.year)}</label>
-          <input id="${this._id}-year" class="dp-year-input" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">`;
+          <input id="${this._id}-year" class="dp-year-input ${yearClass}" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">`;
       this._rendering = true;
       this.innerHTML = `
       <div class="dp-calendar-shell">
         <div class="dp-calendar-header">
           ${yearFirst ? yearControl : monthControl}
           ${yearFirst ? monthControl : yearControl}
-          <button type="button" class="dp-nav dp-prev" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
-          <button type="button" class="dp-nav dp-next" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
+          <button type="button" class="dp-nav dp-prev ${navClass}" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
+          <button type="button" class="dp-nav dp-next ${navClass}" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
         </div>
         <h2 id="${headingId}" class="dp-calendar-heading dp-visually-hidden" aria-live="polite">${escapeHtml(formatMonthYear(`${display}-15`, locale))}</h2>
         <table id="${gridId}" class="dp-grid" role="grid" aria-labelledby="${headingId}">
@@ -1993,6 +2027,7 @@
       this._open = false;
       this._suppressFocusOpen = false;
       this._messages = getDefaultMessages();
+      this._controlClasses = getDefaultControlClasses();
       this._source = null;
       this._dateState = null;
       this._renderDay = null;
@@ -2246,6 +2281,14 @@
     }
     get open() {
       return this._open;
+    }
+    get controlClasses() {
+      return { ...this._controlClasses };
+    }
+    set controlClasses(value) {
+      this._controlClasses = resolveControlClasses(value);
+      if (this._calendar)
+        this._calendar.controlClasses = this._controlClasses;
     }
     get messages() {
       return this._messages;
@@ -2879,6 +2922,7 @@
       calendar.min = this.min;
       calendar.max = this.max;
       calendar.monthFormat = this.monthFormat;
+      calendar.controlClasses = this._controlClasses;
       calendar.messages = this._messages;
       calendar.source = this._source;
       calendar.dateState = this._dateState;

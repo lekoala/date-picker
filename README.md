@@ -263,3 +263,19 @@ Deliberately out of scope:
 - [Roadmap](docs/ROADMAP.md)
 - [Calendar integration](docs/CALENDAR-INTEGRATION.md)
 - [Flatpickr/Formidable migration](docs/MIGRATION-FLATPICKR.md)
+
+### Host control classes
+
+Set application-wide header styles before creating calendars or pickers:
+
+```js
+import { setDefaultControlClasses } from "@lekoala/date-picker";
+
+setDefaultControlClasses({
+  month: "form-select form-select-sm",
+  year: "form-control form-control-sm",
+  nav: "btn btn-outline-secondary btn-sm",
+});
+```
+
+Each role with author classes uses the host design system's skin. Override per element through `controlClasses`; roles without classes retain the default skin. Day cells and the field trigger are unchanged.

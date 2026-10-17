@@ -93,6 +93,11 @@
             },
             {
               "kind": "getter",
+              "name": "controlClasses",
+              "description": "Author classes for header controls; merged with global defaults."
+            },
+            {
+              "kind": "getter",
               "name": "messages"
             },
             {
@@ -312,6 +317,11 @@
             {
               "kind": "getter",
               "name": "open"
+            },
+            {
+              "kind": "getter",
+              "name": "controlClasses",
+              "description": "Author classes for header controls; merged with global defaults."
             },
             {
               "kind": "getter",

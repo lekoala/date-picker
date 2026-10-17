@@ -80,6 +80,11 @@ export declare class DatePickerElement extends HTMLElement {
         rangeOrderStart: string;
         rangeOrderEnd: string;
     };
+    _controlClasses: {
+        month: string;
+        year: string;
+        nav: string;
+    };
     /** @type {any} */
     _source: any;
     /** @type {any} */
@@ -140,6 +145,14 @@ export declare class DatePickerElement extends HTMLElement {
     set openOnFocus(value: boolean);
     /** @public */
     get open(): boolean;
+    /**
+     * Author classes for header controls; merged with global defaults.
+     * @public
+     * @returns {import("./control-classes.js").ControlClasses}
+     */
+    get controlClasses(): import("./control-classes.js").ControlClasses;
+    /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
+    set controlClasses(value: Partial<import("./control-classes.js").ControlClasses> | null);
     /** @public */
     get messages(): {
         chooseDate: string;

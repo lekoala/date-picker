@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8">
+  <title>Host control classes</title>
+  <script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+  <link rel="stylesheet" href="/src/date-picker.css">
+  <style>
+    body { font: 16px system-ui; padding: 2rem; }
+    .host-select, .host-input, .host-nav {
+      border: 3px solid;
+      border-radius: 0;
+      background: Canvas;
+      color: CanvasText;
+      padding: 0.25rem;
+      font: inherit;
+    }
+    .host-input { inline-size: 100%; }
+    .host-nav { aspect-ratio: 1; }
+    .host-select:focus-visible, .host-input:focus-visible, .host-nav:focus-visible {
+      outline: 3px solid Highlight;
+      outline-offset: 2px;
+    }
+    .host-nav:disabled { opacity: 0.6; }
+  </style>
+  <date-calendar id="author-calendar" display="2026-09" value="2026-09-10" min="2026-09-01"></date-calendar>
+  <script type="module">
+    import { setDefaultControlClasses } from "/src/index.js";
+
+    setDefaultControlClasses({ month: "host-select", year: "host-input", nav: "host-nav" });
+    await import("/src/define.js");
+  </script>
+</html>

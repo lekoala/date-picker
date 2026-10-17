@@ -1,4 +1,5 @@
 export { CalendarModel } from "./calendar-model.js";
+export { getDefaultControlClasses, setDefaultControlClasses } from "./control-classes.js";
 export * as dates from "./date.js";
 export { DateCalendarElement } from "./date-calendar.js";
 export { DatePickerElement } from "./date-picker.js";

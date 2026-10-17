@@ -1,4 +1,5 @@
 import { CalendarModel } from "./calendar-model.js";
+import { getDefaultControlClasses, resolveControlClasses } from "./control-classes.js";
 import {
   addDays,
   clampDate,
@@ -156,6 +157,7 @@ export class DateCalendarElement extends HTMLElement {
     this._paintedRange = { start: "", end: "" };
     this._paintedPreview = false;
     this._messages = getDefaultMessages();
+    this._controlClasses = getDefaultControlClasses();
     this._onClick = this._onClick.bind(this);
     this._onChange = this._onChange.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
@@ -321,6 +323,21 @@ export class DateCalendarElement extends HTMLElement {
 
   set showWeekNumbers(value) {
     this.toggleAttribute("show-week-numbers", Boolean(value));
+  }
+
+  /**
+   * Author classes for header controls; merged with global defaults.
+   * @public
+   * @returns {import("./control-classes.js").ControlClasses}
+   */
+  get controlClasses() {
+    return { ...this._controlClasses };
+  }
+
+  /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
+  set controlClasses(value) {
+    this._controlClasses = resolveControlClasses(value);
+    if (this._connected) this.render();
   }
 
   /** @public */
@@ -879,10 +896,14 @@ export class DateCalendarElement extends HTMLElement {
     // select via `data-year-first`.
     const yearFirst = monthYearOrder(locale)[0] === "year";
     this.toggleAttribute("data-year-first", yearFirst);
+    const classes = resolveControlClasses(this._controlClasses);
+    const monthClass = escapeHtml(classes.month || "dp-skin");
+    const yearClass = escapeHtml(classes.year || "dp-skin");
+    const navClass = escapeHtml(classes.nav || "dp-skin");
     const monthControl = `<label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this._messages.month)}</label>
-          <select id="${this._id}-month" class="dp-month-select" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>`;
+          <select id="${this._id}-month" class="dp-month-select ${monthClass}" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>`;
     const yearControl = `<label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this._messages.year)}</label>
-          <input id="${this._id}-year" class="dp-year-input" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">`;
+          <input id="${this._id}-year" class="dp-year-input ${yearClass}" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">`;
 
     this._rendering = true;
     this.innerHTML = `
@@ -890,8 +911,8 @@ export class DateCalendarElement extends HTMLElement {
         <div class="dp-calendar-header">
           ${yearFirst ? yearControl : monthControl}
           ${yearFirst ? monthControl : yearControl}
-          <button type="button" class="dp-nav dp-prev" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
-          <button type="button" class="dp-nav dp-next" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
+          <button type="button" class="dp-nav dp-prev ${navClass}" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
+          <button type="button" class="dp-nav dp-next ${navClass}" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
         </div>
         <h2 id="${headingId}" class="dp-calendar-heading dp-visually-hidden" aria-live="polite">${escapeHtml(formatMonthYear(`${display}-15`, locale))}</h2>
         <table id="${gridId}" class="dp-grid" role="grid" aria-labelledby="${headingId}">

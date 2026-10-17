@@ -77,6 +77,11 @@ export declare class DateCalendarElement extends HTMLElement {
         rangeOrderStart: string;
         rangeOrderEnd: string;
     };
+    _controlClasses: {
+        month: string;
+        year: string;
+        nav: string;
+    };
     static observedAttributes: string[];
     constructor();
     connectedCallback(): void;
@@ -124,6 +129,14 @@ export declare class DateCalendarElement extends HTMLElement {
     /** @public */
     get showWeekNumbers(): boolean;
     set showWeekNumbers(value: boolean);
+    /**
+     * Author classes for header controls; merged with global defaults.
+     * @public
+     * @returns {import("./control-classes.js").ControlClasses}
+     */
+    get controlClasses(): import("./control-classes.js").ControlClasses;
+    /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
+    set controlClasses(value: Partial<import("./control-classes.js").ControlClasses> | null);
     /** @public */
     get messages(): {
         chooseDate: string;
