@@ -35,10 +35,7 @@ export function createFetchSource(url, options = {}) {
   return {
     /** @param {{start:string,end:string}} range @param {{signal?:AbortSignal}} [context] */
     async load(range, context = {}) {
-      const target = new URL(
-        String(url),
-        typeof document !== "undefined" ? document.baseURI : "http://localhost/",
-      );
+      const target = new URL(String(url), typeof document !== "undefined" ? document.baseURI : undefined);
       const params = options.params ? options.params(range) : range;
       for (const [key, value] of Object.entries(params)) target.searchParams.set(key, String(value));
       const response = await fetch(target, { signal: context.signal });

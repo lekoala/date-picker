@@ -31,6 +31,20 @@ test("getMonthWeeks returns true weeks and never pads", () => {
   expect(getMonthWeeks("2026-08").every((week) => week.length === 7)).toBe(true);
 });
 
+test("fixed weeks pad ordinary months but never leave the canonical window", () => {
+  expect(getMonthWeeks("2021-02", { fixedWeeks: true })).toHaveLength(6);
+  const last = getMonthWeeks("9999-12", { firstDay: 6, fixedWeeks: true });
+  expect(last).toHaveLength(5);
+  expect(last.at(-1).at(-1)).toBe("9999-12-31");
+  for (let firstDay = 0; firstDay < 7; firstDay++) {
+    for (const month of ["0001-01", "0001-02", "9999-11", "9999-12"]) {
+      const weeks = getMonthWeeks(clampDisplayMonth(month, firstDay), { firstDay, fixedWeeks: true });
+      expect(weeks.length).toBeLessThanOrEqual(6);
+      expect(weeks.every((week) => week.length === 7 && week.every(isDate))).toBe(true);
+    }
+  }
+});
+
 test("week helpers honor firstDay", () => {
   expect(startOfWeek("2026-09-03", 1)).toBe("2026-08-31");
   expect(startOfWeek("2026-09-03", 0)).toBe("2026-08-30");

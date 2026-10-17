@@ -570,6 +570,31 @@ export class DatePickerElement extends HTMLElement {
     this._refreshButtonLabel();
   }
 
+  /** @param {AbortSignal} signal @param {HTMLInputElement | null | undefined} input @param {() => void} restore */
+  _bindPopup(signal, input, restore) {
+    this.ownerDocument.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (!this._open || event.composedPath().includes(this)) return;
+        this.hide(false);
+      },
+      { capture: true, signal },
+    );
+    this.ownerDocument.addEventListener(
+      "reset",
+      (event) => {
+        if (!(event.target instanceof HTMLFormElement) || !input || event.target !== input.form) return;
+        // Reset is cancelable and runs before native values have been restored.
+        this.hide(false);
+        queueMicrotask(() => {
+          if (!event.defaultPrevented) restore();
+        });
+      },
+      { capture: true, signal },
+    );
+    this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
+  }
+
   _bind() {
     const input = this._input;
     const button = this._buttons[0]?.button;
@@ -658,30 +683,7 @@ export class DatePickerElement extends HTMLElement {
     // Re-check availability after a source load. validate() commits with
     // moveDisplay:false, so the visible month stays where the user navigated.
     calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
-    this.ownerDocument.addEventListener(
-      "pointerdown",
-      (event) => {
-        if (!this._open || event.composedPath().includes(this)) return;
-        this.hide(false);
-      },
-      { capture: true, signal },
-    );
-    this.ownerDocument.addEventListener(
-      "reset",
-      (event) => {
-        const form = event.target;
-        if (form instanceof HTMLFormElement && this._input && form === this._input.form) {
-          // The reset event fires before the control values are restored and
-          // is cancelable; only resync when the reset actually applies.
-          this.hide(false);
-          queueMicrotask(() => {
-            if (!event.defaultPrevented) this._restoreDefault();
-          });
-        }
-      },
-      { capture: true, signal },
-    );
-    this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
+    this._bindPopup(signal, this._input, () => this._restoreDefault());
   }
 
   _bindRange() {
@@ -789,28 +791,7 @@ export class DatePickerElement extends HTMLElement {
     // Re-check availability after a source load. validate() commits with
     // moveDisplay:false, so the visible month stays where the user navigated.
     calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
-    this.ownerDocument.addEventListener(
-      "pointerdown",
-      (event) => {
-        if (!this._open || event.composedPath().includes(this)) return;
-        this.hide(false);
-      },
-      { capture: true, signal },
-    );
-    this.ownerDocument.addEventListener(
-      "reset",
-      (event) => {
-        const form = event.target;
-        if (form instanceof HTMLFormElement && this._fields && form === this._fields[0].input.form) {
-          this.hide(false);
-          queueMicrotask(() => {
-            if (!event.defaultPrevented) this._restoreRangeDefault();
-          });
-        }
-      },
-      { capture: true, signal },
-    );
-    this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
+    this._bindPopup(signal, this._fields?.[0]?.input, () => this._restoreRangeDefault());
   }
 
   /**

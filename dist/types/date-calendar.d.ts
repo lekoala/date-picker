@@ -57,6 +57,8 @@ export declare class DateCalendarElement extends HTMLElement {
     /** @type {DateRange} */
     _paintedRange: DateRange;
     _paintedPreview: boolean;
+    /** @type {Map<string, DateState>} States of the current rendered grid. */
+    _renderedStates: Map<string, DateState>;
     _messages: {
         chooseDate: string;
         changeDate: string;

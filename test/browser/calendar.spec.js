@@ -736,6 +736,122 @@ test("a live preview rewrites day labels even when the band is unchanged", async
   expect(labels.cleared).toContain("Range start");
 });
 
+test("range previews reuse rendered state while explicit renders and activation read fresh state", async ({
+  page,
+}) => {
+  const result = await page.evaluate(async () => {
+    const calendar = document.createElement("date-calendar");
+    calendar.display = "2026-09";
+    calendar.fixedWeeks = true;
+    document.body.append(calendar);
+    let calls = 0;
+    let unavailable = false;
+    calendar.dateState = () => {
+      calls++;
+      return { disabled: unavailable, description: unavailable ? "Updated" : "Original" };
+    };
+    calendar.renderDay = (_date, state) => state.description;
+    const cell = calendar.querySelector('[data-date="2026-09-10"]');
+    calls = 0;
+    calendar.highlightedRange = { start: "2026-09-10", end: "2026-09-15" };
+    calendar.setAttribute("data-range-preview", "");
+    calendar.highlightedRange = { start: "2026-09-10", end: "2026-09-15" };
+    const observer = new MutationObserver(() => {});
+    observer.observe(calendar, { subtree: true, attributes: true, attributeFilter: ["aria-label"] });
+    unavailable = true;
+    calendar.highlightedRange = { start: "2026-09-10", end: "2026-09-16" };
+    const preview = {
+      calls,
+      labelWrites: observer.takeRecords().length,
+      sameCell: cell === calendar.querySelector('[data-date="2026-09-10"]'),
+      label: cell.getAttribute("aria-label"),
+    };
+    observer.disconnect();
+    let activated = false;
+    calendar.addEventListener("dateactivate", () => {
+      activated = true;
+    });
+    await calendar.activateDate("2026-09-10");
+    calls = 0;
+    calendar.render(false);
+    const refreshed = calendar.querySelector('[data-date="2026-09-10"]');
+    const renderCalls = calls;
+    calendar.removeAttribute("data-range-preview");
+    calendar.highlightedRange = { start: "2026-09-10", end: "2026-09-16" };
+    return {
+      preview,
+      activated,
+      renderCalls,
+      refreshedLabel: refreshed.getAttribute("aria-label"),
+      extra: refreshed.querySelector(".dp-day-extra").textContent,
+      disabled: refreshed.getAttribute("aria-disabled"),
+    };
+  });
+  expect(result.preview.calls).toBe(0);
+  expect(result.preview.labelWrites).toBe(0);
+  expect(result.preview.sameCell).toBe(true);
+  expect(result.preview.label).toContain("Original");
+  expect(result.preview.label).not.toContain("Range start");
+  expect(result.activated).toBe(false);
+  expect(result.renderCalls).toBe(42);
+  expect(result.refreshedLabel).toContain("Updated");
+  expect(result.refreshedLabel).toContain("Range start");
+  expect(result.extra).toBe("Updated");
+  expect(result.disabled).toBe("true");
+});
+
+test("source reloads replace the state snapshot used by range labels", async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const calendar = document.createElement("date-calendar");
+    calendar.display = "2026-09";
+    let description = "First source";
+    calendar.source = async () => ({ dates: { "2026-09-10": { description } } });
+    document.body.append(calendar);
+    await calendar.refreshSource();
+    const read = () => calendar.querySelector('[data-date="2026-09-10"]').getAttribute("aria-label");
+    const first = read();
+    description = "Second source";
+    await calendar.refreshSource();
+    calendar.highlightedRange = { start: "2026-09-10", end: "2026-09-15" };
+    return { first, second: read() };
+  });
+  expect(result.first).toContain("First source");
+  expect(result.second).toContain("Second source");
+  expect(result.second).not.toContain("First source");
+  expect(result.second).toContain("Range start");
+});
+
+test("fixed weeks at December 9999 keep full valid rows without padding past the boundary", async ({
+  page,
+}) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(String(error)));
+  const result = await page.evaluate(() => {
+    const calendar = document.createElement("date-calendar");
+    calendar.firstDay = 6;
+    calendar.fixedWeeks = true;
+    calendar.display = "9999-12";
+    calendar.value = "9999-12-10";
+    document.body.append(calendar);
+    const dates = [...calendar.querySelectorAll(".dp-day")].map((cell) => cell.dataset.date);
+    calendar.nextMonth();
+    return {
+      dates,
+      rows: calendar.querySelectorAll("tbody tr").length,
+      roving: calendar.querySelectorAll('.dp-day[tabindex="0"]').length,
+      value: calendar.value,
+      display: calendar.display,
+    };
+  });
+  expect(errors).toEqual([]);
+  expect(result.rows).toBe(5);
+  expect(result.dates).toHaveLength(35);
+  expect(result.dates.at(-1)).toBe("9999-12-31");
+  expect(result.roving).toBe(1);
+  expect(result.value).toBe("9999-12-10");
+  expect(result.display).toBe("9999-12");
+});
+
 test("focusing a date at the calendar edge keeps it inside the rendered grid", async ({ page }) => {
   const result = await page.evaluate(() => {
     const calendar = document.createElement("date-calendar");

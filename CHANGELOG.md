@@ -6,6 +6,17 @@
 
 - `controlClasses` on calendars and pickers, plus `setDefaultControlClasses()` / `getDefaultControlClasses()`, let host design systems own header control styling while preserving calendar layout and accessibility.
 
+### Changed
+
+- Reuse bounded caches of Intl date formatters and digit maps. Range previews reuse the rendered day states and update only changed band cells; moving a preview no longer rebuilds accessible labels or invokes application state callbacks. `renderDay` receives the same state used for its cell. Call `calendar.render()` when callback-owned data changes; activation still checks current state.
+- Share popup outside-click, reset and Escape listeners between single and range pickers.
+
+### Fixed
+
+- `fixed-weeks` no longer throws at December 9999 with Saturday-first weeks: padding stops at the canonical boundary and retains five full rows. Civil padding now lives in `getMonthWeeks()` through its optional `fixedWeeks` option.
+- Fetch sources outside the DOM require absolute URLs instead of silently resolving relative URLs against localhost.
+- Remove an unreachable validity branch in editable field input handling; document the snapshot semantics of global message defaults.
+
 ## 0.4.0 — 2026-10-12
 
 ### Added

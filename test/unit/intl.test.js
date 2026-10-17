@@ -1,5 +1,48 @@
 import { expect, test } from "bun:test";
-import { createDateAdapter, monthNames, monthYearOrder, weekdayNames } from "../../src/intl.js";
+import {
+  createDateAdapter,
+  formatLongDate,
+  formatMonthYear,
+  monthNames,
+  monthYearOrder,
+  weekdayNames,
+} from "../../src/intl.js";
+
+test("date formatters and digit maps reuse locales and distinguish options", () => {
+  const originalDate = Intl.DateTimeFormat;
+  const originalNumber = Intl.NumberFormat;
+  let dates = 0;
+  let numbers = 0;
+  Intl.DateTimeFormat = new Proxy(originalDate, {
+    construct(target, args) {
+      dates++;
+      return Reflect.construct(target, args);
+    },
+  });
+  Intl.NumberFormat = new Proxy(originalNumber, {
+    construct(target, args) {
+      numbers++;
+      return Reflect.construct(target, args);
+    },
+  });
+  try {
+    const locale = "fr-LU-x-cache";
+    for (let i = 0; i < 42; i++) expect(formatLongDate("2026-09-06", locale)).toContain("septembre");
+    expect(dates).toBe(1);
+    expect(formatMonthYear("2026-09", locale)).toContain("septembre");
+    monthYearOrder(locale);
+    expect(dates).toBe(2);
+    expect(formatLongDate("2026-09-06", "en-NZ-x-cache")).toContain("September");
+    expect(dates).toBe(3);
+    const adapter = createDateAdapter("ar-EG-x-cache");
+    for (let i = 0; i < 10; i++) expect(adapter.parse(adapter.format("2026-09-06"))).toBe("2026-09-06");
+    expect(numbers).toBe(1);
+    expect(() => formatLongDate("2026-09-06", "invalid_locale")).toThrow();
+  } finally {
+    Intl.DateTimeFormat = originalDate;
+    Intl.NumberFormat = originalNumber;
+  }
+});
 
 test("fr-BE adapter formats and parses the same civil date", () => {
   const adapter = createDateAdapter("fr-BE");

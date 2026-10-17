@@ -138,7 +138,7 @@ export class DateFieldController {
       input.setCustomValidity("");
       return;
     }
-    input.setCustomValidity(text === canonical ? "" : this.messages.invalidDate);
+    input.setCustomValidity(this.messages.invalidDate);
   }
 
   /**

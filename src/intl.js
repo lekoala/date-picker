@@ -2,6 +2,33 @@ import { isDate, normalizeFirstDay, parseDate, toIntlDate, toISODate } from "./d
 
 const BIDI = /[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g;
 
+/** @type {Map<string, Intl.DateTimeFormat>} */
+const dateFormatters = new Map();
+/** @type {Map<string, Map<string, string>>} */
+const digitMaps = new Map();
+
+/**
+ * Bound retained locales/options even when an application cycles through many.
+ * @template T
+ * @param {Map<string, T>} cache @param {string} key @param {() => T} create
+ * @returns {T}
+ */
+function cached(cache, key, create) {
+  const existing = cache.get(key);
+  if (existing !== undefined) return existing;
+  const value = create();
+  const oldest = cache.keys().next().value;
+  if (cache.size >= 64 && oldest !== undefined) cache.delete(oldest);
+  cache.set(key, value);
+  return value;
+}
+
+/** @param {string} locale @param {Intl.DateTimeFormatOptions} options */
+function dateFormatter(locale, options) {
+  const key = JSON.stringify([locale, options]);
+  return cached(dateFormatters, key, () => new Intl.DateTimeFormat(locale, options));
+}
+
 /** @param {string} [locale] */
 export function resolveLocale(locale = "") {
   if (locale) return locale;
@@ -12,10 +39,12 @@ export function resolveLocale(locale = "") {
 
 /** @param {string} locale */
 function digitMap(locale) {
-  const formatter = new Intl.NumberFormat(locale, { useGrouping: false });
-  const map = new Map();
-  for (let i = 0; i <= 9; i++) map.set(formatter.format(i), String(i));
-  return map;
+  return cached(digitMaps, locale, () => {
+    const formatter = new Intl.NumberFormat(locale, { useGrouping: false });
+    const map = new Map();
+    for (let i = 0; i <= 9; i++) map.set(formatter.format(i), String(i));
+    return map;
+  });
 }
 
 /**
@@ -33,7 +62,7 @@ function normalizeDigits(text, locale, options = {}) {
 /** @param {string} value @param {string} [locale] */
 export function formatLongDate(value, locale = "") {
   const resolved = resolveLocale(locale);
-  return new Intl.DateTimeFormat(resolved, {
+  return dateFormatter(resolved, {
     calendar: "gregory",
     weekday: "long",
     year: "numeric",
@@ -46,7 +75,7 @@ export function formatLongDate(value, locale = "") {
 /** @param {string} value @param {string} [locale] */
 export function formatMonthYear(value, locale = "") {
   const resolved = resolveLocale(locale);
-  return new Intl.DateTimeFormat(resolved, {
+  return dateFormatter(resolved, {
     calendar: "gregory",
     year: "numeric",
     month: "long",
@@ -65,7 +94,7 @@ export function formatMonthYear(value, locale = "") {
 export function monthYearOrder(locale = "") {
   const resolved = resolveLocale(locale);
   try {
-    const parts = new Intl.DateTimeFormat(resolved, {
+    const parts = dateFormatter(resolved, {
       calendar: "gregory",
       year: "numeric",
       month: "long",
@@ -92,7 +121,7 @@ export function monthYearOrder(locale = "") {
 /** @param {string} [locale] @param {"long"|"short"} [style] */
 export function monthNames(locale = "", style = "long") {
   const resolved = resolveLocale(locale);
-  const formatter = new Intl.DateTimeFormat(resolved, { calendar: "gregory", month: style, timeZone: "UTC" });
+  const formatter = dateFormatter(resolved, { calendar: "gregory", month: style, timeZone: "UTC" });
   return Array.from({ length: 12 }, (_, index) =>
     formatter.format(toIntlDate(`2026-${String(index + 1).padStart(2, "0")}-15`)),
   );
@@ -105,7 +134,7 @@ export function monthNames(locale = "", style = "long") {
  */
 export function weekdayNames(locale = "", firstDay = 1, style = "short") {
   const resolved = resolveLocale(locale);
-  const formatter = new Intl.DateTimeFormat(resolved, {
+  const formatter = dateFormatter(resolved, {
     calendar: "gregory",
     weekday: style,
     timeZone: "UTC",
@@ -131,7 +160,7 @@ function escapeRegExp(value) {
  */
 export function createDateAdapter(locale = "") {
   const resolved = resolveLocale(locale);
-  const formatter = new Intl.DateTimeFormat(resolved, {
+  const formatter = dateFormatter(resolved, {
     calendar: "gregory",
     year: "numeric",
     month: "2-digit",

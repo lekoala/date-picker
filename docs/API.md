@@ -18,7 +18,7 @@ The public surface — flat event names, `selection` values, `--dp-*` styling to
 | `locale`            | BCP 47 string    | document/navigator | `Intl` locale.                               |
 | `month-format`      | `long \| short`  | `long`             | Visible month-name style in the month select; anything else falls back to `long`. The accessible grid heading always keeps the long month/year form. |
 | `selection`         | `single \| none` | `single`           | Whether accepted activation updates `value`. |
-| `fixed-weeks`       | boolean          | false              | Render six rows; date math itself stays 4–6. |
+| `fixed-weeks`       | boolean          | false              | Request six full rows, limited by canonical date bounds. |
 | `show-week-numbers` | boolean          | false              | Show ISO week numbers. The column renders only when `first-day === 1` (Monday-first): the ISO week and the displayed week only coincide then. With Sunday-first (`0`/`7`) the column is silently withheld. |
 
 `focusedDate` and `highlightedRange` are properties rather than reflected attributes.
@@ -366,6 +366,8 @@ ISO input is accepted as a fallback even when the locale display is different.
 
 ## Locales
 
+`setDefaultMessages(partial)` merges global defaults for subsequently created elements; it does not update existing instances. `getDefaultMessages()` returns a copy. Assigning `element.messages` merges that assignment with the current global defaults, not with the previous assignment.
+
 Control-message dictionaries ship per locale and can be attached through the `messages` property:
 
 ```js
@@ -418,3 +420,11 @@ Public helpers:
 Both elements expose `controlClasses`. Assignment merges the partial map with current global defaults, not with the previous assignment. An empty string explicitly restores the default skin for a role; `null` resets to global defaults. The picker forwards the map to its shared calendar, including in range mode. There is no HTML attribute.
 
 Each non-empty role uses only the author's skin (including caret, hover, disabled and focus). Grid layout, year track width and month truncation stay component-owned. Day cells and the picker trigger are excluded. Class lists are whitespace-normalized and deduplicated; tokens containing quotes, HTML delimiters, equals signs, backticks or control characters, and the reserved `dp-*` namespace, are ignored. Values are HTML-escaped on rendering.
+
+## Render snapshots and range previews
+
+A full `calendar.render()` resolves each visible day's state once through `dateState` and, unless explicitly enabled, `isDateDisabled`. The grid and `renderDay` use that same state snapshot. Range-band updates reuse it without calling these callbacks again. If a callback reads mutable application data, call `calendar.render()` after changing that data. Assigning callbacks, changing calendar options or completing a source load already rebuilds the snapshot. Activation still reads current state and checks source availability.
+
+`fixed-weeks` requests six complete rows. At the end of the canonical date window, December 9999 with Saturday as the first weekday renders five rows rather than padding beyond `9999-12-31`. `dates.getMonthWeeks(value, { firstDay, fixedWeeks: true })` uses the same rule; its default remains unpadded.
+
+Outside a document, `createFetchSource()` requires an absolute URL. Relative URLs resolve against `document.baseURI` in the browser; there is no implicit localhost base. Cancellation and optional timeouts belong to the caller's `AbortSignal`.

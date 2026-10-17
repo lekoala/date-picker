@@ -1,6 +1,12 @@
 import { expect, test } from "bun:test";
 import { createFetchSource, normalizeDateStates } from "../../src/source.js";
 
+test("relative fetch URLs require a document base instead of silently using localhost", async () => {
+  await expect(
+    createFetchSource("/availability").load({ start: "2026-09-01", end: "2026-09-30" }),
+  ).rejects.toThrow();
+});
+
 test("normalizeDateStates accepts the { dates } wrapper", () => {
   const map = normalizeDateStates({ dates: { "2026-09-12": { disabled: true } } });
   expect(map.get("2026-09-12")).toEqual({ disabled: true });

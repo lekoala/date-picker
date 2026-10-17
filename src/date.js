@@ -165,9 +165,10 @@ export function endOfWeek(value, firstDay = 1) {
 }
 
 /**
- * True civil weeks covering the anchor month: 4..6 full rows, never padded.
+ * Civil weeks covering the anchor month: 4..6 full rows. Optional fixed weeks
+ * pads to six rows when a full extra week fits inside the canonical window.
  * @param {string} value YYYY-MM or YYYY-MM-DD
- * @param {{firstDay?: number}} [options]
+ * @param {{firstDay?: number, fixedWeeks?: boolean}} [options]
  */
 export function getMonthWeeks(value, options = {}) {
   const firstDay = options.firstDay ?? 1;
@@ -183,7 +184,9 @@ export function getMonthWeeks(value, options = {}) {
     // Stop from the built week's own end: advancing the cursor past the final
     // week (e.g. from 9999-12-25 to 10000-01-01) would leave the canonical
     // window even when every emitted day is valid.
-    if (compareDates(week[6], end) >= 0) break;
+    if (compareDates(week[6], end) >= 0) {
+      if (!options.fixedWeeks || weeks.length >= 6 || compareDates(week[6], "9999-12-24") > 0) break;
+    }
     cursor = addDays(cursor, 7);
   }
   return weeks;

@@ -181,8 +181,10 @@
       for (let i = 0;i < 7; i++)
         week.push(addDays(cursor, i));
       weeks.push(week);
-      if (compareDates(week[6], end) >= 0)
-        break;
+      if (compareDates(week[6], end) >= 0) {
+        if (!options.fixedWeeks || weeks.length >= 6 || compareDates(week[6], "9999-12-24") > 0)
+          break;
+      }
       cursor = addDays(cursor, 7);
     }
     return weeks;
@@ -501,6 +503,23 @@
 
   // src/intl.js
   var BIDI = /[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g;
+  var dateFormatters = new Map;
+  var digitMaps = new Map;
+  function cached(cache, key, create) {
+    const existing = cache.get(key);
+    if (existing !== undefined)
+      return existing;
+    const value = create();
+    const oldest = cache.keys().next().value;
+    if (cache.size >= 64 && oldest !== undefined)
+      cache.delete(oldest);
+    cache.set(key, value);
+    return value;
+  }
+  function dateFormatter(locale, options) {
+    const key = JSON.stringify([locale, options]);
+    return cached(dateFormatters, key, () => new Intl.DateTimeFormat(locale, options));
+  }
   function resolveLocale(locale = "") {
     if (locale)
       return locale;
@@ -511,11 +530,13 @@
     return "en-US";
   }
   function digitMap(locale) {
-    const formatter = new Intl.NumberFormat(locale, { useGrouping: false });
-    const map = new Map;
-    for (let i = 0;i <= 9; i++)
-      map.set(formatter.format(i), String(i));
-    return map;
+    return cached(digitMaps, locale, () => {
+      const formatter = new Intl.NumberFormat(locale, { useGrouping: false });
+      const map = new Map;
+      for (let i = 0;i <= 9; i++)
+        map.set(formatter.format(i), String(i));
+      return map;
+    });
   }
   function normalizeDigits(text, locale, options = {}) {
     let result = String(text || "").replace(BIDI, "");
@@ -527,7 +548,7 @@
   }
   function formatLongDate(value, locale = "") {
     const resolved = resolveLocale(locale);
-    return new Intl.DateTimeFormat(resolved, {
+    return dateFormatter(resolved, {
       calendar: "gregory",
       weekday: "long",
       year: "numeric",
@@ -538,7 +559,7 @@
   }
   function formatMonthYear(value, locale = "") {
     const resolved = resolveLocale(locale);
-    return new Intl.DateTimeFormat(resolved, {
+    return dateFormatter(resolved, {
       calendar: "gregory",
       year: "numeric",
       month: "long",
@@ -548,7 +569,7 @@
   function monthYearOrder(locale = "") {
     const resolved = resolveLocale(locale);
     try {
-      const parts = new Intl.DateTimeFormat(resolved, {
+      const parts = dateFormatter(resolved, {
         calendar: "gregory",
         year: "numeric",
         month: "long",
@@ -573,12 +594,12 @@
   }
   function monthNames(locale = "", style = "long") {
     const resolved = resolveLocale(locale);
-    const formatter = new Intl.DateTimeFormat(resolved, { calendar: "gregory", month: style, timeZone: "UTC" });
+    const formatter = dateFormatter(resolved, { calendar: "gregory", month: style, timeZone: "UTC" });
     return Array.from({ length: 12 }, (_, index) => formatter.format(toIntlDate(`2026-${String(index + 1).padStart(2, "0")}-15`)));
   }
   function weekdayNames(locale = "", firstDay = 1, style = "short") {
     const resolved = resolveLocale(locale);
-    const formatter = new Intl.DateTimeFormat(resolved, {
+    const formatter = dateFormatter(resolved, {
       calendar: "gregory",
       weekday: style,
       timeZone: "UTC"
@@ -596,7 +617,7 @@
   }
   function createDateAdapter(locale = "") {
     const resolved = resolveLocale(locale);
-    const formatter = new Intl.DateTimeFormat(resolved, {
+    const formatter = dateFormatter(resolved, {
       calendar: "gregory",
       year: "numeric",
       month: "2-digit",
@@ -777,6 +798,7 @@
       this._highlightedRange = { start: "", end: "" };
       this._paintedRange = { start: "", end: "" };
       this._paintedPreview = false;
+      this._renderedStates = new Map;
       this._messages = getDefaultMessages();
       this._controlClasses = getDefaultControlClasses();
       this._onClick = this._onClick.bind(this);
@@ -1003,18 +1025,10 @@
       return compareDates(candidate, last) > 0 ? last : candidate;
     }
     _weeks(display = this.display) {
-      const weeks = getMonthWeeks(clampDisplayMonth(display, this.firstDay), { firstDay: this.firstDay });
-      if (!this.fixedWeeks || weeks.length >= 6)
-        return weeks;
-      let cursor = weeks[weeks.length - 1]?.[6] || "";
-      while (weeks.length < 6 && cursor) {
-        const week = [];
-        for (let i = 1;i <= 7; i++)
-          week.push(addDays(cursor, i));
-        weeks.push(week);
-        cursor = week[6];
-      }
-      return weeks;
+      return getMonthWeeks(clampDisplayMonth(display, this.firstDay), {
+        firstDay: this.firstDay,
+        fixedWeeks: this.fixedWeeks
+      });
     }
     _focusTargetKey(element) {
       if (element.matches(".dp-month-select, .dp-year-input") && element.id) {
@@ -1201,6 +1215,8 @@
       ].filter(Boolean).join(". ");
     }
     _updateRangeDom() {
+      const previousRange = this._paintedRange;
+      const previousPreview = this._paintedPreview;
       this._paintedRange = { ...this._highlightedRange };
       this._paintedPreview = this.hasAttribute("data-range-preview");
       for (const cell of this.querySelectorAll(".dp-day[data-date]")) {
@@ -1208,13 +1224,20 @@
           continue;
         const date = cell.dataset.date || "";
         const position = rangePosition(date, this._highlightedRange);
+        if (position === rangePosition(date, previousRange) && previousPreview === this._paintedPreview)
+          continue;
         for (const [name, on] of Object.entries(rangeAttributeMap(position))) {
           if (on)
             cell.setAttribute(name, "true");
           else
             cell.removeAttribute(name);
         }
-        cell.setAttribute("aria-label", this._dayLabel(date, this.getDateState(date), position));
+        if (!previousPreview || !this._paintedPreview) {
+          const state = this._renderedStates.get(date) || {};
+          const label = this._dayLabel(date, state, position);
+          if (cell.getAttribute("aria-label") !== label)
+            cell.setAttribute("aria-label", label);
+        }
       }
     }
     focusGrid() {
@@ -1377,10 +1400,12 @@
         return `<option value="${String(month).padStart(2, "0")}"${month === displayMonth ? " selected" : ""}${disabled ? " disabled" : ""}>${escapeHtml(name)}</option>`;
       }).join("");
       const dayHeaders = weekdayShort.map((name, index) => `<th scope="col" abbr="${escapeHtml(weekdayLong[index])}">${escapeHtml(name.replace(".", ""))}</th>`).join("");
+      this._renderedStates.clear();
       const rows = weeks.map((week) => {
         const weekNumber = showWeeks ? `<th scope="row" class="dp-week-number">${isoWeekNumber(week[0])}</th>` : "";
         const cells = week.map((date) => {
           const state = this.getDateState(date);
+          this._renderedStates.set(date, state);
           const outside = monthKey(date) !== display;
           const selected = this.value === date;
           const focused = this.focusedDate === date;
@@ -1440,7 +1465,7 @@
           const extra = cell.querySelector(".dp-day-extra");
           if (!(extra instanceof HTMLElement))
             continue;
-          const content = this._renderDay(date, this.getDateState(date));
+          const content = this._renderDay(date, this._renderedStates.get(date) || {});
           if (content instanceof Node)
             extra.append(content);
           else if (content !== undefined && content !== null)
@@ -1897,7 +1922,7 @@
         input.setCustomValidity("");
         return;
       }
-      input.setCustomValidity(text === canonical ? "" : this.messages.invalidDate);
+      input.setCustomValidity(this.messages.invalidDate);
     }
     async commit(options = {}) {
       const input = this.input;
@@ -2453,6 +2478,23 @@
       this._refreshLocale();
       this._refreshButtonLabel();
     }
+    _bindPopup(signal, input, restore) {
+      this.ownerDocument.addEventListener("pointerdown", (event) => {
+        if (!this._open || event.composedPath().includes(this))
+          return;
+        this.hide(false);
+      }, { capture: true, signal });
+      this.ownerDocument.addEventListener("reset", (event) => {
+        if (!(event.target instanceof HTMLFormElement) || !input || event.target !== input.form)
+          return;
+        this.hide(false);
+        queueMicrotask(() => {
+          if (!event.defaultPrevented)
+            restore();
+        });
+      }, { capture: true, signal });
+      this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
+    }
     _bind() {
       const input = this._input;
       const button = this._buttons[0]?.button;
@@ -2515,22 +2557,7 @@
         });
       }, { signal });
       calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
-      this.ownerDocument.addEventListener("pointerdown", (event) => {
-        if (!this._open || event.composedPath().includes(this))
-          return;
-        this.hide(false);
-      }, { capture: true, signal });
-      this.ownerDocument.addEventListener("reset", (event) => {
-        const form = event.target;
-        if (form instanceof HTMLFormElement && this._input && form === this._input.form) {
-          this.hide(false);
-          queueMicrotask(() => {
-            if (!event.defaultPrevented)
-              this._restoreDefault();
-          });
-        }
-      }, { capture: true, signal });
-      this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
+      this._bindPopup(signal, this._input, () => this._restoreDefault());
     }
     _bindRange() {
       const calendar = this._calendar;
@@ -2610,22 +2637,7 @@
       calendar.addEventListener("pointercancel", (event) => this._onGridPointerCancel(event), { signal });
       calendar.addEventListener("lostpointercapture", (event) => this._onGridPointerCancel(event), { signal });
       calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
-      this.ownerDocument.addEventListener("pointerdown", (event) => {
-        if (!this._open || event.composedPath().includes(this))
-          return;
-        this.hide(false);
-      }, { capture: true, signal });
-      this.ownerDocument.addEventListener("reset", (event) => {
-        const form = event.target;
-        if (form instanceof HTMLFormElement && this._fields && form === this._fields[0].input.form) {
-          this.hide(false);
-          queueMicrotask(() => {
-            if (!event.defaultPrevented)
-              this._restoreRangeDefault();
-          });
-        }
-      }, { capture: true, signal });
-      this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
+      this._bindPopup(signal, this._fields?.[0]?.input, () => this._restoreRangeDefault());
     }
     _activateRangeEndpoint(endpoint) {
       const calendar = this._calendar;

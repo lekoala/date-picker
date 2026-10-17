@@ -234,6 +234,8 @@ export declare class DatePickerElement extends HTMLElement {
      * between the two; it is not focusable.
      */
     _build(): void;
+    /** @param {AbortSignal} signal @param {HTMLInputElement | null | undefined} input @param {() => void} restore */
+    _bindPopup(signal: AbortSignal, input: HTMLInputElement | null | undefined, restore: () => void): void;
     _bind(): void;
     _bindRange(): void;
     /**

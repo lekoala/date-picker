@@ -51,12 +51,14 @@ export declare function startOfWeek(value: string, firstDay?: number): string;
 /** @param {string} value @param {number} firstDay */
 export declare function endOfWeek(value: string, firstDay?: number): string;
 /**
- * True civil weeks covering the anchor month: 4..6 full rows, never padded.
+ * Civil weeks covering the anchor month: 4..6 full rows. Optional fixed weeks
+ * pads to six rows when a full extra week fits inside the canonical window.
  * @param {string} value YYYY-MM or YYYY-MM-DD
- * @param {{firstDay?: number}} [options]
+ * @param {{firstDay?: number, fixedWeeks?: boolean}} [options]
  */
 export declare function getMonthWeeks(value: string, options?: {
     firstDay?: number;
+    fixedWeeks?: boolean;
 }): string[][];
 /**
  * Nearest month whose true civil weeks stay inside 0001-01-01..9999-12-31, so a

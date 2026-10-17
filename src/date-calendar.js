@@ -156,6 +156,8 @@ export class DateCalendarElement extends HTMLElement {
     /** @type {DateRange} */
     this._paintedRange = { start: "", end: "" };
     this._paintedPreview = false;
+    /** @type {Map<string, DateState>} States of the current rendered grid. */
+    this._renderedStates = new Map();
     this._messages = getDefaultMessages();
     this._controlClasses = getDefaultControlClasses();
     this._onClick = this._onClick.bind(this);
@@ -437,16 +439,10 @@ export class DateCalendarElement extends HTMLElement {
   }
 
   _weeks(display = this.display) {
-    const weeks = getMonthWeeks(clampDisplayMonth(display, this.firstDay), { firstDay: this.firstDay });
-    if (!this.fixedWeeks || weeks.length >= 6) return weeks;
-    let cursor = weeks[weeks.length - 1]?.[6] || "";
-    while (weeks.length < 6 && cursor) {
-      const week = [];
-      for (let i = 1; i <= 7; i++) week.push(addDays(cursor, i));
-      weeks.push(week);
-      cursor = week[6];
-    }
-    return weeks;
+    return getMonthWeeks(clampDisplayMonth(display, this.firstDay), {
+      firstDay: this.firstDay,
+      fixedWeeks: this.fixedWeeks,
+    });
   }
 
   /** @param {HTMLElement} element @returns {string} */
@@ -664,17 +660,27 @@ export class DateCalendarElement extends HTMLElement {
    * hover of a live range preview.
    */
   _updateRangeDom() {
+    const previousRange = this._paintedRange;
+    const previousPreview = this._paintedPreview;
     this._paintedRange = { ...this._highlightedRange };
     this._paintedPreview = this.hasAttribute("data-range-preview");
     for (const cell of this.querySelectorAll(".dp-day[data-date]")) {
       if (!(cell instanceof HTMLTableCellElement)) continue;
       const date = cell.dataset.date || "";
       const position = rangePosition(date, this._highlightedRange);
+      if (position === rangePosition(date, previousRange) && previousPreview === this._paintedPreview)
+        continue;
       for (const [name, on] of Object.entries(rangeAttributeMap(position))) {
         if (on) cell.setAttribute(name, "true");
         else cell.removeAttribute(name);
       }
-      cell.setAttribute("aria-label", this._dayLabel(date, this.getDateState(date), position));
+      // A moving preview changes only the band. Its accessible labels always
+      // omit range roles; entering/leaving preview still updates those labels.
+      if (!previousPreview || !this._paintedPreview) {
+        const state = this._renderedStates.get(date) || {};
+        const label = this._dayLabel(date, state, position);
+        if (cell.getAttribute("aria-label") !== label) cell.setAttribute("aria-label", label);
+      }
     }
   }
 
@@ -864,6 +870,7 @@ export class DateCalendarElement extends HTMLElement {
       )
       .join("");
 
+    this._renderedStates.clear();
     const rows = weeks
       .map((week) => {
         const weekNumber = showWeeks
@@ -872,6 +879,7 @@ export class DateCalendarElement extends HTMLElement {
         const cells = week
           .map((date) => {
             const state = this.getDateState(date);
+            this._renderedStates.set(date, state);
             const outside = monthKey(date) !== display;
             const selected = this.value === date;
             const focused = this.focusedDate === date;
@@ -946,7 +954,7 @@ export class DateCalendarElement extends HTMLElement {
         const date = cell.dataset.date || "";
         const extra = cell.querySelector(".dp-day-extra");
         if (!(extra instanceof HTMLElement)) continue;
-        const content = this._renderDay(date, this.getDateState(date));
+        const content = this._renderDay(date, this._renderedStates.get(date) || {});
         if (content instanceof Node) extra.append(content);
         else if (content !== undefined && content !== null) extra.textContent = String(content);
       }
