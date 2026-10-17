@@ -59,7 +59,27 @@ export declare class DateCalendarElement extends HTMLElement {
     _paintedPreview: boolean;
     /** @type {Map<string, DateState>} States of the current rendered grid. */
     _renderedStates: Map<string, DateState>;
-    _messages: {
+    /** @type {typeof import("./messages.js").DEFAULT_MESSAGES | null} */
+    _messages: typeof import("./messages.js").DEFAULT_MESSAGES | null;
+    /** @type {Partial<import("./control-classes.js").ControlClasses> | null} */
+    _controlClasses: Partial<import("./control-classes.js").ControlClasses> | null;
+    /** @type {(() => void) | null} */
+    _stopDefaultMessages: (() => void) | null;
+    /** @type {(() => void) | null} */
+    _stopDefaultControlClasses: (() => void) | null;
+    static observedAttributes: string[];
+    /** @public @param {Partial<import("./control-classes.js").ControlClasses>} classes */
+    static setDefaultControlClasses(classes: Partial<import("./control-classes.js").ControlClasses>): void;
+    /** @public */
+    static getDefaultControlClasses(): {
+        month: string;
+        year: string;
+        nav: string;
+    };
+    /** @public @param {Partial<typeof import("./messages.js").DEFAULT_MESSAGES>} messages */
+    static setDefaultMessages(messages: Partial<typeof import("./messages.js").DEFAULT_MESSAGES>): void;
+    /** @public */
+    static getDefaultMessages(): {
         chooseDate: string;
         changeDate: string;
         previousMonth: string;
@@ -79,12 +99,6 @@ export declare class DateCalendarElement extends HTMLElement {
         rangeOrderStart: string;
         rangeOrderEnd: string;
     };
-    _controlClasses: {
-        month: string;
-        year: string;
-        nav: string;
-    };
-    static observedAttributes: string[];
     constructor();
     connectedCallback(): void;
     disconnectedCallback(): void;
@@ -132,54 +146,17 @@ export declare class DateCalendarElement extends HTMLElement {
     get showWeekNumbers(): boolean;
     set showWeekNumbers(value: boolean);
     /**
-     * Author classes for header controls; merged with global defaults.
+     * Author classes for header controls; omitted roles follow current global defaults.
      * @public
      * @returns {import("./control-classes.js").ControlClasses}
      */
     get controlClasses(): import("./control-classes.js").ControlClasses;
     /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
     set controlClasses(value: Partial<import("./control-classes.js").ControlClasses> | null);
-    /** @public */
-    get messages(): {
-        chooseDate: string;
-        changeDate: string;
-        previousMonth: string;
-        nextMonth: string;
-        month: string;
-        year: string;
-        calendar: string;
-        unavailable: string;
-        invalidDate: string;
-        unavailableDate: string;
-        formatHint: string;
-        week: string;
-        rangeStart: string;
-        rangeInRange: string;
-        rangeEnd: string;
-        rangeSingle: string;
-        rangeOrderStart: string;
-        rangeOrderEnd: string;
-    };
-    set messages(value: {
-        chooseDate: string;
-        changeDate: string;
-        previousMonth: string;
-        nextMonth: string;
-        month: string;
-        year: string;
-        calendar: string;
-        unavailable: string;
-        invalidDate: string;
-        unavailableDate: string;
-        formatHint: string;
-        week: string;
-        rangeStart: string;
-        rangeInRange: string;
-        rangeEnd: string;
-        rangeSingle: string;
-        rangeOrderStart: string;
-        rangeOrderEnd: string;
-    });
+    /** @public @returns {typeof import("./messages.js").DEFAULT_MESSAGES} */
+    get messages(): typeof import("./messages.js").DEFAULT_MESSAGES;
+    /** @param {Partial<typeof import("./messages.js").DEFAULT_MESSAGES> | null} value */
+    set messages(value: Partial<typeof import("./messages.js").DEFAULT_MESSAGES> | null);
     /** @public @returns {DateSource | null} */
     get source(): DateSource | null;
     set source(value: DateSource | null);

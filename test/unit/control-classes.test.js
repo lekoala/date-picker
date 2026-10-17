@@ -2,8 +2,10 @@ import { afterEach, expect, test } from "bun:test";
 import {
   getDefaultControlClasses,
   normalizeControlClass,
+  normalizeControlClasses,
   resolveControlClasses,
   setDefaultControlClasses,
+  usesDefaultControlClasses,
 } from "../../src/control-classes.js";
 
 afterEach(() => setDefaultControlClasses({ month: "", year: "", nav: "" }));
@@ -21,6 +23,20 @@ test("author classes normalize whitespace and reject controls or reserved tokens
   expect(normalizeControlClass("")).toBe("");
   expect(normalizeControlClass(null)).toBe("");
   expect(normalizeControlClass("a&b hover:bg-red")).toBe("a&b hover:bg-red");
+});
+
+test("partial class maps preserve omissions and resolve them against current defaults", () => {
+  const input = { month: " own  own dp-skin ", nav: "" };
+  const own = normalizeControlClasses(input);
+  input.month = "mutated";
+  expect(own).toEqual({ month: "own", nav: "" });
+  expect(usesDefaultControlClasses(own)).toBe(true);
+  expect(usesDefaultControlClasses({ month: "", year: "", nav: "" })).toBe(false);
+  expect(normalizeControlClasses(null)).toBe(null);
+  setDefaultControlClasses({ month: "global", year: "year", nav: "nav" });
+  expect(resolveControlClasses(own)).toEqual({ month: "own", year: "year", nav: "" });
+  setDefaultControlClasses({ year: "later-year", nav: "later-nav" });
+  expect(resolveControlClasses(own)).toEqual({ month: "own", year: "later-year", nav: "" });
 });
 
 test("defaults merge by role, return copies and allow explicit skin resets", () => {

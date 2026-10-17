@@ -34,6 +34,19 @@ const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 
 const errors = [];
 
+// Public statics must survive tree-shaking in every classic entry point.
+for (const file of ["dist/date-picker.js", "dist/date-picker.min.js", "dist/date-picker.standalone.min.js"]) {
+  const bundle = readFileSync(file, "utf8");
+  for (const method of [
+    "setDefaultControlClasses",
+    "getDefaultControlClasses",
+    "setDefaultMessages",
+    "getDefaultMessages",
+  ]) {
+    if (!bundle.includes(method)) errors.push(`${file} is missing ${method}`);
+  }
+}
+
 const mustInclude = [
   "dist/date-picker.js",
   "dist/date-picker.min.js",

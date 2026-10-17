@@ -1,5 +1,13 @@
 import { CalendarModel } from "./calendar-model.js";
-import { getDefaultControlClasses, resolveControlClasses, sameControlClasses } from "./control-classes.js";
+import {
+  getDefaultControlClasses,
+  normalizeControlClasses,
+  resolveControlClasses,
+  sameControlClasses,
+  setDefaultControlClasses,
+  subscribeDefaultControlClasses,
+  usesDefaultControlClasses,
+} from "./control-classes.js";
 import {
   addDays,
   clampDate,
@@ -21,8 +29,9 @@ import {
   resolveLocale,
   weekdayNames,
 } from "./intl.js";
-import { getDefaultMessages } from "./messages.js";
+import { getDefaultMessages, setDefaultMessages, subscribeDefaultMessages } from "./messages.js";
 import { normalizeDateStates } from "./source.js";
+import { upgradeProperties } from "./upgrade-properties.js";
 
 let uid = 0;
 
@@ -128,6 +137,26 @@ export class DateCalendarElement extends HTMLElement {
     "month-format",
   ];
 
+  /** @public @param {Partial<import("./control-classes.js").ControlClasses>} classes */
+  static setDefaultControlClasses(classes) {
+    setDefaultControlClasses(classes);
+  }
+
+  /** @public */
+  static getDefaultControlClasses() {
+    return getDefaultControlClasses();
+  }
+
+  /** @public @param {Partial<typeof import("./messages.js").DEFAULT_MESSAGES>} messages */
+  static setDefaultMessages(messages) {
+    setDefaultMessages(messages);
+  }
+
+  /** @public */
+  static getDefaultMessages() {
+    return getDefaultMessages();
+  }
+
   constructor() {
     super();
     this._id = `date-calendar-${++uid}`;
@@ -158,8 +187,14 @@ export class DateCalendarElement extends HTMLElement {
     this._paintedPreview = false;
     /** @type {Map<string, DateState>} States of the current rendered grid. */
     this._renderedStates = new Map();
-    this._messages = getDefaultMessages();
-    this._controlClasses = getDefaultControlClasses();
+    /** @type {typeof import("./messages.js").DEFAULT_MESSAGES | null} */
+    this._messages = null;
+    /** @type {Partial<import("./control-classes.js").ControlClasses> | null} */
+    this._controlClasses = null;
+    /** @type {(() => void) | null} */
+    this._stopDefaultMessages = null;
+    /** @type {(() => void) | null} */
+    this._stopDefaultControlClasses = null;
     this._onClick = this._onClick.bind(this);
     this._onChange = this._onChange.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
@@ -168,16 +203,46 @@ export class DateCalendarElement extends HTMLElement {
 
   connectedCallback() {
     if (this._connected) return;
+    upgradeProperties(this, [
+      "locale",
+      "min",
+      "max",
+      "firstDay",
+      "selection",
+      "monthFormat",
+      "fixedWeeks",
+      "showWeekNumbers",
+      "controlClasses",
+      "messages",
+      "source",
+      "dateState",
+      "renderDay",
+      "isDateDisabled",
+      "highlightedRange",
+      "value",
+      "display",
+    ]);
+    this._syncModel();
+    upgradeProperties(this, ["focusedDate"]);
+    this._stopDefaultControlClasses = subscribeDefaultControlClasses(() => {
+      if (usesDefaultControlClasses(this._controlClasses)) this.render();
+    });
+    this._stopDefaultMessages = subscribeDefaultMessages(() => {
+      if (this._messages === null) this.render();
+    });
     this._connected = true;
     this.addEventListener("click", this._onClick);
     this.addEventListener("change", this._onChange);
     this.addEventListener("keydown", this._onKeyDown);
     this.addEventListener("focusin", this._onFocusIn);
-    this._syncModel();
     this.render();
   }
 
   disconnectedCallback() {
+    this._stopDefaultControlClasses?.();
+    this._stopDefaultControlClasses = null;
+    this._stopDefaultMessages?.();
+    this._stopDefaultMessages = null;
     this._connected = false;
     this._loadController?.abort();
     this._loadController = null;
@@ -328,29 +393,30 @@ export class DateCalendarElement extends HTMLElement {
   }
 
   /**
-   * Author classes for header controls; merged with global defaults.
+   * Author classes for header controls; omitted roles follow current global defaults.
    * @public
    * @returns {import("./control-classes.js").ControlClasses}
    */
   get controlClasses() {
-    return { ...this._controlClasses };
+    return resolveControlClasses(this._controlClasses);
   }
 
   /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
   set controlClasses(value) {
-    const classes = resolveControlClasses(value);
-    if (sameControlClasses(classes, this._controlClasses)) return;
-    this._controlClasses = classes;
+    const previous = this.controlClasses;
+    this._controlClasses = normalizeControlClasses(value);
+    if (sameControlClasses(previous, this.controlClasses)) return;
     if (this._connected) this.render();
   }
 
-  /** @public */
+  /** @public @returns {typeof import("./messages.js").DEFAULT_MESSAGES} */
   get messages() {
-    return this._messages;
+    return this._messages ?? getDefaultMessages();
   }
 
+  /** @param {Partial<typeof import("./messages.js").DEFAULT_MESSAGES> | null} value */
   set messages(value) {
-    this._messages = { ...getDefaultMessages(), ...(value || {}) };
+    this._messages = value == null ? null : { ...getDefaultMessages(), ...value };
     if (this._connected) this.render();
   }
 
@@ -648,8 +714,8 @@ export class DateCalendarElement extends HTMLElement {
     return [
       formatLongDate(date, this.locale),
       description,
-      rangeLabel ? this._messages[rangeLabel] : "",
-      state.disabled ? this._messages.unavailable : "",
+      rangeLabel ? this.messages[rangeLabel] : "",
+      state.disabled ? this.messages.unavailable : "",
     ]
       .filter(Boolean)
       .join(". ");
@@ -853,7 +919,7 @@ export class DateCalendarElement extends HTMLElement {
     const maxYearAttr = this.max ? ` max="${Number(this.max.slice(0, 4))}"` : "";
     const showWeeks = this.showWeekNumbers && this.firstDay === 1;
     const weekHeader = showWeeks
-      ? `<th scope="col" class="dp-week-heading" abbr="${escapeHtml(this._messages.week)}">#</th>`
+      ? `<th scope="col" class="dp-week-heading" abbr="${escapeHtml(this.messages.week)}">#</th>`
       : "";
 
     const monthOptions = names
@@ -906,14 +972,14 @@ export class DateCalendarElement extends HTMLElement {
     // select via `data-year-first`.
     const yearFirst = monthYearOrder(locale)[0] === "year";
     this.toggleAttribute("data-year-first", yearFirst);
-    const classes = this._controlClasses;
+    const classes = this.controlClasses;
     const monthClass = escapeHtml(classes.month || "dp-skin");
     const yearClass = escapeHtml(classes.year || "dp-skin");
     const navClass = escapeHtml(classes.nav || "dp-skin");
-    const monthControl = `<label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this._messages.month)}</label>
-          <select id="${this._id}-month" class="dp-month-select ${monthClass}" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>`;
-    const yearControl = `<label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this._messages.year)}</label>
-          <input id="${this._id}-year" class="dp-year-input ${yearClass}" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">`;
+    const monthControl = `<label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this.messages.month)}</label>
+          <select id="${this._id}-month" class="dp-month-select ${monthClass}" aria-label="${escapeHtml(this.messages.month)}">${monthOptions}</select>`;
+    const yearControl = `<label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this.messages.year)}</label>
+          <input id="${this._id}-year" class="dp-year-input ${yearClass}" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this.messages.year)}">`;
 
     this._rendering = true;
     this.innerHTML = `
@@ -921,8 +987,8 @@ export class DateCalendarElement extends HTMLElement {
         <div class="dp-calendar-header">
           ${yearFirst ? yearControl : monthControl}
           ${yearFirst ? monthControl : yearControl}
-          <button type="button" class="dp-nav dp-prev ${navClass}" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
-          <button type="button" class="dp-nav dp-next ${navClass}" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
+          <button type="button" class="dp-nav dp-prev ${navClass}" data-calendar-action="previous" aria-label="${escapeHtml(this.messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
+          <button type="button" class="dp-nav dp-next ${navClass}" data-calendar-action="next" aria-label="${escapeHtml(this.messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
         </div>
         <h2 id="${headingId}" class="dp-calendar-heading dp-visually-hidden" aria-live="polite">${escapeHtml(formatMonthYear(`${display}-15`, locale))}</h2>
         <table id="${gridId}" class="dp-grid" role="grid" aria-labelledby="${headingId}">

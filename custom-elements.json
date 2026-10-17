@@ -44,6 +44,26 @@
           ],
           "members": [
             {
+              "kind": "method",
+              "name": "setDefaultControlClasses",
+              "static": true
+            },
+            {
+              "kind": "method",
+              "name": "getDefaultControlClasses",
+              "static": true
+            },
+            {
+              "kind": "method",
+              "name": "setDefaultMessages",
+              "static": true
+            },
+            {
+              "kind": "method",
+              "name": "getDefaultMessages",
+              "static": true
+            },
+            {
               "kind": "getter",
               "name": "locale"
             },
@@ -94,7 +114,7 @@
             {
               "kind": "getter",
               "name": "controlClasses",
-              "description": "Author classes for header controls; merged with global defaults."
+              "description": "Author classes for header controls; omitted roles follow current global defaults."
             },
             {
               "kind": "getter",
@@ -279,6 +299,26 @@
           ],
           "members": [
             {
+              "kind": "method",
+              "name": "setDefaultControlClasses",
+              "static": true
+            },
+            {
+              "kind": "method",
+              "name": "getDefaultControlClasses",
+              "static": true
+            },
+            {
+              "kind": "method",
+              "name": "setDefaultMessages",
+              "static": true
+            },
+            {
+              "kind": "method",
+              "name": "getDefaultMessages",
+              "static": true
+            },
+            {
               "kind": "getter",
               "name": "input"
             },
@@ -321,7 +361,7 @@
             {
               "kind": "getter",
               "name": "controlClasses",
-              "description": "Author classes for header controls; merged with global defaults."
+              "description": "Author classes for header controls; omitted roles follow current global defaults."
             },
             {
               "kind": "getter",

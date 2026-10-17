@@ -40,4 +40,6 @@ export declare function getDefaultMessages(): {
 };
 /** @param {Partial<typeof DEFAULT_MESSAGES>} messages */
 export declare function setDefaultMessages(messages: Partial<typeof DEFAULT_MESSAGES>): void;
+/** @param {() => void} listener */
+export declare function subscribeDefaultMessages(listener: () => void): () => void;
 //# sourceMappingURL=messages.d.ts.map

@@ -28,4 +28,16 @@ export function getDefaultMessages() {
 /** @param {Partial<typeof DEFAULT_MESSAGES>} messages */
 export function setDefaultMessages(messages) {
   defaults = { ...defaults, ...messages };
+  for (const listener of listeners) listener();
+}
+
+/** @type {Set<() => void>} */
+const listeners = new Set();
+
+/** @param {() => void} listener */
+export function subscribeDefaultMessages(listener) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }

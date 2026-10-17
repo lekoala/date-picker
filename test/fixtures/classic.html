@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Classic bundle property upgrade</title>
+    <script defer src="/dist/date-picker.min.js"></script>
+  </head>
+  <body>
+    <date-picker id="global-picker"><input name="global-date" /></date-picker>
+    <date-picker id="global-range" range>
+      <input data-range-start name="global-start" />
+      <input data-range-end name="global-end" />
+    </date-picker>
+    <date-calendar id="global-calendar" display="2026-09" value="2026-09-10"></date-calendar>
+    <date-picker id="picker"><input name="date" /></date-picker>
+    <date-picker id="range" range>
+      <input data-range-start name="start" />
+      <input data-range-end name="end" />
+    </date-picker>
+    <date-calendar id="calendar"></date-calendar>
+    <script>
+      const source = (_range, { signal }) => {
+        if (signal.aborted) return {};
+        return { "2026-09-12": { disabled: true, description: "Closed" } };
+      };
+      const dateState = (_date, state) => state;
+      const renderDay = () => null;
+      const isDateDisabled = (date) => date === "2026-09-13";
+      const options = {
+        locale: "en-GB", min: "2026-01-01", max: "2027-12-31", monthFormat: "short",
+        controlClasses: { month: "select sm", year: "input sm", nav: "btn outline sm icon-only" },
+        messages: { nextMonth: "Forward", chooseDate: "Pick a date" },
+        source, dateState, renderDay, isDateDisabled,
+      };
+      Object.assign(document.getElementById("picker"), options, {
+        value: "2026-09-10", openOnFocus: false, coordinateSpace: "document",
+      });
+      Object.assign(document.getElementById("range"), options, {
+        range: { start: "2026-09-10", end: "2026-09-15" },
+      });
+      Object.assign(document.getElementById("calendar"), options, {
+        firstDay: 0, selection: "none", fixedWeeks: true, showWeekNumbers: true,
+        value: "2026-09-10", display: "2026-09", focusedDate: "2026-09-11",
+        highlightedRange: { start: "2026-09-10", end: "2026-09-15" },
+      });
+      if (new URL(location.href).searchParams.get("partial") === "before") {
+        for (const id of ["global-picker", "global-range", "global-calendar"]) {
+          document.getElementById(id).controlClasses = { month: " own-month own-month " };
+        }
+      }
+    </script>
+  </body>
+</html>

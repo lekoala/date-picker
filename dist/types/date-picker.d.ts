@@ -60,7 +60,35 @@ export declare class DatePickerElement extends HTMLElement {
     _stopTracking: (() => void) | null;
     _open: boolean;
     _suppressFocusOpen: boolean;
-    _messages: {
+    /** @type {typeof import("./messages.js").DEFAULT_MESSAGES | null} */
+    _messages: typeof import("./messages.js").DEFAULT_MESSAGES | null;
+    /** @type {Partial<import("./control-classes.js").ControlClasses> | null} */
+    _controlClasses: Partial<import("./control-classes.js").ControlClasses> | null;
+    /** @type {(() => void) | null} */
+    _stopDefaultMessages: (() => void) | null;
+    /** @type {any} */
+    _source: any;
+    /** @type {any} */
+    _dateState: any;
+    /** @type {any} */
+    _renderDay: any;
+    /** @type {any} */
+    _isDateDisabled: any;
+    /** Public picker coordinate-space request. @type {"viewport" | "document"} */
+    _coordinateSpace: "viewport" | "document";
+    static observedAttributes: string[];
+    /** @public @param {Partial<import("./control-classes.js").ControlClasses>} classes */
+    static setDefaultControlClasses(classes: Partial<import("./control-classes.js").ControlClasses>): void;
+    /** @public */
+    static getDefaultControlClasses(): {
+        month: string;
+        year: string;
+        nav: string;
+    };
+    /** @public @param {Partial<typeof import("./messages.js").DEFAULT_MESSAGES>} messages */
+    static setDefaultMessages(messages: Partial<typeof import("./messages.js").DEFAULT_MESSAGES>): void;
+    /** @public */
+    static getDefaultMessages(): {
         chooseDate: string;
         changeDate: string;
         previousMonth: string;
@@ -80,22 +108,6 @@ export declare class DatePickerElement extends HTMLElement {
         rangeOrderStart: string;
         rangeOrderEnd: string;
     };
-    _controlClasses: {
-        month: string;
-        year: string;
-        nav: string;
-    };
-    /** @type {any} */
-    _source: any;
-    /** @type {any} */
-    _dateState: any;
-    /** @type {any} */
-    _renderDay: any;
-    /** @type {any} */
-    _isDateDisabled: any;
-    /** Public picker coordinate-space request. @type {"viewport" | "document"} */
-    _coordinateSpace: "viewport" | "document";
-    static observedAttributes: string[];
     constructor();
     _rangeMode(): boolean;
     connectedCallback(): void;
@@ -146,54 +158,18 @@ export declare class DatePickerElement extends HTMLElement {
     /** @public */
     get open(): boolean;
     /**
-     * Author classes for header controls; merged with global defaults.
+     * Author classes for header controls; omitted roles follow current global defaults.
      * @public
      * @returns {import("./control-classes.js").ControlClasses}
      */
     get controlClasses(): import("./control-classes.js").ControlClasses;
     /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
     set controlClasses(value: Partial<import("./control-classes.js").ControlClasses> | null);
-    /** @public */
-    get messages(): {
-        chooseDate: string;
-        changeDate: string;
-        previousMonth: string;
-        nextMonth: string;
-        month: string;
-        year: string;
-        calendar: string;
-        unavailable: string;
-        invalidDate: string;
-        unavailableDate: string;
-        formatHint: string;
-        week: string;
-        rangeStart: string;
-        rangeInRange: string;
-        rangeEnd: string;
-        rangeSingle: string;
-        rangeOrderStart: string;
-        rangeOrderEnd: string;
-    };
-    set messages(value: {
-        chooseDate: string;
-        changeDate: string;
-        previousMonth: string;
-        nextMonth: string;
-        month: string;
-        year: string;
-        calendar: string;
-        unavailable: string;
-        invalidDate: string;
-        unavailableDate: string;
-        formatHint: string;
-        week: string;
-        rangeStart: string;
-        rangeInRange: string;
-        rangeEnd: string;
-        rangeSingle: string;
-        rangeOrderStart: string;
-        rangeOrderEnd: string;
-    });
+    /** @public @returns {typeof import("./messages.js").DEFAULT_MESSAGES} */
+    get messages(): typeof import("./messages.js").DEFAULT_MESSAGES;
+    /** @param {Partial<typeof import("./messages.js").DEFAULT_MESSAGES> | null} value */
+    set messages(value: Partial<typeof import("./messages.js").DEFAULT_MESSAGES> | null);
+    _refreshMessages(): void;
     /** @public @returns {any} */
     get source(): any;
     set source(value: any);

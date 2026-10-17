@@ -313,13 +313,36 @@
   function getDefaultControlClasses() {
     return { ...defaults };
   }
-  function resolveControlClasses(classes) {
-    const result = getDefaultControlClasses();
+  function normalizeControlClasses(classes) {
+    if (classes == null)
+      return null;
+    const result = {};
     for (const role of ["month", "year", "nav"]) {
-      if (classes && Object.hasOwn(classes, role))
+      if (Object.hasOwn(classes, role))
         result[role] = normalizeControlClass(classes[role]);
     }
     return result;
+  }
+  function usesDefaultControlClasses(classes) {
+    return classes == null || ["month", "year", "nav"].some((role) => !Object.hasOwn(classes, role));
+  }
+  function resolveControlClasses(classes) {
+    return { ...getDefaultControlClasses(), ...normalizeControlClasses(classes) };
+  }
+  function setDefaultControlClasses(classes) {
+    const next = resolveControlClasses(classes);
+    if (sameControlClasses(defaults, next))
+      return;
+    defaults = next;
+    for (const listener of listeners)
+      listener();
+  }
+  var listeners = new Set;
+  function subscribeDefaultControlClasses(listener) {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
   }
 
   // src/date-range.js
@@ -703,6 +726,18 @@
   function getDefaultMessages() {
     return { ...defaults2 };
   }
+  function setDefaultMessages(messages) {
+    defaults2 = { ...defaults2, ...messages };
+    for (const listener of listeners2)
+      listener();
+  }
+  var listeners2 = new Set;
+  function subscribeDefaultMessages(listener) {
+    listeners2.add(listener);
+    return () => {
+      listeners2.delete(listener);
+    };
+  }
 
   // src/source.js
   function normalizeDateStates(payload) {
@@ -723,6 +758,17 @@
       }
     }
     return map;
+  }
+
+  // src/upgrade-properties.js
+  function upgradeProperties(element, properties) {
+    for (const property of properties) {
+      if (!Object.hasOwn(element, property))
+        continue;
+      const value = Reflect.get(element, property);
+      Reflect.deleteProperty(element, property);
+      Reflect.set(element, property, value);
+    }
   }
 
   // src/date-calendar.js
@@ -783,6 +829,18 @@
       "selection",
       "month-format"
     ];
+    static setDefaultControlClasses(classes) {
+      setDefaultControlClasses(classes);
+    }
+    static getDefaultControlClasses() {
+      return getDefaultControlClasses();
+    }
+    static setDefaultMessages(messages) {
+      setDefaultMessages(messages);
+    }
+    static getDefaultMessages() {
+      return getDefaultMessages();
+    }
     constructor() {
       super();
       this._id = `date-calendar-${++uid}`;
@@ -802,8 +860,10 @@
       this._paintedRange = { start: "", end: "" };
       this._paintedPreview = false;
       this._renderedStates = new Map;
-      this._messages = getDefaultMessages();
-      this._controlClasses = getDefaultControlClasses();
+      this._messages = null;
+      this._controlClasses = null;
+      this._stopDefaultMessages = null;
+      this._stopDefaultControlClasses = null;
       this._onClick = this._onClick.bind(this);
       this._onChange = this._onChange.bind(this);
       this._onKeyDown = this._onKeyDown.bind(this);
@@ -812,15 +872,47 @@
     connectedCallback() {
       if (this._connected)
         return;
+      upgradeProperties(this, [
+        "locale",
+        "min",
+        "max",
+        "firstDay",
+        "selection",
+        "monthFormat",
+        "fixedWeeks",
+        "showWeekNumbers",
+        "controlClasses",
+        "messages",
+        "source",
+        "dateState",
+        "renderDay",
+        "isDateDisabled",
+        "highlightedRange",
+        "value",
+        "display"
+      ]);
+      this._syncModel();
+      upgradeProperties(this, ["focusedDate"]);
+      this._stopDefaultControlClasses = subscribeDefaultControlClasses(() => {
+        if (usesDefaultControlClasses(this._controlClasses))
+          this.render();
+      });
+      this._stopDefaultMessages = subscribeDefaultMessages(() => {
+        if (this._messages === null)
+          this.render();
+      });
       this._connected = true;
       this.addEventListener("click", this._onClick);
       this.addEventListener("change", this._onChange);
       this.addEventListener("keydown", this._onKeyDown);
       this.addEventListener("focusin", this._onFocusIn);
-      this._syncModel();
       this.render();
     }
     disconnectedCallback() {
+      this._stopDefaultControlClasses?.();
+      this._stopDefaultControlClasses = null;
+      this._stopDefaultMessages?.();
+      this._stopDefaultMessages = null;
       this._connected = false;
       this._loadController?.abort();
       this._loadController = null;
@@ -941,21 +1033,21 @@
       this.toggleAttribute("show-week-numbers", Boolean(value));
     }
     get controlClasses() {
-      return { ...this._controlClasses };
+      return resolveControlClasses(this._controlClasses);
     }
     set controlClasses(value) {
-      const classes = resolveControlClasses(value);
-      if (sameControlClasses(classes, this._controlClasses))
+      const previous = this.controlClasses;
+      this._controlClasses = normalizeControlClasses(value);
+      if (sameControlClasses(previous, this.controlClasses))
         return;
-      this._controlClasses = classes;
       if (this._connected)
         this.render();
     }
     get messages() {
-      return this._messages;
+      return this._messages ?? getDefaultMessages();
     }
     set messages(value) {
-      this._messages = { ...getDefaultMessages(), ...value || {} };
+      this._messages = value == null ? null : { ...getDefaultMessages(), ...value };
       if (this._connected)
         this.render();
     }
@@ -1216,8 +1308,8 @@
       return [
         formatLongDate(date, this.locale),
         description,
-        rangeLabel ? this._messages[rangeLabel] : "",
-        state.disabled ? this._messages.unavailable : ""
+        rangeLabel ? this.messages[rangeLabel] : "",
+        state.disabled ? this.messages.unavailable : ""
       ].filter(Boolean).join(". ");
     }
     _updateRangeDom() {
@@ -1398,7 +1490,7 @@
       const minYearAttr = this.min ? ` min="${Number(this.min.slice(0, 4))}"` : "";
       const maxYearAttr = this.max ? ` max="${Number(this.max.slice(0, 4))}"` : "";
       const showWeeks = this.showWeekNumbers && this.firstDay === 1;
-      const weekHeader = showWeeks ? `<th scope="col" class="dp-week-heading" abbr="${escapeHtml(this._messages.week)}">#</th>` : "";
+      const weekHeader = showWeeks ? `<th scope="col" class="dp-week-heading" abbr="${escapeHtml(this.messages.week)}">#</th>` : "";
       const monthOptions = names.map((name, index) => {
         const month = index + 1;
         const key = `${String(displayYear).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
@@ -1426,22 +1518,22 @@
       const focusKey = focusedElement instanceof HTMLElement && this.contains(focusedElement) ? this._focusTargetKey(focusedElement) : "";
       const yearFirst = monthYearOrder(locale)[0] === "year";
       this.toggleAttribute("data-year-first", yearFirst);
-      const classes = this._controlClasses;
+      const classes = this.controlClasses;
       const monthClass = escapeHtml(classes.month || "dp-skin");
       const yearClass = escapeHtml(classes.year || "dp-skin");
       const navClass = escapeHtml(classes.nav || "dp-skin");
-      const monthControl = `<label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this._messages.month)}</label>
-          <select id="${this._id}-month" class="dp-month-select ${monthClass}" aria-label="${escapeHtml(this._messages.month)}">${monthOptions}</select>`;
-      const yearControl = `<label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this._messages.year)}</label>
-          <input id="${this._id}-year" class="dp-year-input ${yearClass}" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this._messages.year)}">`;
+      const monthControl = `<label class="dp-visually-hidden" for="${this._id}-month">${escapeHtml(this.messages.month)}</label>
+          <select id="${this._id}-month" class="dp-month-select ${monthClass}" aria-label="${escapeHtml(this.messages.month)}">${monthOptions}</select>`;
+      const yearControl = `<label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this.messages.year)}</label>
+          <input id="${this._id}-year" class="dp-year-input ${yearClass}" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this.messages.year)}">`;
       this._rendering = true;
       this.innerHTML = `
       <div class="dp-calendar-shell">
         <div class="dp-calendar-header">
           ${yearFirst ? yearControl : monthControl}
           ${yearFirst ? monthControl : yearControl}
-          <button type="button" class="dp-nav dp-prev ${navClass}" data-calendar-action="previous" aria-label="${escapeHtml(this._messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
-          <button type="button" class="dp-nav dp-next ${navClass}" data-calendar-action="next" aria-label="${escapeHtml(this._messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
+          <button type="button" class="dp-nav dp-prev ${navClass}" data-calendar-action="previous" aria-label="${escapeHtml(this.messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
+          <button type="button" class="dp-nav dp-next ${navClass}" data-calendar-action="next" aria-label="${escapeHtml(this.messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
         </div>
         <h2 id="${headingId}" class="dp-calendar-heading dp-visually-hidden" aria-live="polite">${escapeHtml(formatMonthYear(`${display}-15`, locale))}</h2>
         <table id="${gridId}" class="dp-grid" role="grid" aria-labelledby="${headingId}">
@@ -2045,6 +2137,18 @@
 
   class DatePickerElement extends HTMLElement {
     static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
+    static setDefaultControlClasses(classes) {
+      setDefaultControlClasses(classes);
+    }
+    static getDefaultControlClasses() {
+      return getDefaultControlClasses();
+    }
+    static setDefaultMessages(messages) {
+      setDefaultMessages(messages);
+    }
+    static getDefaultMessages() {
+      return getDefaultMessages();
+    }
     constructor() {
       super();
       this._id = `date-picker-${++uid2}`;
@@ -2076,8 +2180,9 @@
       this._stopTracking = null;
       this._open = false;
       this._suppressFocusOpen = false;
-      this._messages = getDefaultMessages();
-      this._controlClasses = getDefaultControlClasses();
+      this._messages = null;
+      this._controlClasses = null;
+      this._stopDefaultMessages = null;
       this._source = null;
       this._dateState = null;
       this._renderDay = null;
@@ -2090,11 +2195,31 @@
     connectedCallback() {
       if (this._connected)
         return;
-      if (this.hasAttribute("range")) {
+      upgradeProperties(this, [
+        "locale",
+        "min",
+        "max",
+        "monthFormat",
+        "openOnFocus",
+        "coordinateSpace",
+        "controlClasses",
+        "messages",
+        "source",
+        "dateState",
+        "renderDay",
+        "isDateDisabled"
+      ]);
+      if (this.hasAttribute("range"))
         this._connectRange();
-        return;
+      else
+        this._connectSingle();
+      if (this._connected) {
+        upgradeProperties(this, ["value", "range"]);
+        this._stopDefaultMessages = subscribeDefaultMessages(() => {
+          if (this._messages === null)
+            this._refreshMessages();
+        });
       }
-      this._connectSingle();
     }
     _connectSingle() {
       const input = this.querySelector(":scope > input:not([type=hidden]):not([type=time]):not([data-time-start]):not([data-time-end])");
@@ -2105,7 +2230,7 @@
       this._connected = true;
       this._input = input;
       this._discoverTimeFields();
-      this._field = new DateFieldController(input, { messages: this._messages, locale: this.locale });
+      this._field = new DateFieldController(input, { messages: this.messages, locale: this.locale });
       this._field.onAttributesChanged = () => this._syncInputState();
       this._field.confirm = (date, options) => this._confirmDate(date, options);
       this._setupFormValue();
@@ -2120,7 +2245,7 @@
       else if (!input.value)
         this._setValue("", { emit: false, format: false });
       else
-        input.setCustomValidity(this._messages.invalidDate);
+        input.setCustomValidity(this.messages.invalidDate);
       if (this._field.hidden)
         this._field.hidden.defaultValue = this._value;
       if (input.getAttribute("value") == null && input.defaultValue === "") {
@@ -2161,8 +2286,8 @@
       this._connected = true;
       this._input = null;
       this._fields = [
-        new DateFieldController(startInput, { messages: this._messages, locale: this.locale }),
-        new DateFieldController(endInput, { messages: this._messages, locale: this.locale })
+        new DateFieldController(startInput, { messages: this.messages, locale: this.locale }),
+        new DateFieldController(endInput, { messages: this.messages, locale: this.locale })
       ];
       this._range = new DateRangeController;
       this._rangeOriginalDescribedBy = [
@@ -2184,9 +2309,9 @@
       const initialEnd = isDate(endInput.value) ? endInput.value : adapter.parse(endInput.value);
       this._setRange(initialStart || "", initialEnd || "", { emit: false });
       if (startInput.value.trim() && !isDate(initialStart))
-        startInput.setCustomValidity(this._messages.invalidDate);
+        startInput.setCustomValidity(this.messages.invalidDate);
       if (endInput.value.trim() && !isDate(initialEnd))
-        endInput.setCustomValidity(this._messages.invalidDate);
+        endInput.setCustomValidity(this.messages.invalidDate);
       if (this._fields[0].hidden)
         this._fields[0].hidden.defaultValue = this._range.start;
       if (this._fields[1].hidden)
@@ -2199,6 +2324,8 @@
       }
     }
     disconnectedCallback() {
+      this._stopDefaultMessages?.();
+      this._stopDefaultMessages = null;
       this._connected = false;
       this.hide(false);
       this._controller?.abort();
@@ -2333,28 +2460,34 @@
       return this._open;
     }
     get controlClasses() {
-      return { ...this._controlClasses };
+      return resolveControlClasses(this._controlClasses);
     }
     set controlClasses(value) {
-      const classes = resolveControlClasses(value);
-      if (sameControlClasses(classes, this._controlClasses))
-        return;
-      this._controlClasses = classes;
+      this._controlClasses = normalizeControlClasses(value);
       if (this._calendar)
         this._calendar.controlClasses = this._controlClasses;
     }
     get messages() {
-      return this._messages;
+      return this._messages ?? getDefaultMessages();
     }
     set messages(value) {
-      this._messages = { ...getDefaultMessages(), ...value || {} };
+      this._messages = value == null ? null : { ...getDefaultMessages(), ...value };
       if (this._calendar)
         this._calendar.messages = this._messages;
+      this._refreshMessages();
+    }
+    _refreshMessages() {
+      const messages = this.messages;
       for (const field of this._fields || [])
-        field.setMessages(this._messages);
-      this._field?.setMessages(this._messages);
+        field.setMessages(messages);
+      this._field?.setMessages(messages);
+      this._panel?.setAttribute("aria-label", messages.calendar);
+      const field = this._field ?? this._fields?.[0];
+      if (this._formatHint && field)
+        this._formatHint.textContent = `${messages.formatHint}: ${field.placeholder}`;
       this._refreshButtonLabel();
-      this.validate();
+      if (this._connected)
+        this.validate();
     }
     get source() {
       return this._source;
@@ -2482,7 +2615,7 @@
       panel.className = "dp-picker-panel";
       panel.setAttribute("popover", "manual");
       panel.setAttribute("role", "dialog");
-      panel.setAttribute("aria-label", this._messages.calendar);
+      panel.setAttribute("aria-label", this.messages.calendar);
       const calendar = new DateCalendarElement;
       calendar.selection = "none";
       calendar.fixedWeeks = true;
@@ -2971,7 +3104,7 @@
       if (!this._rangeMode() && this._value)
         calendar.value = this._value;
       if (panel)
-        panel.setAttribute("aria-label", this._messages.calendar);
+        panel.setAttribute("aria-label", this.messages.calendar);
     }
     _refreshLocale() {
       const hint = this._formatHint;
@@ -2980,7 +3113,7 @@
       if (this._rangeMode() && this._fields) {
         this._fields[0].setLocale(this.locale);
         this._fields[1].setLocale(this.locale);
-        hint.textContent = `${this._messages.formatHint}: ${this._fields[0].placeholder}`;
+        hint.textContent = `${this.messages.formatHint}: ${this._fields[0].placeholder}`;
         for (const [index, field] of this._fields.entries()) {
           if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholder) {
             field.input.placeholder = field.placeholder;
@@ -2997,7 +3130,7 @@
       if (!field)
         return;
       field.setLocale(this.locale);
-      hint.textContent = `${this._messages.formatHint}: ${field.placeholder}`;
+      hint.textContent = `${this.messages.formatHint}: ${field.placeholder}`;
       if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholder) {
         field.input.placeholder = field.placeholder;
         this._generatedPlaceholder = true;
@@ -3014,7 +3147,7 @@
         this._refreshRangeButtonLabel();
         return;
       }
-      const prefix = this._value ? this._messages.changeDate : this._messages.chooseDate;
+      const prefix = this._value ? this.messages.changeDate : this.messages.chooseDate;
       const suffix = this._value ? `, ${formatLongDate(this._value, this.locale)}` : "";
       single.setAttribute("aria-label", `${prefix}${suffix}`);
     }
@@ -3024,9 +3157,9 @@
       const { start, end } = this._range;
       for (const { button, endpoint } of this._buttons) {
         const bound = endpoint === "end" ? end : start;
-        const prefix = bound ? this._messages.changeDate : this._messages.chooseDate;
+        const prefix = bound ? this.messages.changeDate : this.messages.chooseDate;
         const suffix = bound ? `, ${formatLongDate(bound, this.locale)}` : "";
-        const boundLabel = endpoint === "end" ? this._messages.rangeEnd : this._messages.rangeStart;
+        const boundLabel = endpoint === "end" ? this.messages.rangeEnd : this.messages.rangeStart;
         button.setAttribute("aria-label", `${prefix}${suffix}, ${boundLabel}`);
       }
     }
@@ -3073,7 +3206,7 @@
       const confirmed = await calendar.ensureDate(date);
       const state = calendar.getDateState(date);
       if (!confirmed || state.disabled)
-        return { ok: false, message: this._messages.unavailableDate };
+        return { ok: false, message: this.messages.unavailableDate };
       return { ok: true };
     }
     async _commitText(emit, options = {}) {
@@ -3189,7 +3322,7 @@
       for (const bound of bounds) {
         const index = bound === "end" ? 1 : 0;
         const input = this._fields[index].input;
-        const message = bound === "end" ? this._messages.rangeOrderEnd : this._messages.rangeOrderStart;
+        const message = bound === "end" ? this.messages.rangeOrderEnd : this.messages.rangeOrderStart;
         const shouldHaveOrder = inverted && bound === which;
         if (shouldHaveOrder) {
           input.setCustomValidity(message);
@@ -3211,7 +3344,7 @@
         const input = inputs[index];
         if (!input)
           continue;
-        const message = bound === "end" ? this._messages.rangeOrderEnd : this._messages.rangeOrderStart;
+        const message = bound === "end" ? this.messages.rangeOrderEnd : this.messages.rangeOrderStart;
         const shouldHaveOrder = inverted && bound === which;
         if (shouldHaveOrder) {
           input.setCustomValidity(message);

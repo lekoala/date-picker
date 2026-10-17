@@ -266,7 +266,7 @@ Deliberately out of scope:
 
 ### Host control classes
 
-Set application-wide header styles before creating calendars or pickers:
+Set application-wide header styles, including for calendars and pickers already in the page:
 
 ```js
 import { setDefaultControlClasses } from "@lekoala/date-picker";
@@ -278,4 +278,17 @@ setDefaultControlClasses({
 });
 ```
 
-Each role with author classes uses the host design system's skin. Override per element through `controlClasses`; roles without classes retain the default skin. Day cells and the field trigger are unchanged.
+Each role with author classes uses the host design system's skin. Override individual roles through `controlClasses`: omitted roles follow current global defaults, `""` restores the library skin for a role, and `null` follows all defaults. Day cells and the field trigger are unchanged.
+
+For a classic script (including the CDN build), use the registered constructor after the script has loaded:
+
+```js
+customElements.get("date-picker").setDefaultControlClasses({
+  month: "select sm",
+  year: "input sm",
+  nav: "btn outline sm icon-only",
+});
+customElements.get("date-picker").setDefaultMessages({ chooseDate: "Choose a date" });
+```
+
+Both element constructors expose `setDefaultControlClasses`, `getDefaultControlClasses`, `setDefaultMessages` and `getDefaultMessages`, sharing the same defaults. Class defaults update inherited roles on connected elements, including instances with partial overrides. Message defaults update elements without a messages override. Properties assigned before definition are reapplied through their setters when the element connects, including `controlClasses`, `messages`, `source` and `range`.

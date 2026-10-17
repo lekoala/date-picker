@@ -16,6 +16,14 @@ export declare function getDefaultControlClasses(): {
     year: string;
     nav: string;
 };
+/**
+ * Preserve omitted roles so they can inherit defaults when rendered.
+ * @param {Partial<ControlClasses> | null} classes
+ * @returns {Partial<ControlClasses> | null}
+ */
+export declare function normalizeControlClasses(classes: Partial<ControlClasses> | null): Partial<ControlClasses> | null;
+/** @param {Partial<ControlClasses> | null} classes */
+export declare function usesDefaultControlClasses(classes: Partial<ControlClasses> | null): boolean;
 /** @param {Partial<ControlClasses> | null} classes */
 export declare function resolveControlClasses(classes: Partial<ControlClasses> | null): {
     month: string;
@@ -23,8 +31,10 @@ export declare function resolveControlClasses(classes: Partial<ControlClasses> |
     nav: string;
 };
 /**
- * Set defaults for subsequently created elements (existing elements are unchanged).
+ * Set defaults and refresh connected elements with inherited control roles.
  * @param {Partial<ControlClasses>} classes
  */
 export declare function setDefaultControlClasses(classes: Partial<ControlClasses>): void;
+/** @param {() => void} listener */
+export declare function subscribeDefaultControlClasses(listener: () => void): () => void;
 //# sourceMappingURL=control-classes.d.ts.map

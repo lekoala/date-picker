@@ -366,7 +366,7 @@ ISO input is accepted as a fallback even when the locale display is different.
 
 ## Locales
 
-`setDefaultMessages(partial)` merges global defaults for subsequently created elements; it does not update existing instances. `getDefaultMessages()` returns a copy. Assigning `element.messages` merges that assignment with the current global defaults, not with the previous assignment.
+`setDefaultMessages(partial)` merges global defaults and refreshes connected elements without a messages override, including picker field validation, triggers and popup labels. `getDefaultMessages()` returns a copy. Assigning `element.messages` merges that assignment with the current global defaults, not with the previous assignment. Assigning `null` resumes following global defaults.
 
 Control-message dictionaries ship per locale and can be attached through the `messages` property:
 
@@ -415,9 +415,21 @@ Public helpers:
 
 ## Header control styling
 
-`setDefaultControlClasses(partial)` and `getDefaultControlClasses()` are named package exports, alongside `setDefaultMessages()` / `getDefaultMessages()`. Set defaults before creating elements; existing elements are unchanged. The getter returns a copy.
+`setDefaultControlClasses(partial)` and `getDefaultControlClasses()` are named package exports, alongside `setDefaultMessages()` / `getDefaultMessages()`. Class defaults are resolved per role when used and refresh connected elements with inherited roles. The getter returns a copy.
 
-Both elements expose `controlClasses`. Assignment merges the partial map with current global defaults, not with the previous assignment. An empty string explicitly restores the default skin for a role; `null` resets to global defaults. The picker forwards the map to its shared calendar, including in range mode. There is no HTML attribute.
+The same four functions are available as static methods on both `DateCalendarElement` and `DatePickerElement`. For the classic build, call them through the registry after the script has loaded:
+
+```js
+const Picker = customElements.get("date-picker");
+Picker.setDefaultControlClasses({ month: "select sm", year: "input sm", nav: "btn outline sm icon-only" });
+Picker.setDefaultMessages({ chooseDate: "Choose a date" });
+const classes = Picker.getDefaultControlClasses();
+const messages = customElements.get("date-calendar").getDefaultMessages();
+```
+
+Both constructors delegate to the same defaults as the named ESM exports within that build. Class defaults update inherited roles on connected elements; explicitly assigned roles stay unchanged. Message defaults update elements without a messages override. All writable public properties assigned before definition are replayed through their setters on connection. Picker `value` and `range` are replayed after its fields and controllers are initialized; `range` still requires the `range` attribute. Read-only properties remain read-only.
+
+Both elements expose `controlClasses`. Assignment stores only the normalized roles provided, replacing the previous partial map. Each omitted role follows its current global default when read or rendered, regardless of assignment order. An empty string explicitly restores the default skin for a role; `null` resumes following global defaults. The picker forwards only its own partial map to its shared calendar, including in range mode. There is no HTML attribute.
 
 Each non-empty role uses only the author's skin (including caret, hover, disabled and focus). Grid layout, year track width and month truncation stay component-owned. Day cells and the picker trigger are excluded. Class lists are whitespace-normalized and deduplicated; tokens containing control characters or using the reserved `dp-*` namespace are ignored. Arbitrary utility classes such as `[&>svg]:size-4`, `data-[state=open]:bg-muted` and `aria-[disabled=true]:opacity-50` are preserved. Values are HTML-escaped on rendering, including quotes and HTML delimiters. Reassigning equivalent normalized classes leaves the rendered controls and grid intact.
 

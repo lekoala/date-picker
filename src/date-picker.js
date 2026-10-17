@@ -1,12 +1,18 @@
 import { autoUpdate, reposition } from "@lekoala/floating";
-import { getDefaultControlClasses, resolveControlClasses, sameControlClasses } from "./control-classes.js";
+import {
+  getDefaultControlClasses,
+  normalizeControlClasses,
+  resolveControlClasses,
+  setDefaultControlClasses,
+} from "./control-classes.js";
 import { compareDates, isDate, monthKey, todayISO } from "./date.js";
 import { DateCalendarElement } from "./date-calendar.js";
 import { DateFieldController } from "./date-field.js";
 import { DateRangeController, normalizeRange } from "./date-range.js";
 import { createDateAdapter, formatLongDate, resolveLocale } from "./intl.js";
-import { getDefaultMessages } from "./messages.js";
+import { getDefaultMessages, setDefaultMessages, subscribeDefaultMessages } from "./messages.js";
 import { compareTimes, isTime } from "./time.js";
+import { upgradeProperties } from "./upgrade-properties.js";
 
 let uid = 0;
 
@@ -15,6 +21,26 @@ const DRAG_THRESHOLD = 4;
 
 export class DatePickerElement extends HTMLElement {
   static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
+
+  /** @public @param {Partial<import("./control-classes.js").ControlClasses>} classes */
+  static setDefaultControlClasses(classes) {
+    setDefaultControlClasses(classes);
+  }
+
+  /** @public */
+  static getDefaultControlClasses() {
+    return getDefaultControlClasses();
+  }
+
+  /** @public @param {Partial<typeof import("./messages.js").DEFAULT_MESSAGES>} messages */
+  static setDefaultMessages(messages) {
+    setDefaultMessages(messages);
+  }
+
+  /** @public */
+  static getDefaultMessages() {
+    return getDefaultMessages();
+  }
 
   constructor() {
     super();
@@ -63,8 +89,12 @@ export class DatePickerElement extends HTMLElement {
     this._stopTracking = null;
     this._open = false;
     this._suppressFocusOpen = false;
-    this._messages = getDefaultMessages();
-    this._controlClasses = getDefaultControlClasses();
+    /** @type {typeof import("./messages.js").DEFAULT_MESSAGES | null} */
+    this._messages = null;
+    /** @type {Partial<import("./control-classes.js").ControlClasses> | null} */
+    this._controlClasses = null;
+    /** @type {(() => void) | null} */
+    this._stopDefaultMessages = null;
     /** @type {any} */
     this._source = null;
     /** @type {any} */
@@ -83,11 +113,29 @@ export class DatePickerElement extends HTMLElement {
 
   connectedCallback() {
     if (this._connected) return;
-    if (this.hasAttribute("range")) {
-      this._connectRange();
-      return;
+    upgradeProperties(this, [
+      "locale",
+      "min",
+      "max",
+      "monthFormat",
+      "openOnFocus",
+      "coordinateSpace",
+      "controlClasses",
+      "messages",
+      "source",
+      "dateState",
+      "renderDay",
+      "isDateDisabled",
+    ]);
+    if (this.hasAttribute("range")) this._connectRange();
+    else this._connectSingle();
+    // The range setter requires the controller created by _connectRange().
+    if (this._connected) {
+      upgradeProperties(this, ["value", "range"]);
+      this._stopDefaultMessages = subscribeDefaultMessages(() => {
+        if (this._messages === null) this._refreshMessages();
+      });
     }
-    this._connectSingle();
   }
 
   _connectSingle() {
@@ -101,7 +149,7 @@ export class DatePickerElement extends HTMLElement {
     this._connected = true;
     this._input = input;
     this._discoverTimeFields();
-    this._field = new DateFieldController(input, { messages: this._messages, locale: this.locale });
+    this._field = new DateFieldController(input, { messages: this.messages, locale: this.locale });
     this._field.onAttributesChanged = () => this._syncInputState();
     this._field.confirm = (date, options) => this._confirmDate(date, options);
     this._setupFormValue();
@@ -115,7 +163,7 @@ export class DatePickerElement extends HTMLElement {
       this.getAttribute("value") || (isDate(input.value) ? input.value : adapter.parse(input.value));
     if (initial && isDate(initial)) this._setValue(initial, { emit: false, format: true });
     else if (!input.value) this._setValue("", { emit: false, format: false });
-    else input.setCustomValidity(this._messages.invalidDate);
+    else input.setCustomValidity(this.messages.invalidDate);
 
     // Native form reset restores control defaultValues, then _restoreDefault()
     // recommits the canonical value from them. Never redefine an author-provided
@@ -171,8 +219,8 @@ export class DatePickerElement extends HTMLElement {
     this._connected = true;
     this._input = null;
     this._fields = [
-      new DateFieldController(startInput, { messages: this._messages, locale: this.locale }),
-      new DateFieldController(endInput, { messages: this._messages, locale: this.locale }),
+      new DateFieldController(startInput, { messages: this.messages, locale: this.locale }),
+      new DateFieldController(endInput, { messages: this.messages, locale: this.locale }),
     ];
     this._range = new DateRangeController();
     this._rangeOriginalDescribedBy = [
@@ -195,8 +243,8 @@ export class DatePickerElement extends HTMLElement {
     const initialEnd = isDate(endInput.value) ? endInput.value : adapter.parse(endInput.value);
     this._setRange(initialStart || "", initialEnd || "", { emit: false });
     if (startInput.value.trim() && !isDate(initialStart))
-      startInput.setCustomValidity(this._messages.invalidDate);
-    if (endInput.value.trim() && !isDate(initialEnd)) endInput.setCustomValidity(this._messages.invalidDate);
+      startInput.setCustomValidity(this.messages.invalidDate);
+    if (endInput.value.trim() && !isDate(initialEnd)) endInput.setCustomValidity(this.messages.invalidDate);
 
     if (this._fields[0].hidden) this._fields[0].hidden.defaultValue = this._range.start;
     if (this._fields[1].hidden) this._fields[1].hidden.defaultValue = this._range.end;
@@ -209,6 +257,8 @@ export class DatePickerElement extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this._stopDefaultMessages?.();
+    this._stopDefaultMessages = null;
     this._connected = false;
     this.hide(false);
     this._controller?.abort();
@@ -356,34 +406,42 @@ export class DatePickerElement extends HTMLElement {
   }
 
   /**
-   * Author classes for header controls; merged with global defaults.
+   * Author classes for header controls; omitted roles follow current global defaults.
    * @public
    * @returns {import("./control-classes.js").ControlClasses}
    */
   get controlClasses() {
-    return { ...this._controlClasses };
+    return resolveControlClasses(this._controlClasses);
   }
 
   /** @param {Partial<import("./control-classes.js").ControlClasses> | null} value */
   set controlClasses(value) {
-    const classes = resolveControlClasses(value);
-    if (sameControlClasses(classes, this._controlClasses)) return;
-    this._controlClasses = classes;
+    this._controlClasses = normalizeControlClasses(value);
     if (this._calendar) this._calendar.controlClasses = this._controlClasses;
   }
 
-  /** @public */
+  /** @public @returns {typeof import("./messages.js").DEFAULT_MESSAGES} */
   get messages() {
-    return this._messages;
+    return this._messages ?? getDefaultMessages();
   }
 
+  /** @param {Partial<typeof import("./messages.js").DEFAULT_MESSAGES> | null} value */
   set messages(value) {
-    this._messages = { ...getDefaultMessages(), ...(value || {}) };
+    this._messages = value == null ? null : { ...getDefaultMessages(), ...value };
     if (this._calendar) this._calendar.messages = this._messages;
-    for (const field of this._fields || []) field.setMessages(this._messages);
-    this._field?.setMessages(this._messages);
+    this._refreshMessages();
+  }
+
+  _refreshMessages() {
+    const messages = this.messages;
+    for (const field of this._fields || []) field.setMessages(messages);
+    this._field?.setMessages(messages);
+    this._panel?.setAttribute("aria-label", messages.calendar);
+    const field = this._field ?? this._fields?.[0];
+    if (this._formatHint && field)
+      this._formatHint.textContent = `${messages.formatHint}: ${field.placeholder}`;
     this._refreshButtonLabel();
-    void this.validate();
+    if (this._connected) void this.validate();
   }
 
   /** @public @returns {any} */
@@ -541,7 +599,7 @@ export class DatePickerElement extends HTMLElement {
     panel.className = "dp-picker-panel";
     panel.setAttribute("popover", "manual");
     panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-label", this._messages.calendar);
+    panel.setAttribute("aria-label", this.messages.calendar);
 
     const calendar = new DateCalendarElement();
     calendar.selection = "none";
@@ -1184,7 +1242,7 @@ export class DatePickerElement extends HTMLElement {
     calendar.renderDay = this._renderDay;
     calendar.isDateDisabled = this._isDateDisabled;
     if (!this._rangeMode() && this._value) calendar.value = this._value;
-    if (panel) panel.setAttribute("aria-label", this._messages.calendar);
+    if (panel) panel.setAttribute("aria-label", this.messages.calendar);
   }
 
   _refreshLocale() {
@@ -1193,7 +1251,7 @@ export class DatePickerElement extends HTMLElement {
     if (this._rangeMode() && this._fields) {
       this._fields[0].setLocale(this.locale);
       this._fields[1].setLocale(this.locale);
-      hint.textContent = `${this._messages.formatHint}: ${this._fields[0].placeholder}`;
+      hint.textContent = `${this.messages.formatHint}: ${this._fields[0].placeholder}`;
       for (const [index, field] of this._fields.entries()) {
         if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholder) {
           field.input.placeholder = field.placeholder;
@@ -1208,7 +1266,7 @@ export class DatePickerElement extends HTMLElement {
     const field = this._field;
     if (!field) return;
     field.setLocale(this.locale);
-    hint.textContent = `${this._messages.formatHint}: ${field.placeholder}`;
+    hint.textContent = `${this.messages.formatHint}: ${field.placeholder}`;
     if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholder) {
       field.input.placeholder = field.placeholder;
       this._generatedPlaceholder = true;
@@ -1224,7 +1282,7 @@ export class DatePickerElement extends HTMLElement {
       this._refreshRangeButtonLabel();
       return;
     }
-    const prefix = this._value ? this._messages.changeDate : this._messages.chooseDate;
+    const prefix = this._value ? this.messages.changeDate : this.messages.chooseDate;
     const suffix = this._value ? `, ${formatLongDate(this._value, this.locale)}` : "";
     single.setAttribute("aria-label", `${prefix}${suffix}`);
   }
@@ -1236,9 +1294,9 @@ export class DatePickerElement extends HTMLElement {
     const { start, end } = this._range;
     for (const { button, endpoint } of this._buttons) {
       const bound = endpoint === "end" ? end : start;
-      const prefix = bound ? this._messages.changeDate : this._messages.chooseDate;
+      const prefix = bound ? this.messages.changeDate : this.messages.chooseDate;
       const suffix = bound ? `, ${formatLongDate(bound, this.locale)}` : "";
-      const boundLabel = endpoint === "end" ? this._messages.rangeEnd : this._messages.rangeStart;
+      const boundLabel = endpoint === "end" ? this.messages.rangeEnd : this.messages.rangeStart;
       button.setAttribute("aria-label", `${prefix}${suffix}, ${boundLabel}`);
     }
   }
@@ -1294,7 +1352,7 @@ export class DatePickerElement extends HTMLElement {
     }
     const confirmed = await calendar.ensureDate(date);
     const state = calendar.getDateState(date);
-    if (!confirmed || state.disabled) return { ok: false, message: this._messages.unavailableDate };
+    if (!confirmed || state.disabled) return { ok: false, message: this.messages.unavailableDate };
     return { ok: true };
   }
 
@@ -1425,7 +1483,7 @@ export class DatePickerElement extends HTMLElement {
     for (const bound of bounds) {
       const index = bound === "end" ? 1 : 0;
       const input = this._fields[index].input;
-      const message = bound === "end" ? this._messages.rangeOrderEnd : this._messages.rangeOrderStart;
+      const message = bound === "end" ? this.messages.rangeOrderEnd : this.messages.rangeOrderStart;
       const shouldHaveOrder = inverted && bound === which;
       if (shouldHaveOrder) {
         input.setCustomValidity(message);
@@ -1461,7 +1519,7 @@ export class DatePickerElement extends HTMLElement {
     for (const [index, bound] of bounds.entries()) {
       const input = inputs[index];
       if (!input) continue;
-      const message = bound === "end" ? this._messages.rangeOrderEnd : this._messages.rangeOrderStart;
+      const message = bound === "end" ? this.messages.rangeOrderEnd : this.messages.rangeOrderStart;
       const shouldHaveOrder = inverted && bound === which;
       if (shouldHaveOrder) {
         input.setCustomValidity(message);
