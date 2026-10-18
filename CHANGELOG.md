@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.1 — 2026-10-18
+
+### Added
+
+- Both `DateCalendarElement` and `DatePickerElement` expose static `setDefaultControlClasses()`, `getDefaultControlClasses()`, `setDefaultMessages()` and `getDefaultMessages()` methods. Classic/CDN scripts can configure shared defaults through `customElements.get("date-picker")` or `customElements.get("date-calendar")`, using the same defaults as the named ESM exports within that build.
+
+### Changed
+
+- Global control-class defaults now refresh connected elements, including instances with partial overrides. Assigning `controlClasses` replaces the previous partial map: omitted roles follow current global defaults, an explicit empty string restores the library skin for that role, and `null` resumes following all defaults. Pickers preserve this inheritance when forwarding overrides to their calendar.
+- Global message defaults now refresh connected elements without a messages override, including field validation, format hints, triggers and popup labels. An instance message assignment still merges with the current defaults and pins that setting; assigning `null` resumes following global defaults. Disconnected elements read current defaults when reconnected.
+
+### Fixed
+
+- Writable public properties assigned before custom-element definition are reapplied through their setters on connection instead of shadowing the accessors. Options are applied before controls are built; picker `value` and `range` wait until fields and controllers are initialized. Range mode still requires the `range` attribute.
+- Add classic-build regression coverage for shared defaults, live updates, partial overrides, reconnection and properties assigned before definition; include the property-upgrade helper in syntax checks and verify the constructor methods in package checks.
+
 ## 0.5.0 — 2026-10-17
 
 ### Added
