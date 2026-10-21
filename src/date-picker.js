@@ -62,10 +62,10 @@ export class DatePickerElement extends HTMLElement {
     this._timeOrderOwned = new Set();
     /** @type {"" | "start" | "end"} */
     this._lastFocusEndpoint = "";
-    this._rangeCommitId = 0;
+    this._activationId = 0;
     /** Grid activation intents, keyed by date: the generation at interaction
-     * time (range mode supersession/stale protection) plus the bound a drag
-     * drop targets, empty for a normal pick.
+     * time (supersession/stale protection) plus the bound a drag drop targets,
+     * empty for a normal pick.
      * @type {Map<string, {id: number, endpoint: "" | "start" | "end"}>} */
     this._pendingIntents = new Map();
     /** Candidate date currently projected onto the calendar band, if any. */
@@ -241,10 +241,18 @@ export class DatePickerElement extends HTMLElement {
     const adapter = this._adapter();
     const initialStart = isDate(startInput.value) ? startInput.value : adapter.parse(startInput.value);
     const initialEnd = isDate(endInput.value) ? endInput.value : adapter.parse(endInput.value);
+    // Read the authored text before _setRange() reformats an unparsable one away.
+    const startText = startInput.value;
+    const endText = endInput.value;
     this._setRange(initialStart || "", initialEnd || "", { emit: false });
-    if (startInput.value.trim() && !isDate(initialStart))
-      startInput.setCustomValidity(this.messages.invalidDate);
-    if (endInput.value.trim() && !isDate(initialEnd)) endInput.setCustomValidity(this.messages.invalidDate);
+    for (const [input, text, initial] of /** @type {const} */ ([
+      [startInput, startText, initialStart],
+      [endInput, endText, initialEnd],
+    ])) {
+      if (!text.trim() || isDate(initial)) continue;
+      input.value = text;
+      input.setCustomValidity(this.messages.invalidDate);
+    }
 
     if (this._fields[0].hidden) this._fields[0].hidden.defaultValue = this._range.start;
     if (this._fields[1].hidden) this._fields[1].hidden.defaultValue = this._range.end;
@@ -304,8 +312,10 @@ export class DatePickerElement extends HTMLElement {
     if (!this._connected || this._reflecting || oldValue === newValue) return;
     if (name === "value") {
       if (this._rangeMode()) return;
-      if (!newValue || isDate(newValue))
+      if (!newValue || isDate(newValue)) {
+        this._supersedeActivations();
         this._setValue(newValue || "", { emit: false, format: true, reflect: false });
+      }
       return;
     }
     if (name === "locale") this._refreshLocale();
@@ -334,6 +344,7 @@ export class DatePickerElement extends HTMLElement {
       throw new TypeError("value is not available in range mode; use range");
     }
     if (value && !isDate(value)) throw new TypeError(`Invalid date-picker value: ${value}`);
+    this._supersedeActivations();
     this._setValue(value || "", { emit: false, format: true });
   }
 
@@ -345,6 +356,7 @@ export class DatePickerElement extends HTMLElement {
   set range(value) {
     if (!this._rangeMode()) throw new TypeError("range is only available on <date-picker range>");
     const { start, end } = normalizeRange(value);
+    this._supersedeActivations();
     this._setRange(start, end);
   }
 
@@ -721,16 +733,33 @@ export class DatePickerElement extends HTMLElement {
       { signal },
     );
     button.addEventListener("keydown", (event) => this._onTriggerKeyDown("", event), { signal });
+    calendar.addEventListener("click", (event) => this._captureGridIntent(event), { capture: true, signal });
+    calendar.addEventListener("keydown", (event) => this._captureGridIntent(event), {
+      capture: true,
+      signal,
+    });
+    calendar.addEventListener(
+      "dateinvalid",
+      (event) => this._pendingIntents.delete(/** @type {CustomEvent} */ (event).detail?.date),
+      { signal },
+    );
     calendar.addEventListener(
       "dateactivate",
       (event) => {
         const custom = /** @type {CustomEvent} */ (event);
         const date = custom.detail?.date;
         if (!isDate(date)) return;
+        // Read the intent now: a later interaction may overwrite it.
+        const intent = this._pendingIntents.get(date);
+        this._pendingIntents.delete(date);
         // The app listener on <date-picker> runs after this during bubbling;
         // defer the commit so preventDefault() is actually respected.
         queueMicrotask(() => {
           if (custom.defaultPrevented || !this._connected) return;
+          // A grid pick that resolves after the popup closed, after a newer pick
+          // or after a programmatic value must not overwrite it. A programmatic
+          // calendar.activateDate() carries no intent and still commits.
+          if (intent && intent.id !== this._activationId) return;
           if (this._input?.disabled || this._input?.readOnly) return;
           this._field?.dirty();
           this._setValue(date, { emit: true, format: true });
@@ -755,7 +784,16 @@ export class DatePickerElement extends HTMLElement {
 
     for (const [index, field] of this._fields.entries()) {
       const endpoint = index === 1 ? "end" : "start";
-      field.input.addEventListener("input", () => field.handleInput(), { signal });
+      field.input.addEventListener(
+        "input",
+        () => {
+          // handleInput() rewrites the custom validity: any order error is gone.
+          field.handleInput();
+          this._orderTags.delete(index);
+          if (!field.isDirty) this._revalidateRange(endpoint);
+        },
+        { signal },
+      );
       field.input.addEventListener("change", () => void this._commitFieldText(endpoint), { signal });
       field.input.addEventListener("blur", () => void this._commitFieldText(endpoint), { signal });
       field.input.addEventListener(
@@ -809,7 +847,7 @@ export class DatePickerElement extends HTMLElement {
           const intent = this._pendingIntents.get(date);
           // A response is dropped when the active endpoint changed, the popup
           // closed or a newer activation superseded this one.
-          if (intent === undefined || intent.id !== this._rangeCommitId) return;
+          if (intent === undefined || intent.id !== this._activationId) return;
           this._pendingIntents.delete(date);
           const editable = (/** @type {"start" | "end"} */ bound) => this._boundEditable(bound);
           // Click, keyboard and drop share this one machine; only the entry
@@ -863,7 +901,7 @@ export class DatePickerElement extends HTMLElement {
     const calendar = this._calendar;
     if (!this._range || !calendar) return;
     this._range.focus(endpoint);
-    this._rangeCommitId++;
+    this._activationId++;
     this._pendingIntents.clear();
     this._lastFocusEndpoint = endpoint;
     const target = this._boundCanonical(endpoint) || todayISO();
@@ -950,7 +988,7 @@ export class DatePickerElement extends HTMLElement {
     if (switched) {
       // A late calendar activation targeting the previous endpoint must not
       // commit after the intent moved to the other bound.
-      this._rangeCommitId++;
+      this._activationId++;
       this._pendingIntents.clear();
     }
     if (!this.openOnFocus || this._suppressFocusOpen) return;
@@ -959,12 +997,12 @@ export class DatePickerElement extends HTMLElement {
     if (!this._open) this.show({ moveFocus: false });
   }
 
-  /** Record range-mode grid activation intent (click or keyboard) so a stale,
+  /** Record grid activation intent (click or keyboard) so a stale,
    * late-confirmed dateactivate can be recognized and dropped. Each new grid
    * activation supersedes every earlier pending one.
    * @param {Event} event */
   _captureGridIntent(event) {
-    if (!this._rangeMode() || !this._range) return;
+    if (this._rangeMode() ? !this._range : !this._field) return;
     if (event.type === "keydown") {
       const key = /** @type {KeyboardEvent} */ (event).key;
       if (key !== "Enter" && key !== " ") return;
@@ -973,9 +1011,21 @@ export class DatePickerElement extends HTMLElement {
     const cell = event.target.closest(".dp-day[data-date]");
     const date = cell?.getAttribute("data-date") || "";
     if (!isDate(date)) return;
-    // Each activation supersedes every earlier pending one.
-    this._pendingIntents.clear();
-    this._pendingIntents.set(date, { id: ++this._rangeCommitId, endpoint: "" });
+    // Each activation supersedes every earlier pending one: range forgets
+    // them, single keeps them so they read as stale (see _supersedeActivations).
+    if (this._rangeMode()) this._pendingIntents.clear();
+    this._pendingIntents.set(date, { id: ++this._activationId, endpoint: "" });
+  }
+
+  /**
+   * Invalidate every pending grid activation. Range commits only a known
+   * intent, so forgetting them is enough. Single mode also accepts a
+   * programmatic `calendar.activateDate()` (no intent), so its intents are kept
+   * and fail the generation check instead.
+   */
+  _supersedeActivations() {
+    this._activationId++;
+    if (this._rangeMode()) this._pendingIntents.clear();
   }
 
   /** Whether one bound can receive a user pick right now.
@@ -1181,7 +1231,7 @@ export class DatePickerElement extends HTMLElement {
     // after a newer interaction.
     const target = drag.endpoint === "start" ? transition.range.start : transition.range.end;
     this._pendingIntents.clear();
-    this._pendingIntents.set(target, { id: ++this._rangeCommitId, endpoint: drag.endpoint });
+    this._pendingIntents.set(target, { id: ++this._activationId, endpoint: drag.endpoint });
     void this._calendar?.activateDate(target);
   }
 
@@ -1621,6 +1671,8 @@ export class DatePickerElement extends HTMLElement {
       // Empty text flows through commit()'s "clear" outcome, not an early exit.
       for (const [index, field] of fields.entries()) {
         const result = await field.commit({ moveDisplay: false });
+        // A parse/source error replaced the order error, which no longer owns it.
+        if (result.status === "invalid") this._orderTags.delete(index);
         if (result.status === "ok" || result.status === "clear") {
           const which = index === 1 ? "end" : "start";
           this._setBound(which, result.value || "", { format: result.status === "ok" });
@@ -1632,11 +1684,9 @@ export class DatePickerElement extends HTMLElement {
     }
     const input = this._field?.input;
     if (!input) return true;
-    if (!input.value.trim()) {
-      input.setCustomValidity("");
-    } else {
-      await this._commitText(false, { force: true, moveDisplay: false });
-    }
+    // Empty text flows through commit()'s "clear" outcome so the canonical
+    // value and hidden ISO are cleared with it.
+    await this._commitText(false, { force: true, moveDisplay: false });
     // Same start-then-end order as the range path, so a from/to inversion
     // ends reported on "end". A programmatic time change resyncs here too.
     this._revalidateTimeOrder("start");
@@ -1704,8 +1754,7 @@ export class DatePickerElement extends HTMLElement {
     }
     this._open = false;
     this._setExpanded(false);
-    this._rangeCommitId++;
-    this._pendingIntents.clear();
+    this._supersedeActivations();
     this._suppressGridClick = false;
     if (this._drag) {
       this._releaseDragCapture(this._drag.pointerId);

@@ -206,6 +206,9 @@ export declare class DateCalendarElement extends HTMLElement {
     }): void;
     /** @param {string} previous @param {string} next @param {boolean} [moveFocus] */
     _moveFocusDom(previous: string, next: string, moveFocus?: boolean): void;
+    /** Leave exactly one roving tab stop, on `date`'s cell when rendered.
+     * @param {string} date */
+    _syncRovingDom(date: string): void;
     /** @param {string} previousValue @param {string} nextValue */
     _moveSelectionDom(previousValue: string, nextValue: string): boolean;
     /**

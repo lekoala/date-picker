@@ -20,10 +20,10 @@ export declare class DatePickerElement extends HTMLElement {
     _timeOrderOwned: Set<HTMLInputElement>;
     /** @type {"" | "start" | "end"} */
     _lastFocusEndpoint: "" | "start" | "end";
-    _rangeCommitId: number;
+    _activationId: number;
     /** Grid activation intents, keyed by date: the generation at interaction
-     * time (range mode supersession/stale protection) plus the bound a drag
-     * drop targets, empty for a normal pick.
+     * time (supersession/stale protection) plus the bound a drag drop targets,
+     * empty for a normal pick.
      * @type {Map<string, {id: number, endpoint: "" | "start" | "end"}>} */
     _pendingIntents: Map<string, {
         id: number;
@@ -240,11 +240,18 @@ export declare class DatePickerElement extends HTMLElement {
     _onFieldKeyDown(endpoint: "" | "start" | "end", event: KeyboardEvent): void;
     /** @param {"" | "start" | "end"} endpoint @param {FocusEvent} event */
     _onFieldFocus(endpoint: "" | "start" | "end", event: FocusEvent): void;
-    /** Record range-mode grid activation intent (click or keyboard) so a stale,
+    /** Record grid activation intent (click or keyboard) so a stale,
      * late-confirmed dateactivate can be recognized and dropped. Each new grid
      * activation supersedes every earlier pending one.
      * @param {Event} event */
     _captureGridIntent(event: Event): void;
+    /**
+     * Invalidate every pending grid activation. Range commits only a known
+     * intent, so forgetting them is enough. Single mode also accepts a
+     * programmatic `calendar.activateDate()` (no intent), so its intents are kept
+     * and fail the generation check instead.
+     */
+    _supersedeActivations(): void;
     /** Whether one bound can receive a user pick right now.
      * @param {"start" | "end"} bound */
     _boundEditable(bound: "start" | "end"): boolean;

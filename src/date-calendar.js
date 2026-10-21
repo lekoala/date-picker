@@ -681,6 +681,16 @@ export class DateCalendarElement extends HTMLElement {
     }
   }
 
+  /** Leave exactly one roving tab stop, on `date`'s cell when rendered.
+   * @param {string} date */
+  _syncRovingDom(date) {
+    for (const cell of this.querySelectorAll('.dp-day[tabindex="0"]')) {
+      if (cell instanceof HTMLElement && cell.dataset.date !== date) cell.tabIndex = -1;
+    }
+    const cell = this.querySelector(`.dp-day[data-date="${CSS.escape(date)}"]`);
+    if (cell instanceof HTMLElement) cell.tabIndex = 0;
+  }
+
   /** @param {string} previousValue @param {string} nextValue */
   _moveSelectionDom(previousValue, nextValue) {
     if (previousValue) {
@@ -820,6 +830,8 @@ export class DateCalendarElement extends HTMLElement {
     this._model.setFocused(this._clamp(date));
     this._reflect("display", this._model.display);
     if (previousDisplay !== this.display) this._emitDisplayChange();
+    // Engines that do not focus a clicked cell still need the tab stop moved.
+    else this._syncRovingDom(this._model.focused);
     void this.activateDate(date);
   }
 
@@ -855,6 +867,8 @@ export class DateCalendarElement extends HTMLElement {
     const date = target.dataset.date || "";
     if (!isDate(date)) return;
     this._model.focused = date;
+    // A pointer focuses the cell directly; keep exactly one tab stop on it.
+    this._syncRovingDom(date);
     this.dispatchEvent(
       new CustomEvent("datefocus", { detail: { date, state: this.getDateState(date) }, bubbles: true }),
     );

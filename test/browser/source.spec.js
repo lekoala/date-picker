@@ -94,3 +94,39 @@ test("a source reload revalidates without resetting the visible month", async ({
     "2026-09-06",
   );
 });
+
+test("a grid pick resolving after close and a programmatic value never overwrites it", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__fail = false;
+    window.__hang = true;
+  });
+  await page.click("#source-picker .dp-picker-button");
+  await page.click('#source-picker .dp-day[data-date="2026-09-12"]');
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#source-picker")).toHaveJSProperty("open", false);
+  await page.evaluate(() => {
+    document.getElementById("source-picker").value = "2026-09-20";
+    window.__hang = false;
+  });
+  await page.waitForFunction(() => window.__events.includes("source-picker:dateactivate:2026-09-12"));
+  await page.waitForTimeout(100);
+
+  await expect(page.locator("#source-picker")).toHaveJSProperty("value", "2026-09-20");
+  await expect(page.locator('#source-picker input[type="hidden"][name="source-field"]')).toHaveValue(
+    "2026-09-20",
+  );
+});
+
+test("validate() on an emptied field clears the canonical value and hidden ISO", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__fail = false;
+  });
+  const valid = await page.evaluate(() => {
+    const picker = document.getElementById("source-picker");
+    picker.input.value = "";
+    return picker.validate();
+  });
+  expect(valid).toBe(true);
+  await expect(page.locator("#source-picker")).toHaveJSProperty("value", "");
+  await expect(page.locator('#source-picker input[type="hidden"][name="source-field"]')).toHaveValue("");
+});

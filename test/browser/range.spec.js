@@ -426,3 +426,48 @@ test("an unavailable candidate promises no preview", async ({ page }) => {
     /.*/,
   );
 });
+
+test("an order tag never clears a newer parse error on the same bound", async ({ page }) => {
+  await page.evaluate(() => {
+    document.getElementById("stay-picker").range = { start: "2026-09-10", end: "2026-09-15" };
+  });
+  await page.fill("#stay-end", "05/09/2026");
+  await page.locator("#stay-end").blur();
+  expect(await page.locator("#stay-end").evaluate((input) => input.validationMessage)).not.toBe("");
+
+  // Replace the flagged bound with garbage, then fix the order from the other
+  // bound before the garbage bound is ever blurred.
+  await page.fill("#stay-end", "garbage");
+  const endValid = await page.evaluate(() => {
+    const start = document.getElementById("stay-start");
+    start.value = "01/09/2026";
+    start.dispatchEvent(new Event("input", { bubbles: true }));
+    start.dispatchEvent(new Event("change", { bubbles: true }));
+    return new Promise((resolve) =>
+      setTimeout(() => resolve(document.getElementById("stay-end").checkValidity()), 50),
+    );
+  });
+  expect(endValid).toBe(false);
+  await expect(page.locator("#stay-end")).toHaveValue("garbage");
+});
+
+test("an unparsable initial range text is kept and flagged", async ({ page }) => {
+  const state = await page.evaluate(() => {
+    const picker = document.createElement("date-picker");
+    picker.setAttribute("range", "");
+    picker.setAttribute("locale", "fr-BE");
+    picker.innerHTML = '<input data-range-start value="garbage"><input data-range-end value="2026-09-15">';
+    document.body.append(picker);
+    const [start, end] = picker.querySelectorAll("input");
+    return {
+      text: start.value,
+      message: start.validationMessage,
+      range: picker.range,
+      endText: end.value,
+    };
+  });
+  expect(state.text).toBe("garbage");
+  expect(state.message).not.toBe("");
+  expect(state.range).toEqual({ start: "", end: "2026-09-15" });
+  expect(state.endText).toBe("15/09/2026");
+});

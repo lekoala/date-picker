@@ -1284,6 +1284,15 @@
         this.focusGrid();
       }
     }
+    _syncRovingDom(date) {
+      for (const cell of this.querySelectorAll('.dp-day[tabindex="0"]')) {
+        if (cell instanceof HTMLElement && cell.dataset.date !== date)
+          cell.tabIndex = -1;
+      }
+      const cell = this.querySelector(`.dp-day[data-date="${CSS.escape(date)}"]`);
+      if (cell instanceof HTMLElement)
+        cell.tabIndex = 0;
+    }
     _moveSelectionDom(previousValue, nextValue) {
       if (previousValue) {
         const prev = this.querySelector(`.dp-day[data-date="${CSS.escape(previousValue)}"]`);
@@ -1399,6 +1408,8 @@
       this._reflect("display", this._model.display);
       if (previousDisplay !== this.display)
         this._emitDisplayChange();
+      else
+        this._syncRovingDom(this._model.focused);
       this.activateDate(date);
     }
     _onChange(event) {
@@ -1425,6 +1436,7 @@
       if (!isDate(date))
         return;
       this._model.focused = date;
+      this._syncRovingDom(date);
       this.dispatchEvent(new CustomEvent("datefocus", { detail: { date, state: this.getDateState(date) }, bubbles: true }));
     }
     _onKeyDown(event) {
@@ -2163,7 +2175,7 @@
       this._timeFields = [null, null];
       this._timeOrderOwned = new Set;
       this._lastFocusEndpoint = "";
-      this._rangeCommitId = 0;
+      this._activationId = 0;
       this._pendingIntents = new Map;
       this._previewDate = "";
       this._drag = null;
@@ -2307,11 +2319,18 @@
       const adapter = this._adapter();
       const initialStart = isDate(startInput.value) ? startInput.value : adapter.parse(startInput.value);
       const initialEnd = isDate(endInput.value) ? endInput.value : adapter.parse(endInput.value);
+      const startText = startInput.value;
+      const endText = endInput.value;
       this._setRange(initialStart || "", initialEnd || "", { emit: false });
-      if (startInput.value.trim() && !isDate(initialStart))
-        startInput.setCustomValidity(this.messages.invalidDate);
-      if (endInput.value.trim() && !isDate(initialEnd))
-        endInput.setCustomValidity(this.messages.invalidDate);
+      for (const [input, text, initial] of [
+        [startInput, startText, initialStart],
+        [endInput, endText, initialEnd]
+      ]) {
+        if (!text.trim() || isDate(initial))
+          continue;
+        input.value = text;
+        input.setCustomValidity(this.messages.invalidDate);
+      }
       if (this._fields[0].hidden)
         this._fields[0].hidden.defaultValue = this._range.start;
       if (this._fields[1].hidden)
@@ -2372,8 +2391,10 @@
       if (name === "value") {
         if (this._rangeMode())
           return;
-        if (!newValue || isDate(newValue))
+        if (!newValue || isDate(newValue)) {
+          this._supersedeActivations();
           this._setValue(newValue || "", { emit: false, format: true, reflect: false });
+        }
         return;
       }
       if (name === "locale")
@@ -2398,6 +2419,7 @@
       }
       if (value && !isDate(value))
         throw new TypeError(`Invalid date-picker value: ${value}`);
+      this._supersedeActivations();
       this._setValue(value || "", { emit: false, format: true });
     }
     get range() {
@@ -2407,6 +2429,7 @@
       if (!this._rangeMode())
         throw new TypeError("range is only available on <date-picker range>");
       const { start, end } = normalizeRange(value);
+      this._supersedeActivations();
       this._setRange(start, end);
     }
     get locale() {
@@ -2701,13 +2724,23 @@
         this.show({ returnFocus: button });
       }, { signal });
       button.addEventListener("keydown", (event) => this._onTriggerKeyDown("", event), { signal });
+      calendar.addEventListener("click", (event) => this._captureGridIntent(event), { capture: true, signal });
+      calendar.addEventListener("keydown", (event) => this._captureGridIntent(event), {
+        capture: true,
+        signal
+      });
+      calendar.addEventListener("dateinvalid", (event) => this._pendingIntents.delete(event.detail?.date), { signal });
       calendar.addEventListener("dateactivate", (event) => {
         const custom = event;
         const date = custom.detail?.date;
         if (!isDate(date))
           return;
+        const intent = this._pendingIntents.get(date);
+        this._pendingIntents.delete(date);
         queueMicrotask(() => {
           if (custom.defaultPrevented || !this._connected)
+            return;
+          if (intent && intent.id !== this._activationId)
             return;
           if (this._input?.disabled || this._input?.readOnly)
             return;
@@ -2729,7 +2762,12 @@
       const { signal } = controller;
       for (const [index, field] of this._fields.entries()) {
         const endpoint = index === 1 ? "end" : "start";
-        field.input.addEventListener("input", () => field.handleInput(), { signal });
+        field.input.addEventListener("input", () => {
+          field.handleInput();
+          this._orderTags.delete(index);
+          if (!field.isDirty)
+            this._revalidateRange(endpoint);
+        }, { signal });
         field.input.addEventListener("change", () => void this._commitFieldText(endpoint), { signal });
         field.input.addEventListener("blur", () => void this._commitFieldText(endpoint), { signal });
         field.input.addEventListener("focus", (event) => this._onFieldFocus(endpoint, event), { signal });
@@ -2768,7 +2806,7 @@
           if (custom.defaultPrevented || !this._connected || !this._range)
             return;
           const intent = this._pendingIntents.get(date);
-          if (intent === undefined || intent.id !== this._rangeCommitId)
+          if (intent === undefined || intent.id !== this._activationId)
             return;
           this._pendingIntents.delete(date);
           const editable = (bound) => this._boundEditable(bound);
@@ -2805,7 +2843,7 @@
       if (!this._range || !calendar)
         return;
       this._range.focus(endpoint);
-      this._rangeCommitId++;
+      this._activationId++;
       this._pendingIntents.clear();
       this._lastFocusEndpoint = endpoint;
       const target = this._boundCanonical(endpoint) || todayISO();
@@ -2868,7 +2906,7 @@
       this._lastFocusEndpoint = endpoint;
       this._range?.focus(endpoint);
       if (switched) {
-        this._rangeCommitId++;
+        this._activationId++;
         this._pendingIntents.clear();
       }
       if (!this.openOnFocus || this._suppressFocusOpen)
@@ -2880,7 +2918,7 @@
         this.show({ moveFocus: false });
     }
     _captureGridIntent(event) {
-      if (!this._rangeMode() || !this._range)
+      if (this._rangeMode() ? !this._range : !this._field)
         return;
       if (event.type === "keydown") {
         const key = event.key;
@@ -2893,8 +2931,14 @@
       const date = cell?.getAttribute("data-date") || "";
       if (!isDate(date))
         return;
-      this._pendingIntents.clear();
-      this._pendingIntents.set(date, { id: ++this._rangeCommitId, endpoint: "" });
+      if (this._rangeMode())
+        this._pendingIntents.clear();
+      this._pendingIntents.set(date, { id: ++this._activationId, endpoint: "" });
+    }
+    _supersedeActivations() {
+      this._activationId++;
+      if (this._rangeMode())
+        this._pendingIntents.clear();
     }
     _boundEditable(bound) {
       const field = this._fields?.[bound === "end" ? 1 : 0];
@@ -3047,7 +3091,7 @@
       }
       const target = drag.endpoint === "start" ? transition.range.start : transition.range.end;
       this._pendingIntents.clear();
-      this._pendingIntents.set(target, { id: ++this._rangeCommitId, endpoint: drag.endpoint });
+      this._pendingIntents.set(target, { id: ++this._activationId, endpoint: drag.endpoint });
       this._calendar?.activateDate(target);
     }
     _onGridPointerCancel(event) {
@@ -3434,6 +3478,8 @@
           return true;
         for (const [index, field] of fields.entries()) {
           const result = await field.commit({ moveDisplay: false });
+          if (result.status === "invalid")
+            this._orderTags.delete(index);
           if (result.status === "ok" || result.status === "clear") {
             const which = index === 1 ? "end" : "start";
             this._setBound(which, result.value || "", { format: result.status === "ok" });
@@ -3446,11 +3492,7 @@
       const input = this._field?.input;
       if (!input)
         return true;
-      if (!input.value.trim()) {
-        input.setCustomValidity("");
-      } else {
-        await this._commitText(false, { force: true, moveDisplay: false });
-      }
+      await this._commitText(false, { force: true, moveDisplay: false });
       this._revalidateTimeOrder("start");
       this._revalidateTimeOrder("end");
       const timesValid = this._timeFields.every((timeInput) => timeInput?.checkValidity() ?? true);
@@ -3510,8 +3552,7 @@
       } catch {}
       this._open = false;
       this._setExpanded(false);
-      this._rangeCommitId++;
-      this._pendingIntents.clear();
+      this._supersedeActivations();
       this._suppressGridClick = false;
       if (this._drag) {
         this._releaseDragCapture(this._drag.pointerId);

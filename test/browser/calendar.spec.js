@@ -884,3 +884,13 @@ test("focusing a date at the calendar edge keeps it inside the rendered grid", a
   expect(result.focusedInGrid).toBe(true);
   expect(result.previous).toBe("0001-01");
 });
+
+test("clicking a day moves the single roving tab stop before arrow navigation", async ({ page }) => {
+  await page.click('#inline .dp-day[data-date="2026-09-17"]');
+  await expect(page.locator('#inline .dp-day[tabindex="0"]')).toHaveCount(1);
+  await expect(page.locator('#inline .dp-day[data-date="2026-09-17"]')).toHaveAttribute("tabindex", "0");
+  await page.locator('#inline .dp-day[data-date="2026-09-17"]').focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator('#inline .dp-day[data-date="2026-09-18"]')).toBeFocused();
+  await expect(page.locator('#inline .dp-day[tabindex="0"]')).toHaveCount(1);
+});

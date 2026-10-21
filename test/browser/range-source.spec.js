@@ -189,3 +189,24 @@ test("a drop resolving after the popup closed never moves a bound", async ({ pag
   const events = await page.evaluate(() => window.__events);
   expect(events.some((entry) => entry.startsWith("rangechange"))).toBe(false);
 });
+
+test("an atomic range assignment supersedes a still-pending grid pick", async ({ page }) => {
+  await page.locator("#start-date").focus();
+  await expect(page.locator("#range-picker .dp-picker-panel")).toBeVisible();
+  await page.evaluate(() => {
+    window.__hang = true;
+  });
+  await page.click("#range-picker .dp-next");
+  await page.click('#range-picker .dp-day[data-date="2026-10-13"]');
+  await page.evaluate(() => {
+    document.getElementById("range-picker").range = { start: "2026-09-20", end: "2026-09-25" };
+    window.__hang = false;
+  });
+  await page.waitForFunction(() =>
+    window.__events.some((entry) => entry.startsWith("dateactivate:2026-10-13")),
+  );
+  await page.waitForTimeout(100);
+
+  const range = await page.evaluate(() => document.getElementById("range-picker").range);
+  expect(range).toEqual({ start: "2026-09-20", end: "2026-09-25" });
+});

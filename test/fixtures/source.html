@@ -27,9 +27,25 @@ window.__hang = false;
 window.__source = async ({ start, end }, { signal }) => {
   const key = `${start}/${end}`;
   if (window.__hang) {
-    return new Promise((resolve, reject) => {
-      signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    // Pending until cancelled, or released by clearing `window.__hang`.
+    await new Promise((resolve, reject) => {
+      const timer = setInterval(() => {
+        if (!window.__hang) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 10);
+      signal.addEventListener(
+        "abort",
+        () => {
+          clearInterval(timer);
+          reject(new DOMException("Aborted", "AbortError"));
+        },
+        { once: true },
+      );
     });
+    if (window.__fail) throw new Error(`backend unavailable ${key}`);
+    return { dates: {} };
   }
   await new Promise((resolve, reject) => {
     const timer = setTimeout(resolve, 20);
