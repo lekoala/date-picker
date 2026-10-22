@@ -117,6 +117,50 @@ test("a grid pick resolving after close and a programmatic value never overwrite
   );
 });
 
+test("two picks of the same day resolving after close never commit", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__fail = false;
+    window.__hang = true;
+    // A fresh source keeps the month pending, so both picks await it.
+    document.getElementById("source-picker").source = window.__source;
+  });
+  await page.click("#source-picker .dp-picker-button");
+  // The second pick restarts the load: the first one fails as cancelled and
+  // must not take the second pick's intent with it.
+  await page.click('#source-picker .dp-day[data-date="2026-09-12"]');
+  await page.click('#source-picker .dp-day[data-date="2026-09-12"]');
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#source-picker")).toHaveJSProperty("open", false);
+  await page.evaluate(() => {
+    window.__hang = false;
+  });
+  await page.waitForFunction(() => window.__events.includes("source-picker:dateactivate:2026-09-12"));
+  await page.waitForTimeout(100);
+
+  await expect(page.locator("#source-picker")).toHaveJSProperty("value", "2026-09-06");
+});
+
+test("two picks of the same day commit once while the popup stays open", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__fail = false;
+    window.__hang = true;
+    window.__changes = 0;
+    const picker = document.getElementById("source-picker");
+    picker.source = window.__source;
+    picker.addEventListener("change", () => window.__changes++);
+  });
+  await page.click("#source-picker .dp-picker-button");
+  await page.click('#source-picker .dp-day[data-date="2026-09-12"]');
+  await page.click('#source-picker .dp-day[data-date="2026-09-12"]');
+  await page.evaluate(() => {
+    window.__hang = false;
+  });
+
+  await expect(page.locator("#source-picker")).toHaveJSProperty("value", "2026-09-12");
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.__changes)).toBe(1);
+});
+
 test("validate() on an emptied field clears the canonical value and hidden ISO", async ({ page }) => {
   await page.evaluate(() => {
     window.__fail = false;

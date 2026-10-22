@@ -9,6 +9,8 @@
 - The calendar year input accepts 9999 (an unrenderable 9999-12 still clamps to 9999-11) and always carries `min`/`max` bounds (1–9999 by default).
 - `source`, `dateState`, `renderDay` and `isDateDisabled` on `DatePickerElement`, and `getDateState()` on `DateCalendarElement`, are typed instead of `any`.
 - `custom-elements.json` lists the connect-time `range` attribute of `<date-picker>`.
+- Two grid picks of the same day while the source is loading no longer commit after the popup closed or a newer interaction superseded them: each activation now carries its own intent instead of sharing one keyed by date.
+- A `<date-picker>` inside a disabled `<fieldset>` refuses `show()` and grid commits, like a disabled input (editability now reads `:disabled`, not the `disabled` property).
 - `dist/date-picker.min.css` and the CSS embedded in the standalone bundle are minified without lowering modern selectors/logical properties (min CSS 17.3 kB → 8.3 kB, standalone 89.5 kB → 83.8 kB).
 
 ### Tooling

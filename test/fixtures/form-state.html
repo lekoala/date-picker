@@ -58,6 +58,16 @@
   <button id="min-reset" type="reset">Réinitialiser</button>
 </form>
 
+<fieldset id="fieldset-group">
+  <legend>Groupe désactivable</legend>
+  <label class="field" for="fieldset-date">
+    Date dans un fieldset
+    <date-picker id="fieldset-picker" value="2026-09-10" locale="fr-BE">
+      <input id="fieldset-date" name="fieldset-date">
+    </date-picker>
+  </label>
+</fieldset>
+
 <script type="module">
 import "/src/define.js";
 

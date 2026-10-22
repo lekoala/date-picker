@@ -123,6 +123,16 @@ function rangeLabelKey(position) {
 /** @typedef {(date:string, state:DateState) => Node | string | null | undefined} DayRenderer */
 /** @typedef {(date:string) => boolean} DateDisabledPredicate */
 
+/**
+ * Package-internal: the host intent each activation event carries. A host
+ * (`date-picker`) hands its intent to the next activation through
+ * `_hostIntent`; `activateDate()` takes it synchronously and tags the events
+ * it dispatches, so a late response is matched to its own interaction, never
+ * to an earlier or later activation of the same date.
+ * @type {WeakMap<Event, unknown>}
+ */
+export const activationIntents = new WeakMap();
+
 export class DateCalendarElement extends HTMLElement {
   static observedAttributes = [
     "value",
@@ -165,6 +175,9 @@ export class DateCalendarElement extends HTMLElement {
     this._rendering = false;
     /** @type {DateSource | null} */
     this._source = null;
+    /** Intent the host attached to the next activation of `date`.
+     * @type {{date: string, intent: unknown} | null} */
+    this._hostIntent = null;
     this._sourceStates = new Map();
     this._loadedRanges = new Set();
     this._loadController = null;
@@ -777,21 +790,30 @@ export class DateCalendarElement extends HTMLElement {
    * @param {string} date @returns {Promise<boolean>}
    */
   async activateDate(date) {
+    const hostIntent = this._hostIntent?.date === date ? this._hostIntent.intent : undefined;
+    this._hostIntent = null;
+    /** @param {Event} event */
+    const tagged = (event) => {
+      if (hostIntent !== undefined) activationIntents.set(event, hostIntent);
+      return event;
+    };
     // Guarantee remote state before deciding: a date clicked before the
     // source resolves must not be treated as available, and a cancelled or
     // failed load must not authorize it either.
     const confirmed = await this.ensureDate(date);
     const state = this.getDateState(date);
     if (!confirmed || state.disabled) {
-      this.dispatchEvent(new CustomEvent("dateinvalid", { detail: { date, state }, bubbles: true }));
+      this.dispatchEvent(tagged(new CustomEvent("dateinvalid", { detail: { date, state }, bubbles: true })));
       return false;
     }
     const accepted = this.dispatchEvent(
-      new CustomEvent("dateactivate", {
-        detail: { date, state },
-        bubbles: true,
-        cancelable: true,
-      }),
+      tagged(
+        new CustomEvent("dateactivate", {
+          detail: { date, state },
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
     );
     if (!accepted) return false;
     if (this.selection === "single") {

@@ -815,6 +815,7 @@
       return "rangeInRange";
     return "";
   }
+  var activationIntents = new WeakMap;
 
   class DateCalendarElement extends HTMLElement {
     static observedAttributes = [
@@ -848,6 +849,7 @@
       this._connected = false;
       this._rendering = false;
       this._source = null;
+      this._hostIntent = null;
       this._sourceStates = new Map;
       this._loadedRanges = new Set;
       this._loadController = null;
@@ -1353,17 +1355,24 @@
         target.focus();
     }
     async activateDate(date) {
+      const hostIntent = this._hostIntent?.date === date ? this._hostIntent.intent : undefined;
+      this._hostIntent = null;
+      const tagged = (event) => {
+        if (hostIntent !== undefined)
+          activationIntents.set(event, hostIntent);
+        return event;
+      };
       const confirmed = await this.ensureDate(date);
       const state = this.getDateState(date);
       if (!confirmed || state.disabled) {
-        this.dispatchEvent(new CustomEvent("dateinvalid", { detail: { date, state }, bubbles: true }));
+        this.dispatchEvent(tagged(new CustomEvent("dateinvalid", { detail: { date, state }, bubbles: true })));
         return false;
       }
-      const accepted = this.dispatchEvent(new CustomEvent("dateactivate", {
+      const accepted = this.dispatchEvent(tagged(new CustomEvent("dateactivate", {
         detail: { date, state },
         bubbles: true,
         cancelable: true
-      }));
+      })));
       if (!accepted)
         return false;
       if (this.selection === "single") {
@@ -1958,6 +1967,10 @@
   }
 
   // src/date-field.js
+  function isEditable(input) {
+    return !input.matches(":disabled") && !input.readOnly;
+  }
+
   class DateFieldController {
     constructor(input, options = {}) {
       this.input = input;
@@ -2001,7 +2014,7 @@
       return this.adapter.placeholder;
     }
     get isDisabled() {
-      return this.input.disabled;
+      return this.input.matches(":disabled");
     }
     get isReadOnly() {
       return this.input.readOnly;
@@ -2189,7 +2202,6 @@
       this._timeOrderOwned = new Set;
       this._lastFocusEndpoint = "";
       this._activationId = 0;
-      this._pendingIntents = new Map;
       this._previewDate = "";
       this._drag = null;
       this._suppressGridClick = false;
@@ -2578,7 +2590,7 @@
       const button = this._buttons[0]?.button;
       if (button)
         button.disabled = input.disabled || input.readOnly;
-      if (this._open && (input.disabled || input.readOnly))
+      if (this._open && !isEditable(input))
         this.hide(false);
     }
     _syncRangeFields() {
@@ -2593,9 +2605,9 @@
       }
       this._syncDragAffordance();
       const active = this._range?.activeEndpoint === "end" ? 1 : 0;
-      if (this._open && (this._fields[active]?.input.disabled || this._fields[active]?.input.readOnly)) {
+      const activeInput = this._fields[active]?.input;
+      if (this._open && activeInput && !isEditable(activeInput))
         this.hide(false);
-      }
     }
     _setRangeAria() {
       if (!this._fields || !this._panel || !this._formatHint)
@@ -2737,20 +2749,18 @@
         capture: true,
         signal
       });
-      calendar.addEventListener("dateinvalid", (event) => this._pendingIntents.delete(event.detail?.date), { signal });
       calendar.addEventListener("dateactivate", (event) => {
         const custom = event;
         const date = custom.detail?.date;
         if (!isDate(date))
           return;
-        const intent = this._pendingIntents.get(date);
-        this._pendingIntents.delete(date);
+        const intent = activationIntents.get(custom);
         queueMicrotask(() => {
           if (custom.defaultPrevented || !this._connected)
             return;
           if (intent && intent.id !== this._activationId)
             return;
-          if (this._input?.disabled || this._input?.readOnly)
+          if (!this._input || !isEditable(this._input))
             return;
           this._field?.dirty();
           this._setValue(date, { emit: true, format: true });
@@ -2813,10 +2823,9 @@
         queueMicrotask(() => {
           if (custom.defaultPrevented || !this._connected || !this._range)
             return;
-          const intent = this._pendingIntents.get(date);
+          const intent = activationIntents.get(custom);
           if (intent === undefined || intent.id !== this._activationId)
             return;
-          this._pendingIntents.delete(date);
           const editable = (bound) => this._boundEditable(bound);
           const result = intent.endpoint ? this._range.moveEndpoint(date, intent.endpoint, editable) : this._range.activate(date, editable);
           if (result.status === "refused") {
@@ -2852,7 +2861,6 @@
         return;
       this._range.focus(endpoint);
       this._activationId++;
-      this._pendingIntents.clear();
       this._lastFocusEndpoint = endpoint;
       const target = this._boundCanonical(endpoint) || todayISO();
       calendar.display = monthKey(target);
@@ -2915,7 +2923,6 @@
       this._range?.focus(endpoint);
       if (switched) {
         this._activationId++;
-        this._pendingIntents.clear();
       }
       if (!this.openOnFocus || this._suppressFocusOpen)
         return;
@@ -2933,24 +2940,27 @@
         if (key !== "Enter" && key !== " ")
           return;
       }
+      if (event.type === "click" && this._suppressGridClick)
+        return;
       if (!(event.target instanceof Element))
         return;
       const cell = event.target.closest(".dp-day[data-date]");
       const date = cell?.getAttribute("data-date") || "";
       if (!isDate(date))
         return;
-      if (this._rangeMode())
-        this._pendingIntents.clear();
-      this._pendingIntents.set(date, { id: ++this._activationId, endpoint: "" });
+      this._attachIntent(date, "");
+    }
+    _attachIntent(date, endpoint) {
+      if (!this._calendar)
+        return;
+      this._calendar._hostIntent = { date, intent: { id: ++this._activationId, endpoint } };
     }
     _supersedeActivations() {
       this._activationId++;
-      if (this._rangeMode())
-        this._pendingIntents.clear();
     }
     _boundEditable(bound) {
       const field = this._fields?.[bound === "end" ? 1 : 0];
-      return field != null && !field.input.disabled && !field.input.readOnly;
+      return field != null && isEditable(field.input);
     }
     _applyRangeTransition(transition) {
       const fields = this._fields;
@@ -3098,8 +3108,7 @@
         return;
       }
       const target = drag.endpoint === "start" ? transition.range.start : transition.range.end;
-      this._pendingIntents.clear();
-      this._pendingIntents.set(target, { id: ++this._activationId, endpoint: drag.endpoint });
+      this._attachIntent(target, drag.endpoint);
       this._calendar?.activateDate(target);
     }
     _onGridPointerCancel(event) {
@@ -3305,7 +3314,7 @@
       const field = fields[index];
       if (!field)
         return false;
-      if (options.user === true && (field.input.disabled || field.input.readOnly))
+      if (options.user === true && !isEditable(field.input))
         return false;
       const next = value || "";
       const previous = field.canonical;
@@ -3389,8 +3398,8 @@
       const [startInput, endInput] = this._timeFields;
       const bounds = ["start", "end"];
       const inputs = [startInput, endInput];
-      const startValue = startInput && !startInput.disabled ? startInput.value.trim() : "";
-      const endValue = endInput && !endInput.disabled ? endInput.value.trim() : "";
+      const startValue = startInput && !startInput.matches(":disabled") ? startInput.value.trim() : "";
+      const endValue = endInput && !endInput.matches(":disabled") ? endInput.value.trim() : "";
       const inverted = Boolean(startInput && endInput && startValue && endValue) && isTime(startValue) && isTime(endValue) && compareTimes(endValue, startValue) < 0;
       for (const [index, bound] of bounds.entries()) {
         const input = inputs[index];
@@ -3469,12 +3478,12 @@
         return "";
       const preferred = this._lastFocusEndpoint || "start";
       const preferredIndex = preferred === "end" ? 1 : 0;
-      if (!this._fields[preferredIndex].input.disabled && !this._fields[preferredIndex].input.readOnly) {
+      if (isEditable(this._fields[preferredIndex].input)) {
         return preferred;
       }
       const alternative = preferred === "end" ? "start" : "end";
       const alternativeIndex = alternative === "end" ? 1 : 0;
-      if (!this._fields[alternativeIndex].input.disabled && !this._fields[alternativeIndex].input.readOnly) {
+      if (isEditable(this._fields[alternativeIndex].input)) {
         return alternative;
       }
       return "";
@@ -3518,7 +3527,7 @@
         this._activateRangeEndpoint(endpoint);
       } else {
         const input = this._input;
-        if (!input || input.disabled || input.readOnly)
+        if (!input || !isEditable(input))
           return;
         const target = this._value || this._adapter().parse(input.value) || todayISO();
         calendar.display = monthKey(target);
@@ -3583,7 +3592,7 @@
       if (active) {
         const index = active === "end" ? 1 : 0;
         const field = this._fields?.[index];
-        if (field && !field.input.disabled && !field.input.readOnly)
+        if (field && isEditable(field.input))
           return active;
       }
       return this._resolveRangeEndpoint();

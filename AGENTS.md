@@ -62,11 +62,48 @@ Preserve:
 
 Do not allow custom rendering to replace grid cells.
 
+## State authority
+
+One date has several representations: localized input text, canonical ISO `value`, the hidden ISO input, `defaultValue`, calendar selection, async validation state. Exactly one of them is the authority; the others are projections.
+
+- Name the authority before touching sync code. Derived state is recomputed from it, never merged back into it.
+- Do not treat an intermediate representation (formatted text, a visible range, a normalized copy with defaults filled in) as the source of truth.
+- An application-provided initial value is not a component-generated default (`DateFieldController.adoptDefault()`).
+- The native DOM can change without going through the API (form reset, `value` set on the input, attribute changes). Define what wins.
+
 ## Async state
 
 All supersedable source work must accept/use `AbortSignal`. A stale source response must never repaint the active month.
 
 The source shape is data-oriented. Do not hard-code application URL/query conventions into the element.
+
+An older intent must never win over a newer one:
+
+- Track pending user intents by an activation identity, not by a value that can repeat (the same date activated twice is two intents).
+- After any `await`, re-check that the element is connected, the intent is still current, and the target is still editable before committing.
+- A superseded operation emits no commit event (`change`, `input`, range events).
+
+Reusable scenario for specs:
+
+```text
+Given operation A awaits an async response
+When  operation B changes the same state
+And   B settles before A
+Then  A cannot overwrite B
+And   no stale commit event is emitted
+```
+
+## Lifecycle
+
+Check connect → disconnect → reconnect, double construction/upgrade, and calls after teardown. No listener, timer, fetch or microtask may act on a disconnected or rebuilt instance. Listeners are tied to an `AbortSignal` released on disconnect.
+
+## Browser contract
+
+Respect effective native state, not the raw property:
+
+- Use `matches(":disabled")` for editability; `input.disabled` misses a disabled ancestor `fieldset`.
+- `readonly`, form reset, `defaultValue`, form submission shape and native fallback behave as the browser would without the component.
+- Engine quirks are verified on Chromium, Firefox and WebKit.
 
 ## Range
 
@@ -94,6 +131,14 @@ bun run build
 
 No need to lint before formatting - you can always apply formatting, this saves one call.
 Source remains JavaScript with JSDoc + TypeScript `checkJs`, matching `@lekoala/combobox`.
+
+## Distribution
+
+A test passing on `src/` does not validate what ships. Source, bundles, standalone build, types and minified CSS must expose the same contract (`bun run test:dist`).
+
+`build.js` minifies CSS with regexes that do not understand strings or `url()`. If the CSS gains quoted `content`, URLs or comments inside strings, add a fixture or switch to a grammar-aware minifier.
+
+Release rule: `prepublishOnly` only runs `verify`. Publish only after `bun run check:all` (all browser engines + dist) passes locally or in CI.
 
 ## Before expanding scope
 

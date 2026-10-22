@@ -1,4 +1,10 @@
 /**
+ * Whether the user may edit this input right now. `:disabled` is the effective
+ * state: the `disabled` property misses a disabled ancestor `<fieldset>`.
+ * @param {HTMLInputElement} input
+ */
+export declare function isEditable(input: HTMLInputElement): boolean;
+/**
  * Owns a single editable form field inside a picker: the visible input, its
  * hidden canonical ISO field, the Intl adapter and the text commit pipeline
  * (parsing, availability gate, stale-response protection).

@@ -1,6 +1,13 @@
 import { DateCalendarElement } from "./date-calendar.js";
 import { DateFieldController } from "./date-field.js";
 import { DateRangeController } from "./date-range.js";
+export type PickIntent = {
+    id: number;
+    endpoint: "" | "start" | "end";
+};
+/** A grid activation intent: the generation at interaction time plus the bound
+ * a drag drop targets, empty for a normal pick.
+ * @typedef {{id: number, endpoint: "" | "start" | "end"}} PickIntent */
 export declare class DatePickerElement extends HTMLElement {
     _id: string;
     _connected: boolean;
@@ -20,15 +27,10 @@ export declare class DatePickerElement extends HTMLElement {
     _timeOrderOwned: Set<HTMLInputElement>;
     /** @type {"" | "start" | "end"} */
     _lastFocusEndpoint: "" | "start" | "end";
+    /** Activation generation. A grid intent records it at interaction time
+     * and travels with its own activation (see `activationIntents`), so a late
+     * response is checked against the generation, never looked up by date. */
     _activationId: number;
-    /** Grid activation intents, keyed by date: the generation at interaction
-     * time (supersession/stale protection) plus the bound a drag drop targets,
-     * empty for a normal pick.
-     * @type {Map<string, {id: number, endpoint: "" | "start" | "end"}>} */
-    _pendingIntents: Map<string, {
-        id: number;
-        endpoint: "" | "start" | "end";
-    }>;
     /** Candidate date currently projected onto the calendar band, if any. */
     _previewDate: string;
     /** Live endpoint drag, or null. @type {{pointerId:number, endpoint:"start"|"end", x:number, y:number, date:string, active:boolean} | null} */
@@ -246,10 +248,15 @@ export declare class DatePickerElement extends HTMLElement {
      * @param {Event} event */
     _captureGridIntent(event: Event): void;
     /**
-     * Invalidate every pending grid activation. Range commits only a known
-     * intent, so forgetting them is enough. Single mode also accepts a
-     * programmatic `calendar.activateDate()` (no intent), so its intents are kept
-     * and fail the generation check instead.
+     * Hand a new intent to the calendar's next activation of `date`. Taking a
+     * new generation supersedes every earlier pending activation.
+     * @param {string} date @param {"" | "start" | "end"} endpoint
+     */
+    _attachIntent(date: string, endpoint: "" | "start" | "end"): void;
+    /**
+     * Invalidate every pending grid activation: each one carries its own intent,
+     * which now fails the generation check. A programmatic
+     * `calendar.activateDate()` carries none.
      */
     _supersedeActivations(): void;
     /** Whether one bound can receive a user pick right now.

@@ -124,6 +124,37 @@ test.describe("form lifecycle and ownership", () => {
     await expect(page.locator("#toggle-picker .dp-picker-panel")).toBeVisible();
   });
 
+  test("a disabled ancestor fieldset blocks opening and grid commits", async ({ page }) => {
+    await page.click("#fieldset-picker .dp-picker-button");
+    await expect(page.locator("#fieldset-picker .dp-picker-panel")).toBeVisible();
+    // The fieldset changes no attribute on the input: the popup stays open,
+    // but a pick on the (non form control) grid must not commit.
+    await page.evaluate(() => {
+      document.getElementById("fieldset-group").disabled = true;
+    });
+    await expect(page.locator("#fieldset-date")).toBeDisabled();
+    // Playwright refuses to click inside a disabled fieldset; a page script can.
+    await page.locator('#fieldset-picker .dp-day[data-date="2026-09-12"]').dispatchEvent("click");
+    await page.waitForTimeout(100);
+    await expect(page.locator("#fieldset-picker")).toHaveJSProperty("value", "2026-09-10");
+
+    const reopened = await page.evaluate(() => {
+      const picker = document.getElementById("fieldset-picker");
+      picker.hide();
+      picker.show();
+      return picker.open;
+    });
+    expect(reopened).toBe(false);
+
+    await page.evaluate(() => {
+      document.getElementById("fieldset-group").disabled = false;
+    });
+    await expect(page.locator("#fieldset-picker .dp-picker-button")).toBeEnabled();
+    await page.click("#fieldset-picker .dp-picker-button");
+    await page.click('#fieldset-picker .dp-day[data-date="2026-09-12"]');
+    await expect(page.locator("#fieldset-picker")).toHaveJSProperty("value", "2026-09-12");
+  });
+
   test("readonly keeps the value submitted while the picker cannot open it", async ({ page }) => {
     const hidden = page.locator('#ro-picker input[type="hidden"][name="readonly-date"]');
     await page.click("#readonly-toggle");
