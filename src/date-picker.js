@@ -95,13 +95,13 @@ export class DatePickerElement extends HTMLElement {
     this._controlClasses = null;
     /** @type {(() => void) | null} */
     this._stopDefaultMessages = null;
-    /** @type {any} */
+    /** @type {import("./date-calendar.js").DateSource | null} */
     this._source = null;
-    /** @type {any} */
+    /** @type {import("./date-calendar.js").DateStateResolver | null} */
     this._dateState = null;
-    /** @type {any} */
+    /** @type {import("./date-calendar.js").DayRenderer | null} */
     this._renderDay = null;
-    /** @type {any} */
+    /** @type {import("./date-calendar.js").DateDisabledPredicate | null} */
     this._isDateDisabled = null;
     /** Public picker coordinate-space request. @type {"viewport" | "document"} */
     this._coordinateSpace = "viewport";
@@ -135,6 +135,9 @@ export class DatePickerElement extends HTMLElement {
       this._stopDefaultMessages = subscribeDefaultMessages(() => {
         if (this._messages === null) this._refreshMessages();
       });
+      // Applying the initial value clears custom validity; check it against
+      // min/max/isDateDisabled/source like any later constraint change.
+      void this.validate();
     }
   }
 
@@ -166,15 +169,11 @@ export class DatePickerElement extends HTMLElement {
     else input.setCustomValidity(this.messages.invalidDate);
 
     // Native form reset restores control defaultValues, then _restoreDefault()
-    // recommits the canonical value from them. Never redefine an author-provided
-    // input.defaultValue here: the next reset must use the native default (which
-    // the app may change). Only when enhancement itself supplies the initial
-    // text (picker value attr, no input value attr) does that text become the
-    // default to restore.
+    // recommits the canonical value from them. Only when enhancement itself
+    // supplies the initial text (picker value attr, no input value attr) does
+    // that text become the default to restore.
     if (this._field.hidden) this._field.hidden.defaultValue = this._value;
-    if (input.getAttribute("value") == null && input.defaultValue === "") {
-      input.defaultValue = input.value;
-    }
+    this._field.adoptDefault();
   }
 
   /**
@@ -256,12 +255,7 @@ export class DatePickerElement extends HTMLElement {
 
     if (this._fields[0].hidden) this._fields[0].hidden.defaultValue = this._range.start;
     if (this._fields[1].hidden) this._fields[1].hidden.defaultValue = this._range.end;
-    if (startInput.getAttribute("value") == null && startInput.defaultValue === "") {
-      startInput.defaultValue = startInput.value;
-    }
-    if (endInput.getAttribute("value") == null && endInput.defaultValue === "") {
-      endInput.defaultValue = endInput.value;
-    }
+    for (const field of this._fields) field.adoptDefault();
   }
 
   disconnectedCallback() {
@@ -456,7 +450,7 @@ export class DatePickerElement extends HTMLElement {
     if (this._connected) void this.validate();
   }
 
-  /** @public @returns {any} */
+  /** @public @returns {import("./date-calendar.js").DateSource | null} */
   get source() {
     return this._source;
   }
@@ -467,7 +461,7 @@ export class DatePickerElement extends HTMLElement {
     if (this._connected) void this.validate();
   }
 
-  /** @public @returns {any} */
+  /** @public @returns {import("./date-calendar.js").DateStateResolver | null} */
   get dateState() {
     return this._dateState;
   }
@@ -478,7 +472,7 @@ export class DatePickerElement extends HTMLElement {
     if (this._connected) void this.validate();
   }
 
-  /** @public @returns {any} */
+  /** @public @returns {import("./date-calendar.js").DayRenderer | null} */
   get renderDay() {
     return this._renderDay;
   }
@@ -488,7 +482,7 @@ export class DatePickerElement extends HTMLElement {
     if (this._calendar) this._calendar.renderDay = this._renderDay;
   }
 
-  /** @public @returns {any} */
+  /** @public @returns {import("./date-calendar.js").DateDisabledPredicate | null} */
   get isDateDisabled() {
     return this._isDateDisabled;
   }

@@ -182,8 +182,10 @@ export declare class DateCalendarElement extends HTMLElement {
         start: string;
         end: string;
     };
-    /** @public @param {string} date */
-    getDateState(date: string): any;
+    /** @public @param {string} date @returns {DateState & {disabled: boolean}} */
+    getDateState(date: string): DateState & {
+        disabled: boolean;
+    };
     /** @public */
     refreshSource(): Promise<void>;
     /** @public Ensure source state exists for the month containing a typed/selected date.

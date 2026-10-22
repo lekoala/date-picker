@@ -16,6 +16,31 @@ test.describe("form lifecycle and ownership", () => {
     await expect(page.locator('#reset-picker input[type="hidden"][name="date"]')).toHaveValue("2026-09-06");
   });
 
+  test("form reset after a locale change keeps the default date", async ({ page }) => {
+    await page.evaluate(() => {
+      document.getElementById("reset-picker").locale = "en-US";
+    });
+    await expect(page.locator("#reset-date")).toHaveValue("09/06/2026");
+    await page.click("#reset-btn");
+    await expect(page.locator("#reset-picker")).toHaveAttribute("value", "2026-09-06");
+    await expect(page.locator("#reset-date")).toHaveValue("09/06/2026");
+  });
+
+  test("an initial value outside min is reported on connection", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const picker = document.createElement("date-picker");
+      picker.setAttribute("value", "2026-09-06");
+      picker.setAttribute("min", "2026-09-20");
+      picker.innerHTML = '<input name="early">';
+      document.body.append(picker);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const input = /** @type {HTMLInputElement} */ (picker.querySelector("input:not([type=hidden])"));
+      return { valid: input.checkValidity(), message: input.validationMessage };
+    });
+    expect(result.valid).toBe(false);
+    expect(result.message.trim()).not.toBe("");
+  });
+
   test("form reset clears a field that had no default", async ({ page }) => {
     await page.fill("#min-date", "12/09/2026");
     await page.locator("#min-date").blur();

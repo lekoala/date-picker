@@ -1420,7 +1420,7 @@
       }
       if (target instanceof HTMLInputElement && target.matches(".dp-year-input")) {
         const year = Number(target.value);
-        if (!Number.isInteger(year) || year < 1 || year > 9998) {
+        if (!Number.isInteger(year) || year < 1 || year > 9999) {
           if (this._connected)
             this.render(false);
           return;
@@ -1499,8 +1499,8 @@
       const nextKey = stepMonthKey(display, 1);
       const prevDisabled = Boolean(minMonth && prevKey !== null && prevKey < minMonth);
       const nextDisabled = Boolean(maxMonth && nextKey !== null && nextKey > maxMonth);
-      const minYearAttr = this.min ? ` min="${Number(this.min.slice(0, 4))}"` : "";
-      const maxYearAttr = this.max ? ` max="${Number(this.max.slice(0, 4))}"` : "";
+      const minYearAttr = ` min="${this.min ? Number(this.min.slice(0, 4)) : 1}"`;
+      const maxYearAttr = ` max="${this.max ? Number(this.max.slice(0, 4)) : 9999}"`;
       const showWeeks = this.showWeekNumbers && this.firstDay === 1;
       const weekHeader = showWeeks ? `<th scope="col" class="dp-week-heading" abbr="${escapeHtml(this.messages.week)}">#</th>` : "";
       const monthOptions = names.map((name, index) => {
@@ -1971,9 +1971,22 @@
       this._attributeObserver = null;
       this.onAttributesChanged = null;
       this.confirm = null;
+      this._generatedDefault = null;
     }
     setLocale(locale) {
+      const generated = this._generatedDefault;
+      const previous = generated ? this.adapter.format(generated) : null;
       this.adapter = createDateAdapter(locale || "");
+      if (generated && this.input.defaultValue === previous) {
+        this.input.defaultValue = this.adapter.format(generated);
+      }
+    }
+    adoptDefault() {
+      const input = this.input;
+      if (input.getAttribute("value") != null || input.defaultValue !== "")
+        return;
+      input.defaultValue = input.value;
+      this._generatedDefault = this.canonical && input.value ? this.canonical : null;
     }
     setMessages(messages) {
       this.messages = messages || {};
@@ -2231,6 +2244,7 @@
           if (this._messages === null)
             this._refreshMessages();
         });
+        this.validate();
       }
     }
     _connectSingle() {
@@ -2260,9 +2274,7 @@
         input.setCustomValidity(this.messages.invalidDate);
       if (this._field.hidden)
         this._field.hidden.defaultValue = this._value;
-      if (input.getAttribute("value") == null && input.defaultValue === "") {
-        input.defaultValue = input.value;
-      }
+      this._field.adoptDefault();
     }
     _discoverTimeFields() {
       this._timeFields = [null, null];
@@ -2335,12 +2347,8 @@
         this._fields[0].hidden.defaultValue = this._range.start;
       if (this._fields[1].hidden)
         this._fields[1].hidden.defaultValue = this._range.end;
-      if (startInput.getAttribute("value") == null && startInput.defaultValue === "") {
-        startInput.defaultValue = startInput.value;
-      }
-      if (endInput.getAttribute("value") == null && endInput.defaultValue === "") {
-        endInput.defaultValue = endInput.value;
-      }
+      for (const field of this._fields)
+        field.adoptDefault();
     }
     disconnectedCallback() {
       this._stopDefaultMessages?.();

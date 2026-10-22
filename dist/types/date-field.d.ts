@@ -40,6 +40,8 @@ export declare class DateFieldController {
         ok: boolean;
         message?: string;
     }>) | null;
+    /** Canonical value behind a `defaultValue` the enhancement generated, or null. @type {string | null} */
+    _generatedDefault: string | null;
     /**
      * @param {HTMLInputElement} input
      * @param {{messages?: Record<string, string>, locale?: string}} [options]
@@ -50,6 +52,12 @@ export declare class DateFieldController {
     });
     /** @param {string} locale */
     setLocale(locale: string): void;
+    /**
+     * Make the current text the reset default when the author provided none.
+     * Never redefine an author-provided `input.defaultValue`: the next reset must
+     * use the native default (which the app may change).
+     */
+    adoptDefault(): void;
     /** @param {Record<string, string>} messages */
     setMessages(messages: Record<string, string>): void;
     /** @param {string} value */

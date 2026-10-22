@@ -852,6 +852,26 @@ test("fixed weeks at December 9999 keep full valid rows without padding past the
   expect(result.display).toBe("9999-12");
 });
 
+test("the year input accepts 9999 and clamps an unrenderable December", async ({ page }) => {
+  const year = page.locator("#inline .dp-year-input");
+  await expect(year).toHaveAttribute("min", "1");
+  await expect(year).toHaveAttribute("max", "9999");
+  await page.selectOption("#inline .dp-month-select", "03");
+  await page.fill("#inline .dp-year-input", "9999");
+  await year.blur();
+  await expect(page.locator("#inline")).toHaveAttribute("display", "9999-03");
+  const display = await page.evaluate(() => {
+    const calendar = document.createElement("date-calendar");
+    calendar.display = "9999-12";
+    document.body.append(calendar);
+    const input = /** @type {HTMLInputElement} */ (calendar.querySelector(".dp-year-input"));
+    input.value = "9999";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return calendar.display;
+  });
+  expect(display).toBe("9999-11");
+});
+
 test("focusing a date at the calendar edge keeps it inside the rendered grid", async ({ page }) => {
   const result = await page.evaluate(() => {
     const calendar = document.createElement("date-calendar");

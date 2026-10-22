@@ -38,11 +38,33 @@ export class DateFieldController {
      * @type {((date: string, options?: {moveDisplay?: boolean}) => Promise<{ok: boolean, message?: string}>) | null}
      */
     this.confirm = null;
+    /** Canonical value behind a `defaultValue` the enhancement generated, or null. @type {string | null} */
+    this._generatedDefault = null;
   }
 
   /** @param {string} locale */
   setLocale(locale) {
+    const generated = this._generatedDefault;
+    const previous = generated ? this.adapter.format(generated) : null;
     this.adapter = createDateAdapter(locale || "");
+    // A generated default is localized text: reformat it so a later form reset
+    // never parses the old locale's text with the new adapter. An app-changed
+    // default no longer matches and stays untouched.
+    if (generated && this.input.defaultValue === previous) {
+      this.input.defaultValue = this.adapter.format(generated);
+    }
+  }
+
+  /**
+   * Make the current text the reset default when the author provided none.
+   * Never redefine an author-provided `input.defaultValue`: the next reset must
+   * use the native default (which the app may change).
+   */
+  adoptDefault() {
+    const input = this.input;
+    if (input.getAttribute("value") != null || input.defaultValue !== "") return;
+    input.defaultValue = input.value;
+    this._generatedDefault = this.canonical && input.value ? this.canonical : null;
   }
 
   /** @param {Record<string, string>} messages */

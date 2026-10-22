@@ -66,14 +66,14 @@ export declare class DatePickerElement extends HTMLElement {
     _controlClasses: Partial<import("./control-classes.js").ControlClasses> | null;
     /** @type {(() => void) | null} */
     _stopDefaultMessages: (() => void) | null;
-    /** @type {any} */
-    _source: any;
-    /** @type {any} */
-    _dateState: any;
-    /** @type {any} */
-    _renderDay: any;
-    /** @type {any} */
-    _isDateDisabled: any;
+    /** @type {import("./date-calendar.js").DateSource | null} */
+    _source: import("./date-calendar.js").DateSource | null;
+    /** @type {import("./date-calendar.js").DateStateResolver | null} */
+    _dateState: import("./date-calendar.js").DateStateResolver | null;
+    /** @type {import("./date-calendar.js").DayRenderer | null} */
+    _renderDay: import("./date-calendar.js").DayRenderer | null;
+    /** @type {import("./date-calendar.js").DateDisabledPredicate | null} */
+    _isDateDisabled: import("./date-calendar.js").DateDisabledPredicate | null;
     /** Public picker coordinate-space request. @type {"viewport" | "document"} */
     _coordinateSpace: "viewport" | "document";
     static observedAttributes: string[];
@@ -170,18 +170,18 @@ export declare class DatePickerElement extends HTMLElement {
     /** @param {Partial<typeof import("./messages.js").DEFAULT_MESSAGES> | null} value */
     set messages(value: Partial<typeof import("./messages.js").DEFAULT_MESSAGES> | null);
     _refreshMessages(): void;
-    /** @public @returns {any} */
-    get source(): any;
-    set source(value: any);
-    /** @public @returns {any} */
-    get dateState(): any;
-    set dateState(value: any);
-    /** @public @returns {any} */
-    get renderDay(): any;
-    set renderDay(value: any);
-    /** @public @returns {any} */
-    get isDateDisabled(): any;
-    set isDateDisabled(value: any);
+    /** @public @returns {import("./date-calendar.js").DateSource | null} */
+    get source(): import("./date-calendar.js").DateSource | null;
+    set source(value: import("./date-calendar.js").DateSource | null);
+    /** @public @returns {import("./date-calendar.js").DateStateResolver | null} */
+    get dateState(): import("./date-calendar.js").DateStateResolver | null;
+    set dateState(value: import("./date-calendar.js").DateStateResolver | null);
+    /** @public @returns {import("./date-calendar.js").DayRenderer | null} */
+    get renderDay(): import("./date-calendar.js").DayRenderer | null;
+    set renderDay(value: import("./date-calendar.js").DayRenderer | null);
+    /** @public @returns {import("./date-calendar.js").DateDisabledPredicate | null} */
+    get isDateDisabled(): import("./date-calendar.js").DateDisabledPredicate | null;
+    set isDateDisabled(value: import("./date-calendar.js").DateDisabledPredicate | null);
     /** @public JS-only coordinate-space policy: "viewport" by default, "document" as an explicit opt-in; a change made while open applies to the next opening only. @returns {"viewport" | "document"} */
     get coordinateSpace(): "viewport" | "document";
     set coordinateSpace(value: "viewport" | "document");

@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+// WebKit on macOS follows the system "Keyboard navigation" setting: plain Tab
+// skips buttons and selects, Alt+Tab walks every focusable control.
+const tabKey = (browserName) => (browserName === "webkit" ? "Alt+Tab" : "Tab");
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/demo/index.html");
 });
@@ -21,22 +25,25 @@ test("picker opens a dialog popover and focuses one grid cell", async ({ page })
   await expect(page.locator("#simple-picker .dp-picker-panel")).toBeHidden();
 });
 
-test("Tab reaches the trigger, month/year controls and the single grid tab stop", async ({ page }) => {
+test("Tab reaches the trigger, month/year controls and the single grid tab stop", async ({
+  page,
+  browserName,
+}) => {
   await page.locator("#simple-date").focus();
   await expect(page.locator("#simple-picker .dp-picker-panel")).toBeVisible();
   await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toHaveCount(1);
 
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tabKey(browserName));
   await expect(page.locator("#simple-picker .dp-picker-button")).toBeFocused();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tabKey(browserName));
   await expect(page.locator("#simple-picker .dp-month-select")).toBeFocused();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tabKey(browserName));
   await expect(page.locator("#simple-picker .dp-year-input")).toBeFocused();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tabKey(browserName));
   await expect(page.locator("#simple-picker .dp-prev")).toBeFocused();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tabKey(browserName));
   await expect(page.locator("#simple-picker .dp-next")).toBeFocused();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tabKey(browserName));
   await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
 });
 
@@ -196,7 +203,7 @@ for (const colorScheme of ["light", "dark"]) {
   });
 }
 
-test("the month select uses an author-drawn caret and hands it back in forced colors", async ({ page }) => {
+test("the month select uses an author-drawn caret that mirrors in RTL", async ({ page }) => {
   const select = page.locator("#inline .dp-month-select");
   await expect(select).toHaveCSS("appearance", "none");
   const normal = await select.evaluate((element) => getComputedStyle(element).backgroundImage);
@@ -215,10 +222,14 @@ test("the month select uses an author-drawn caret and hands it back in forced co
   expect(rtl.left).toBe("32px");
   expect(rtl.right).toBe("7.2px");
   expect(rtl.position).toContain("14.4px");
+});
 
-  await page.evaluate(() => {
-    document.documentElement.dir = "ltr";
-  });
+test("the month select hands its caret back to the system in forced colors", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "forced-colors assertions follow the Chromium capture pipeline");
+  const select = page.locator("#inline .dp-month-select");
   await page.emulateMedia({ forcedColors: "active" });
   await expect(select).toHaveCSS("appearance", "auto");
   await expect(select).toHaveCSS("background-image", "none");
@@ -277,10 +288,13 @@ test("selecting a date returns focus to the trigger that opened the popover", as
   await expect(page.locator("#simple-picker .dp-picker-button")).toBeFocused();
 });
 
-test("Enter on an open trigger moves into the grid; ArrowDown on it reopens", async ({ page }) => {
+test("Enter on an open trigger moves into the grid; ArrowDown on it reopens", async ({
+  page,
+  browserName,
+}) => {
   await page.locator("#simple-date").focus();
   await expect(page.locator("#simple-picker .dp-picker-panel")).toBeVisible();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tabKey(browserName));
   await expect(page.locator("#simple-picker .dp-picker-button")).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
@@ -303,12 +317,12 @@ test("mouse click on the open trigger still closes the popover", async ({ page }
   await expect(page.locator("#simple-picker")).toHaveJSProperty("open", false);
 });
 
-test("Tab reaches the field, then its own trigger, then the next control", async ({ page }) => {
+test("Tab reaches the field, then its own trigger, then the next control", async ({ page, browserName }) => {
   await page.locator("#time-date").focus();
   await expect(page.locator("#time-picker .dp-picker-panel")).toBeVisible();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tabKey(browserName));
   await expect(page.locator("#time-picker .dp-picker-button")).toBeFocused();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press(tabKey(browserName));
   await expect(page.locator("#time-start")).toBeFocused();
 });
 

@@ -141,7 +141,8 @@ test("author skin survives rendering and focus restoration without changing sele
   await expect(year).toHaveClass(/x-input/);
 });
 
-test("forced colors preserve the host skin and focus ring", async ({ page }) => {
+test("forced colors preserve the host skin and focus ring", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "forced-colors assertions follow the Chromium capture pipeline");
   await page.emulateMedia({ forcedColors: "active" });
   await page.goto("/test/fixtures/control-classes.html");
   const month = page.locator(".host-select");

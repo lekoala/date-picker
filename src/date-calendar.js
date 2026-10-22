@@ -537,7 +537,7 @@ export class DateCalendarElement extends HTMLElement {
     return { start: first[0], end: last[6] };
   }
 
-  /** @public @param {string} date */
+  /** @public @param {string} date @returns {DateState & {disabled: boolean}} */
   getDateState(date) {
     const fromSource = this._sourceStates.get(date) || {};
     const local = this._dateState?.(date, { ...fromSource }) || {};
@@ -844,9 +844,8 @@ export class DateCalendarElement extends HTMLElement {
     }
     if (target instanceof HTMLInputElement && target.matches(".dp-year-input")) {
       const year = Number(target.value);
-      // 9999 is a valid civil year but its December grid overflows into 10000,
-      // so the editable range stops one year short of the unrenderable month.
-      if (!Number.isInteger(year) || year < 1 || year > 9998) {
+      // 9999-12 overflows into 10000, but _setDisplay() clamps it to 9999-11.
+      if (!Number.isInteger(year) || year < 1 || year > 9999) {
         if (this._connected) this.render(false);
         return;
       }
@@ -929,8 +928,8 @@ export class DateCalendarElement extends HTMLElement {
     const nextKey = stepMonthKey(display, 1);
     const prevDisabled = Boolean(minMonth && prevKey !== null && prevKey < minMonth);
     const nextDisabled = Boolean(maxMonth && nextKey !== null && nextKey > maxMonth);
-    const minYearAttr = this.min ? ` min="${Number(this.min.slice(0, 4))}"` : "";
-    const maxYearAttr = this.max ? ` max="${Number(this.max.slice(0, 4))}"` : "";
+    const minYearAttr = ` min="${this.min ? Number(this.min.slice(0, 4)) : 1}"`;
+    const maxYearAttr = ` max="${this.max ? Number(this.max.slice(0, 4)) : 9999}"`;
     const showWeeks = this.showWeekNumbers && this.firstDay === 1;
     const weekHeader = showWeeks
       ? `<th scope="col" class="dp-week-heading" abbr="${escapeHtml(this.messages.week)}">#</th>`

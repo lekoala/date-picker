@@ -185,7 +185,7 @@ Tooling is aligned with the current LeKoala component repos:
 - TypeScript 7.0.2 (`checkJs` + declaration emit)
 - Biome 2.5.15
 - Playwright 1.64.0
-- `@lekoala/floating ^0.2.0`
+- `@lekoala/floating ^0.3.1`
 
 Useful commands:
 

@@ -3,7 +3,8 @@
  *
  * The sources are read as text: the script never imports the browser-only
  * modules under Bun. The JS source stays the single source of truth:
- * - attributes come from `static observedAttributes` in each element class
+ * - attributes come from `static observedAttributes` in each element class,
+ *   plus the connect-time-only attributes listed in `buildDeclaration()` calls
  * - members come from methods/getters explicitly marked with `@public`
  * - events come from the literal names wired through `new CustomEvent(...)`
  * - CSS custom properties come from the `--dp-*` token block in date-picker.css
@@ -142,10 +143,11 @@ function extractCssProperties(css) {
  * @param {string} className
  * @param {string} tagName
  * @param {string[]} cssProperties
+ * @param {string[]} [connectAttributes] read once at connection, so not observed
  * @returns {object}
  */
-function buildDeclaration(source, className, tagName, cssProperties) {
-  const attributes = extractAttributes(source);
+function buildDeclaration(source, className, tagName, cssProperties, connectAttributes = []) {
+  const attributes = [...extractAttributes(source), ...connectAttributes];
   const members = extractPublicMembers(source);
   const events = extractEvents(source);
   return {
@@ -192,7 +194,9 @@ async function main() {
       {
         kind: "javascript-module",
         path: "src/date-picker.js",
-        declarations: [buildDeclaration(pickerSource, "DatePickerElement", "date-picker", cssProperties)],
+        declarations: [
+          buildDeclaration(pickerSource, "DatePickerElement", "date-picker", cssProperties, ["range"]),
+        ],
         exports: [
           {
             kind: "js",
