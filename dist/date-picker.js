@@ -1,4 +1,4 @@
-/*** @lekoala/date-picker v0.5.1 - https://github.com/lekoala/date-picker ***/
+/*** @lekoala/date-picker v0.5.2 - https://github.com/lekoala/date-picker ***/
 (() => {
   var __defProp = Object.defineProperty;
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -43,6 +43,9 @@
   __export(exports_define, {
     defineDatePicker: () => defineDatePicker
   });
+
+  // src/activation-intents.js
+  var activationIntents = new WeakMap;
 
   // src/date.js
   var DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -815,7 +818,6 @@
       return "rangeInRange";
     return "";
   }
-  var activationIntents = new WeakMap;
 
   class DateCalendarElement extends HTMLElement {
     static observedAttributes = [

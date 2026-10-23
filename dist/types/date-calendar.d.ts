@@ -33,15 +33,6 @@ export type DateDisabledPredicate = (date: string) => boolean;
 /** @typedef {(date:string, sourceState:DateState) => DateState | null | undefined} DateStateResolver */
 /** @typedef {(date:string, state:DateState) => Node | string | null | undefined} DayRenderer */
 /** @typedef {(date:string) => boolean} DateDisabledPredicate */
-/**
- * Package-internal: the host intent each activation event carries. A host
- * (`date-picker`) hands its intent to the next activation through
- * `_hostIntent`; `activateDate()` takes it synchronously and tags the events
- * it dispatches, so a late response is matched to its own interaction, never
- * to an earlier or later activation of the same date.
- * @type {WeakMap<Event, unknown>}
- */
-export declare const activationIntents: WeakMap<Event, unknown>;
 export declare class DateCalendarElement extends HTMLElement {
     _id: string;
     _model: CalendarModel;

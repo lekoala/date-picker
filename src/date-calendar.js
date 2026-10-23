@@ -1,3 +1,4 @@
+import { activationIntents } from "./activation-intents.js";
 import { CalendarModel } from "./calendar-model.js";
 import {
   getDefaultControlClasses,
@@ -122,16 +123,6 @@ function rangeLabelKey(position) {
 /** @typedef {(date:string, sourceState:DateState) => DateState | null | undefined} DateStateResolver */
 /** @typedef {(date:string, state:DateState) => Node | string | null | undefined} DayRenderer */
 /** @typedef {(date:string) => boolean} DateDisabledPredicate */
-
-/**
- * Package-internal: the host intent each activation event carries. A host
- * (`date-picker`) hands its intent to the next activation through
- * `_hostIntent`; `activateDate()` takes it synchronously and tags the events
- * it dispatches, so a late response is matched to its own interaction, never
- * to an earlier or later activation of the same date.
- * @type {WeakMap<Event, unknown>}
- */
-export const activationIntents = new WeakMap();
 
 export class DateCalendarElement extends HTMLElement {
   static observedAttributes = [

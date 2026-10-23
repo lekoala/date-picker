@@ -6,6 +6,8 @@ if (!document.getElementById(id)) {
   const style = document.createElement("style");
   style.id = id;
   style.textContent = css;
+  const nonce = document.currentScript?.nonce;
+  if (nonce) style.nonce = nonce;
   document.head.append(style);
 }
 defineDatePicker();

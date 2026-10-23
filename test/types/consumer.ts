@@ -9,6 +9,10 @@ import {
   linkDateRange,
   setDefaultControlClasses,
 } from "@lekoala/date-picker";
+// @ts-expect-error activation intent tracking is internal to the package
+import { activationIntents } from "@lekoala/date-picker/calendar";
+
+void activationIntents;
 
 const calendar = new DateCalendarElement();
 setDefaultControlClasses({ month: "[&>svg]:size-4", nav: "btn" });

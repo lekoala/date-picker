@@ -29,6 +29,22 @@ test.describe("packaged standalone bundle", () => {
     await expect(page.locator("#mini")).not.toHaveAttribute("value", /.+/);
   });
 
+  test("uses the classic script nonce for its stylesheet under CSP", async ({ page }) => {
+    await page.goto("/test/fixtures/dist-csp.html");
+    await expect(page.locator("#cal .dp-day")).toHaveCount(42);
+    const stylesheet = await page.evaluate(() => {
+      const style = document.getElementById("lekoala-date-picker-styles");
+      return {
+        nonce: style.nonce,
+        rules: style.sheet?.cssRules.length ?? 0,
+        cursor: getComputedStyle(document.querySelector("#cal .dp-day")).cursor,
+      };
+    });
+    expect(stylesheet.nonce).toBe("date-picker-test");
+    expect(stylesheet.rules).toBeGreaterThan(0);
+    expect(stylesheet.cursor).toBe("pointer");
+  });
+
   test("picker opens and commits through the bundle", async ({ page }) => {
     await page.click("#picker .dp-picker-button");
     await expect(page.locator("#picker .dp-picker-panel")).toBeVisible();

@@ -1,4 +1,5 @@
 import { autoUpdate, reposition } from "@lekoala/floating";
+import { activationIntents } from "./activation-intents.js";
 import {
   getDefaultControlClasses,
   normalizeControlClasses,
@@ -6,7 +7,7 @@ import {
   setDefaultControlClasses,
 } from "./control-classes.js";
 import { compareDates, isDate, monthKey, todayISO } from "./date.js";
-import { activationIntents, DateCalendarElement } from "./date-calendar.js";
+import { DateCalendarElement } from "./date-calendar.js";
 import { DateFieldController, isEditable } from "./date-field.js";
 import { DateRangeController, normalizeRange } from "./date-range.js";
 import { createDateAdapter, formatLongDate, resolveLocale } from "./intl.js";
