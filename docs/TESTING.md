@@ -48,6 +48,10 @@ Browser tests should cover behavior that cannot be trusted to a DOM shim:
 - range validation;
 - forced-colors/zoom smoke cases.
 
+## Evidence bar
+
+A test for a defect fails before the fix. A finding states the violated invariant, a reproducible scenario reachable through supported usage, the concrete impact, and the failure mode. Unsupported structural mutations are closed by "disconnect and reconnect" (`ARCHITECTURE.md` §11.3). An audit or review that finds no actionable defect is a valid outcome.
+
 ## Core invariants
 
 Keep explicit tests for these regressions:

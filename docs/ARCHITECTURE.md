@@ -197,3 +197,75 @@ Expected homes:
 - start/end relationship → `date-range.js`.
 
 Do not add a plugin system to solve a one-off rendering need.
+
+## 11. Lifecycle and supported mutations
+
+### 11.1 One session token
+
+Every lifetime owns one `AbortController`: a picker connection, a calendar connection, a `DateFieldController`. Listeners are attached with its `signal`, and teardown aborts it.
+
+Any write that follows a suspension (`await`, timer, microtask) is checked against **the session captured when the operation started**, never against the current one:
+
+```js
+const session = this._session;
+const result = await field.commit();
+if (session.signal.aborted) return;
+```
+
+A reconnected component has a new, live session. Testing `this._session` after the await would let a stale continuation through — that is the exact failure `1977785` fixed locally. This rule replaces per-path guards; it is not one more guard.
+
+Scheduling stays at the call site (`queueMicrotask` vs `setTimeout`) because Chromium focus behavior depends on it. Only the guard is shared.
+
+### 11.2 Three distinct questions, three mechanisms
+
+| Question | Mechanism | Scope |
+|---|---|---|
+| Is the session I started in still alive? | captured `AbortSignal` | per connection / controller |
+| Is my operation still the newest intent? | monotonic generation (`commitId`, activation id) | per field / per activation |
+| Is the action still allowed now? | native state + interaction state (`isEditable()`, `:disabled`, `_open`, active bound) | read at apply time |
+
+Do not merge them. The signal says nothing about a newer intent, and neither says whether a `<fieldset>` was disabled or the popup closed.
+
+### 11.3 Supported mutations
+
+| Element | Policy |
+|---|---|
+| single/range mode | read at connect; changing it requires reconnecting |
+| identity of `[data-range-start]` / `[data-range-end]` inputs | fixed at connect |
+| presence and role of `[data-time-start]` / `[data-time-end]` | fixed at connect |
+| initial values (`input.value`, `defaultValue`) | read at connect |
+| public API (`value`, `range`, `min`, `max`, `locale`, `source`, `dateState`, `renderDay`, `isDateDisabled`, `messages`, `controlClasses`, `monthFormat`, `openOnFocus`, `coordinateSpace`) | live; each setter documents whether it invalidates pending work |
+| `name`, `form`, `disabled`, `readonly`, disabled fieldset, form reset, `defaultValue` | followed: this is the browser contract, not an arbitrary mutation |
+| visible input text | draft, read at commit (blur/change/validate) |
+| replacing child inputs | unsupported without reconnecting |
+
+Undocumented structural mutations carry no guarantee:
+
+> Undocumented structural mutations provide no resynchronization guarantee and no guarantee that interaction state is preserved. The component supports only the structure captured at connect time and the mutations listed above. To change the structure, disconnect and reconnect the component.
+
+A security or native-data-integrity defect is still acceptable **inside a supported usage**, with a reproducible scenario. It is not required to be robust against arbitrary combinations of DOM mutations.
+
+The initial `name` is captured for restoration; the current `name` stays dynamic.
+
+### 11.4 Reconnect is a new session
+
+Moving an element in the DOM disconnects and reconnects it. That rebuilds the controllers and calendar and abandons in-flight interaction without emitting an event. Native values and public configuration survive; popup, focus and active-bound state do not. This is the contract, not an edge case to patch.
+
+### 11.5 State authorities
+
+Name the authority before touching sync code; everything else is a projection recomputed from it.
+
+| Mode | Authority | Projections |
+|---|---|---|
+| single | `DatePickerElement._value` | field canonical, hidden ISO, formatted text, `calendar.value`, `value` attribute |
+| range | `DateRangeController.start/end` | each field canonical, hidden ISO, texts, `calendar.highlightedRange` (only when displayable) |
+| calendar | `CalendarModel` | DOM, `_renderedStates` (paint cache) |
+| draft | input text | re-read at commit; `_dirty` says whether it differs from the authority |
+| native default | `input.defaultValue` | restored by reset; `_generatedDefault` separates a generated default from an application one |
+
+Priority rules:
+
+- assigning `value`/`range` invalidates pending activations and commits;
+- a form reset wins and resynchronizes everything;
+- a direct native write to the input is read at commit, not watched;
+- a commit result is applied only if the captured session is alive **and** its `commitId` is current.

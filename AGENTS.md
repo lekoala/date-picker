@@ -62,14 +62,15 @@ Preserve:
 
 Do not allow custom rendering to replace grid cells.
 
-## State authority
+## State authority and lifecycle
 
-One date has several representations: localized input text, canonical ISO `value`, the hidden ISO input, `defaultValue`, calendar selection, async validation state. Exactly one of them is the authority; the others are projections.
+The authoritative state per mode, the supported mutations, the session rule and the reconnect contract live in `docs/ARCHITECTURE.md` §11. Read it before touching sync, async or teardown code. The invariants:
 
-- Name the authority before touching sync code. Derived state is recomputed from it, never merged back into it.
-- Do not treat an intermediate representation (formatted text, a visible range, a normalized copy with defaults filled in) as the source of truth.
+- Name the authority before touching sync code. Derived state is recomputed from it, never merged back into it (§11.5).
+- Structure is fixed at connect. Native form state (`name`, `form`, `disabled`, `readonly`, fieldset, reset, `defaultValue`) is followed because it is the browser contract. Everything else is public API or unsupported (§11.3).
+- Every suspension checks the session captured when the operation started, never the current one (§11.1).
 - An application-provided initial value is not a component-generated default (`DateFieldController.adoptDefault()`).
-- The native DOM can change without going through the API (form reset, `value` set on the input, attribute changes). Define what wins.
+- Disconnect is teardown; reconnect is a new session built from the live DOM (§11.4).
 
 ## Async state
 
@@ -80,7 +81,7 @@ The source shape is data-oriented. Do not hard-code application URL/query conven
 An older intent must never win over a newer one:
 
 - Track pending user intents by an activation identity, not by a value that can repeat (the same date activated twice is two intents).
-- After any `await`, re-check that the element is connected, the intent is still current, and the target is still editable before committing.
+- After any `await`, check the session captured before it, the intent generation, and current editability before committing (`ARCHITECTURE.md` §11.1–11.2).
 - A superseded operation emits no commit event (`change`, `input`, range events).
 
 Reusable scenario for specs:
@@ -93,9 +94,16 @@ Then  A cannot overwrite B
 And   no stale commit event is emitted
 ```
 
-## Lifecycle
+## Audits
 
-Check connect → disconnect → reconnect, double construction/upgrade, and calls after teardown. No listener, timer, fetch or microtask may act on a disconnected or rebuilt instance. Listeners are tied to an `AbortSignal` released on disconnect.
+A finding is actionable only if it shows all four:
+
+1. the invariant it violates, named from this file or `docs/ARCHITECTURE.md`;
+2. a reproducible scenario reachable through a documented interaction, public API/attributes, or native form semantics;
+3. a concrete impact (wrong value, stale event, broken submission, accessibility loss);
+4. a test that fails before the fix.
+
+An architecture preference is not a bug. An audit that finds no actionable defect is a valid result: do not invent findings to fill a report. Unsupported mutation combinations are answered by "disconnect and reconnect", not by a new guard.
 
 ## Browser contract
 
