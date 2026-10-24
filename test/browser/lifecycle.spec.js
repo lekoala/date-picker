@@ -190,3 +190,20 @@ test("#7 a reconnected picker never resumes the old session", async ({ page }) =
   expect(state).toMatchObject({ text: "2026-09-20", hidden: "2026-09-20" });
   expect(state.events).toEqual([["valuechange", "2026-09-20"]]);
 });
+
+test("#8 closing the popup drops a pending range activation", async ({ page }) => {
+  await page.evaluate(() => {
+    const picker = document.getElementById("life-range");
+    picker.range = { start: "2026-09-10", end: "" };
+    picker.calendar.display = "2026-09";
+    window.__events.length = 0;
+    picker.source = window.__source;
+    picker.show({ endpoint: "start", moveFocus: false });
+    document.querySelector('#life-range .dp-day[data-date="2026-09-12"]').click();
+    picker.hide();
+  });
+  await settle(page);
+  const state = await snapshotRange(page);
+  expect(state.range).toEqual({ start: "2026-09-10", end: "" });
+  expect(state.events).toEqual([]);
+});
