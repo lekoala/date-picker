@@ -149,7 +149,7 @@ Markup:
 </date-picker>
 ```
 
-The direct child text input is required. On enhancement its original `name` moves to an internal hidden input that submits the canonical ISO value.
+The direct child text input is required. On enhancement its original `name` moves to an internal hidden input that submits the canonical ISO value. Dynamic `name`/`form`/`disabled` changes are synchronized by a `MutationObserver`; code that reads `FormData` in the same task as such a mutation must wait for the next microtask. Removing `name` from the visible enhanced input does not unregister the canonical field because that input no longer owns the submitted name; disable the field to omit it from submission.
 
 ### Attributes / properties
 
@@ -210,6 +210,8 @@ picker.show();
 picker.hide();
 await picker.validate();
 ```
+
+When disconnected, `validate()` cannot run source availability checks and returns the current native validity of the authored date/time inputs.
 
 ### Events
 

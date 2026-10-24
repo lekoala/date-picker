@@ -179,34 +179,41 @@ export class DateFieldController {
    * `options` is forwarded to the `confirm` gate so a revalidation can ask it
    * not to move the calendar display (source reloads must not re-home it).
    * @param {{moveDisplay?: boolean}} [options]
-   * @returns {Promise<{status: "ok" | "clear" | "invalid" | "stale", value?: string}>}
+   * @returns {Promise<{status: "ok" | "clear" | "invalid" | "stale", value?: string, commitId: number}>}
    */
   async commit(options = {}) {
     const input = this.input;
     const commitId = ++this._commitId;
     const text = input.value.trim();
     if (!text) {
-      if (commitId !== this._commitId) return { status: "stale" };
+      if (commitId !== this._commitId) return { status: "stale", commitId };
       input.setCustomValidity("");
-      return { status: "clear", value: "" };
+      return { status: "clear", value: "", commitId };
     }
     const parsed = this.adapter.parse(text);
     if (!parsed) {
-      if (commitId !== this._commitId) return { status: "stale" };
+      if (commitId !== this._commitId) return { status: "stale", commitId };
       if (this.hidden) this.hidden.value = "";
       input.setCustomValidity(this.messages.invalidDate);
-      return { status: "invalid" };
+      return { status: "invalid", commitId };
     }
     if (this.confirm) {
       const result = await this.confirm(parsed, options);
-      if (commitId !== this._commitId) return { status: "stale" };
+      if (commitId !== this._commitId) return { status: "stale", commitId };
       if (!result?.ok) {
         if (this.hidden) this.hidden.value = "";
         input.setCustomValidity(result?.message || this.messages.unavailableDate);
-        return { status: "invalid" };
+        return { status: "invalid", commitId };
       }
     }
-    return { status: "ok", value: parsed };
+    return { status: "ok", value: parsed, commitId };
+  }
+
+  /** A coordinator must re-check this after awaiting commit(), including for
+   * synchronous clear/invalid results whose Promise resumes in a microtask.
+   * @param {number} commitId */
+  isCommitCurrent(commitId) {
+    return commitId === this._commitId;
   }
 
   /**

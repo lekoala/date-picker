@@ -79,6 +79,15 @@ for (const p of mustInclude) {
   }
 }
 
+for (const p of [
+  "dist/types/activation-intents.d.ts",
+  "dist/types/date-field.d.ts",
+  "dist/types/time.d.ts",
+  "dist/types/upgrade-properties.d.ts",
+]) {
+  if (has(p)) errors.push(`internal declaration shipped: ${p}`);
+}
+
 // Every shipped locale must be reachable through an `exports` subpath, and
 // every `./locales/*` subpath must resolve to a real source file.
 const localeFiles = paths.filter((p) => p.startsWith("src/locales/") && p.endsWith(".js"));

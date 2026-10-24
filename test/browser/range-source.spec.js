@@ -52,6 +52,23 @@ test("a pending typed commit never overwrites a newer atomic range assignment", 
   expect(events.some((entry) => entry.startsWith("rangechange") && entry.includes("2026-10-15"))).toBe(false);
 });
 
+test("connection validation cannot clear a newer atomic range", async ({ page }) => {
+  const range = await page.evaluate(async () => {
+    const picker = document.createElement("date-picker");
+    picker.setAttribute("range", "");
+    const start = document.createElement("input");
+    start.dataset.rangeStart = "";
+    const end = document.createElement("input");
+    end.dataset.rangeEnd = "";
+    picker.append(start, end);
+    document.body.append(picker);
+    picker.range = { start: "2026-06-10", end: "2026-06-15" };
+    await Promise.resolve();
+    return picker.range;
+  });
+  expect(range).toEqual({ start: "2026-06-10", end: "2026-06-15" });
+});
+
 test("range validate applies a recovered availability and keeps values coherent", async ({ page }) => {
   await page.evaluate(() => {
     document.getElementById("range-picker").min = "2026-09-12";

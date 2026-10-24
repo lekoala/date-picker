@@ -44,6 +44,27 @@ test("range mode exposes a strict range API and keeps value/input unavailable", 
   expect(state.invertedRangeThrows).toBe(true);
 });
 
+test("a locale change preserves each authored range placeholder", async ({ page }) => {
+  const state = await page.evaluate(() => {
+    const picker = document.createElement("date-picker");
+    picker.setAttribute("range", "");
+    picker.setAttribute("locale", "fr-BE");
+    const start = document.createElement("input");
+    start.dataset.rangeStart = "";
+    start.placeholder = "AUTHORED START";
+    const end = document.createElement("input");
+    end.dataset.rangeEnd = "";
+    picker.append(start, end);
+    document.body.append(picker);
+    const generatedEnd = end.placeholder;
+    picker.locale = "de-DE";
+    return { start: start.placeholder, generatedEnd, localizedEnd: end.placeholder };
+  });
+  expect(state.start).toBe("AUTHORED START");
+  expect(state.generatedEnd).toBe("DD/MM/YYYY");
+  expect(state.localizedEnd).toBe("DD.MM.YYYY");
+});
+
 test("opening from start picks start, stays open for end and closes on completion", async ({ page }) => {
   await page.locator("#stay-start").focus();
   await expect(page.locator("#stay-picker .dp-picker-panel")).toBeVisible();

@@ -163,7 +163,13 @@ export class DateCalendarElement extends HTMLElement {
     this._id = `date-calendar-${++uid}`;
     this._model = new CalendarModel();
     this._connected = false;
+    /** Connect/disconnect generation guarding deferred work. */
+    this._lifecycleId = 0;
     this._rendering = false;
+    /** Persistent live heading; render() updates its text after it is attached. @type {HTMLHeadingElement | null} */
+    this._heading = null;
+    /** Replaceable visual subtree kept separate from the persistent live heading. @type {HTMLDivElement | null} */
+    this._renderRoot = null;
     /** @type {DateSource | null} */
     this._source = null;
     /** Intent the host attached to the next activation of `date`.
@@ -207,6 +213,7 @@ export class DateCalendarElement extends HTMLElement {
 
   connectedCallback() {
     if (this._connected) return;
+    this._lifecycleId++;
     upgradeProperties(this, [
       "locale",
       "min",
@@ -248,6 +255,7 @@ export class DateCalendarElement extends HTMLElement {
     this._stopDefaultMessages?.();
     this._stopDefaultMessages = null;
     this._connected = false;
+    this._lifecycleId++;
     this._loadController?.abort();
     this._loadController = null;
     this._loadingKey = "";
@@ -258,10 +266,41 @@ export class DateCalendarElement extends HTMLElement {
     this.removeEventListener("focusin", this._onFocusIn);
   }
 
-  attributeChangedCallback() {
-    if (!this._connected || this._rendering) return;
+  /** @param {string} name @param {string|null} _oldValue @param {string|null} newValue */
+  attributeChangedCallback(name, _oldValue, newValue) {
+    if (this._rendering) return;
+    if (name === "value" && newValue && !isDate(newValue)) {
+      this._reflect("value", this._model.value);
+      return;
+    }
+    if ((name === "min" || name === "max") && newValue && !isDate(newValue)) {
+      this._reflect(name, "");
+      if (this._connected) {
+        this._syncModel();
+        this.render();
+      }
+      return;
+    }
+    if (name === "display" && newValue) {
+      try {
+        if (monthKey(newValue) !== newValue) throw new TypeError("Non-canonical month");
+      } catch {
+        this._reflect("display", this._model.display);
+        return;
+      }
+    }
+    if (!this._connected) return;
     this._syncModel();
     this.render();
+  }
+
+  /** Run a focus microtask only in the lifecycle that scheduled it. @param {() => void} callback */
+  _queueFocus(callback) {
+    const lifecycleId = this._lifecycleId;
+    queueMicrotask(() => {
+      if (!this._connected || lifecycleId !== this._lifecycleId) return;
+      callback();
+    });
   }
 
   /** @public */
@@ -669,7 +708,7 @@ export class DateCalendarElement extends HTMLElement {
       // Same month: no full render, just move the roving tabindex.
       this._moveFocusDom(previousFocused, this._model.focused, moveFocus);
     }
-    if (moveFocus) queueMicrotask(() => this.focusGrid());
+    if (moveFocus) this._queueFocus(() => this.focusGrid());
   }
 
   /** @param {string} previous @param {string} next @param {boolean} [moveFocus] */
@@ -781,6 +820,8 @@ export class DateCalendarElement extends HTMLElement {
    * @param {string} date @returns {Promise<boolean>}
    */
   async activateDate(date) {
+    if (!this._connected) return false;
+    const lifecycleId = this._lifecycleId;
     const hostIntent = this._hostIntent?.date === date ? this._hostIntent.intent : undefined;
     this._hostIntent = null;
     /** @param {Event} event */
@@ -792,6 +833,7 @@ export class DateCalendarElement extends HTMLElement {
     // source resolves must not be treated as available, and a cancelled or
     // failed load must not authorize it either.
     const confirmed = await this.ensureDate(date);
+    if (!this._connected || lifecycleId !== this._lifecycleId) return false;
     const state = this.getDateState(date);
     if (!confirmed || state.disabled) {
       this.dispatchEvent(tagged(new CustomEvent("dateinvalid", { detail: { date, state }, bubbles: true })));
@@ -1007,8 +1049,21 @@ export class DateCalendarElement extends HTMLElement {
     const yearControl = `<label class="dp-visually-hidden" for="${this._id}-year">${escapeHtml(this.messages.year)}</label>
           <input id="${this._id}-year" class="dp-year-input ${yearClass}" type="number" inputmode="numeric" value="${displayYear}"${minYearAttr}${maxYearAttr} aria-label="${escapeHtml(this.messages.year)}">`;
 
+    if (!this._heading?.isConnected || !this._renderRoot?.isConnected) {
+      this.replaceChildren();
+      const heading = document.createElement("h2");
+      heading.id = headingId;
+      heading.className = "dp-calendar-heading dp-visually-hidden";
+      heading.setAttribute("aria-live", "polite");
+      const renderRoot = document.createElement("div");
+      renderRoot.className = "dp-calendar-render";
+      this.append(heading, renderRoot);
+      this._heading = heading;
+      this._renderRoot = renderRoot;
+    }
+
     this._rendering = true;
-    this.innerHTML = `
+    this._renderRoot.innerHTML = `
       <div class="dp-calendar-shell">
         <div class="dp-calendar-header">
           ${yearFirst ? yearControl : monthControl}
@@ -1016,18 +1071,18 @@ export class DateCalendarElement extends HTMLElement {
           <button type="button" class="dp-nav dp-prev ${navClass}" data-calendar-action="previous" aria-label="${escapeHtml(this.messages.previousMonth)}"${prevDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4-4 4 4"/></svg></button>
           <button type="button" class="dp-nav dp-next ${navClass}" data-calendar-action="next" aria-label="${escapeHtml(this.messages.nextMonth)}"${nextDisabled ? " disabled" : ""}><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>
         </div>
-        <h2 id="${headingId}" class="dp-calendar-heading dp-visually-hidden" aria-live="polite">${escapeHtml(formatMonthYear(`${display}-15`, locale))}</h2>
         <table id="${gridId}" class="dp-grid" role="grid" aria-labelledby="${headingId}">
           <thead><tr>${weekHeader}${dayHeaders}</tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
+    this._heading.textContent = formatMonthYear(`${display}-15`, locale);
     this._rendering = false;
     this._paintedRange = { ...this._highlightedRange };
     this._paintedPreview = this.hasAttribute("data-range-preview");
 
     if (focusKey) {
-      queueMicrotask(() => {
+      this._queueFocus(() => {
         let selector = focusKey;
         // A day-cell key goes stale across display changes: the old date can
         // reappear as outside-month padding in the new month (fixed-weeks or

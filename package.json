@@ -141,7 +141,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "tsc -p jsconfig.json",
-    "types": "tsc -p tsconfig.types.json",
+    "types": "tsc -p tsconfig.types.json && bun scripts/trim-types.js",
     "test": "bun test test/unit",
     "test:syntax": "bun scripts/check-syntax.js",
     "test:types": "tsc -p test/types/tsconfig.json",

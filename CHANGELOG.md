@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.3 — 2026-10-24
+
+### Fixed
+
+- Prevent stale validation and deferred interactions from overwriting newer state or surviving lifecycle changes.
+- Stabilize calendar announcements, range placeholders, and invalid date/month attribute handling.
+- Keep internal implementation details out of published TypeScript declarations.
+
 ## 0.5.2 — 2026-10-23
 
 ### Fixed

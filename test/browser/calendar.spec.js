@@ -69,6 +69,98 @@ test("the grid heading is visually hidden but keeps naming and the live region",
   await expect(page.locator(`#inline #${labelledBy}`)).toHaveClass(/dp-calendar-heading/);
 });
 
+test("the live heading persists while its month announcement changes", async ({ page }) => {
+  const state = await page.evaluate(() => {
+    const calendar = document.getElementById("inline");
+    const before = calendar.querySelector(".dp-calendar-heading");
+    const beforeText = before?.textContent;
+    calendar.nextMonth();
+    const after = calendar.querySelector(".dp-calendar-heading");
+    return { sameNode: before === after, beforeText, afterText: after?.textContent };
+  });
+  expect(state.sameNode).toBe(true);
+  expect(state.afterText).not.toBe(state.beforeText);
+});
+
+test("invalid reflected date attributes are normalized", async ({ page }) => {
+  const state = await page.evaluate(() => {
+    const calendar = document.getElementById("inline");
+    const value = calendar.value;
+    calendar.setAttribute("value", "bogus");
+    calendar.setAttribute("min", "not-a-date");
+    calendar.setAttribute("max", "9999-99-99");
+    return {
+      value,
+      property: calendar.value,
+      valueAttribute: calendar.getAttribute("value"),
+      minAttribute: calendar.getAttribute("min"),
+      maxAttribute: calendar.getAttribute("max"),
+    };
+  });
+  expect(state.property).toBe(state.value);
+  expect(state.valueAttribute).toBe(state.value);
+  expect(state.minAttribute).toBeNull();
+  expect(state.maxAttribute).toBeNull();
+});
+
+test("invalid date and month attributes are normalized before connection", async ({ page }) => {
+  const state = await page.evaluate(() => {
+    const calendar = document.createElement("date-calendar");
+    calendar.setAttribute("value", "bogus");
+    calendar.setAttribute("min", "not-a-date");
+    calendar.setAttribute("max", "9999-99-99");
+    calendar.setAttribute("display", "0000-01");
+    document.body.append(calendar);
+    return {
+      value: calendar.value,
+      valueAttribute: calendar.getAttribute("value"),
+      minAttribute: calendar.getAttribute("min"),
+      maxAttribute: calendar.getAttribute("max"),
+      display: calendar.display,
+      displayAttribute: calendar.getAttribute("display"),
+    };
+  });
+  expect(state.value).toBe("");
+  expect(state.valueAttribute).toBeNull();
+  expect(state.minAttribute).toBeNull();
+  expect(state.maxAttribute).toBeNull();
+  expect(state.displayAttribute).toBe(state.display);
+  expect(state.display).not.toBe("0000-01");
+});
+
+test("an activation cannot cross a disconnect and reconnect", async ({ page }) => {
+  const state = await page.evaluate(async () => {
+    const calendar = document.createElement("date-calendar");
+    calendar.selection = "single";
+    calendar.display = "2026-09";
+    let activations = 0;
+    calendar.addEventListener("dateactivate", () => activations++);
+    document.body.append(calendar);
+    const pending = calendar.activateDate("2026-09-10");
+    calendar.remove();
+    document.body.append(calendar);
+    return { accepted: await pending, activations, value: calendar.value };
+  });
+  expect(state).toEqual({ accepted: false, activations: 0, value: "" });
+});
+
+test("a focus microtask cannot steal focus after reconnect", async ({ page }) => {
+  const active = await page.evaluate(async () => {
+    const calendar = document.createElement("date-calendar");
+    calendar.display = "2026-09";
+    const sentinel = document.createElement("button");
+    sentinel.id = "calendar-focus-sentinel";
+    document.body.append(calendar, sentinel);
+    calendar.focusDate("2026-09-10");
+    calendar.remove();
+    document.body.append(calendar);
+    sentinel.focus();
+    await Promise.resolve();
+    return document.activeElement?.id;
+  });
+  expect(active).toBe("calendar-focus-sentinel");
+});
+
 test("the agenda anchor renders a visual marker and moves on activation", async ({ page }) => {
   const anchorCell = page.locator('#mini .dp-day[data-date="2026-09-03"] .availability i.anchor');
   await expect(anchorCell).toHaveCount(1);

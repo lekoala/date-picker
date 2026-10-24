@@ -42,8 +42,11 @@ export function monthKey(value) {
   const text = String(value || "");
   const monthMatch = MONTH_RE.exec(text);
   if (monthMatch) {
+    const year = Number(monthMatch[1]);
     const month = Number(monthMatch[2]);
-    if (month >= 1 && month <= 12) return `${monthMatch[1]}-${String(month).padStart(2, "0")}`;
+    if (year >= 1 && year <= 9999 && month >= 1 && month <= 12) {
+      return `${monthMatch[1]}-${String(month).padStart(2, "0")}`;
+    }
   }
   const parsed = parseDate(text);
   if (!parsed) throw new TypeError(`Invalid civil date/month: ${value}`);

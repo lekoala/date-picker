@@ -8,6 +8,7 @@ import {
   getMonthWeeks,
   isDate,
   isoWeekNumber,
+  monthKey,
   shiftMonth,
   startOfWeek,
 } from "../../src/date.js";
@@ -16,6 +17,12 @@ test("civil date validation rejects impossible dates", () => {
   expect(isDate("2024-02-29")).toBe(true);
   expect(isDate("2023-02-29")).toBe(false);
   expect(isDate("2026-13-01")).toBe(false);
+});
+
+test("canonical months reject year zero and out-of-range months", () => {
+  expect(monthKey("0001-01")).toBe("0001-01");
+  expect(() => monthKey("0000-01")).toThrow(TypeError);
+  expect(() => monthKey("2026-13")).toThrow(TypeError);
 });
 
 test("date arithmetic clamps month/year transitions", () => {

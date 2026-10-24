@@ -174,3 +174,71 @@ test("validate() on an emptied field clears the canonical value and hidden ISO",
   await expect(page.locator("#source-picker")).toHaveJSProperty("value", "");
   await expect(page.locator('#source-picker input[type="hidden"][name="source-field"]')).toHaveValue("");
 });
+
+test("connection validation cannot clear a newer programmatic value", async ({ page }) => {
+  const state = await page.evaluate(async () => {
+    const picker = document.createElement("date-picker");
+    const input = document.createElement("input");
+    input.name = "created-date";
+    picker.append(input);
+    document.body.append(picker);
+    picker.value = "2026-06-10";
+    await Promise.resolve();
+    return {
+      value: picker.value,
+      text: input.value,
+      submitted: picker.querySelector('input[type="hidden"]')?.value,
+    };
+  });
+  expect(state).toEqual({ value: "2026-06-10", text: "06/10/2026", submitted: "2026-06-10" });
+});
+
+test("invalid picker attributes are normalized without changing its value", async ({ page }) => {
+  const state = await page.evaluate(() => {
+    const picker = document.getElementById("source-picker");
+    const value = picker.value;
+    picker.setAttribute("value", "bogus");
+    picker.setAttribute("min", "not-a-date");
+    picker.setAttribute("max", "9999-99-99");
+    return {
+      value,
+      property: picker.value,
+      valueAttribute: picker.getAttribute("value"),
+      minAttribute: picker.getAttribute("min"),
+      maxAttribute: picker.getAttribute("max"),
+    };
+  });
+  expect(state.property).toBe(state.value);
+  expect(state.valueAttribute).toBe(state.value);
+  expect(state.minAttribute).toBeNull();
+  expect(state.maxAttribute).toBeNull();
+});
+
+test("invalid picker attributes are normalized before connection", async ({ page }) => {
+  const state = await page.evaluate(() => {
+    const picker = document.createElement("date-picker");
+    picker.setAttribute("value", "bogus");
+    picker.setAttribute("min", "not-a-date");
+    picker.setAttribute("max", "9999-99-99");
+    const input = document.createElement("input");
+    picker.append(input);
+    document.body.append(picker);
+    return {
+      value: picker.value,
+      valueAttribute: picker.getAttribute("value"),
+      minAttribute: picker.getAttribute("min"),
+      maxAttribute: picker.getAttribute("max"),
+    };
+  });
+  expect(state).toEqual({ value: "", valueAttribute: null, minAttribute: null, maxAttribute: null });
+});
+
+test("validate() falls back to authored input validity while disconnected", async ({ page }) => {
+  const valid = await page.evaluate(() => {
+    const picker = document.getElementById("source-picker");
+    picker.input.setCustomValidity("Unavailable");
+    picker.remove();
+    return picker.validate();
+  });
+  expect(valid).toBe(false);
+});

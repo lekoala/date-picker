@@ -90,4 +90,23 @@ test.describe("open-on-focus contract", () => {
     await expect(panel).toBeVisible();
     await expect(page.locator("#no-focus-picker .dp-day[tabindex='0']")).toBeFocused();
   });
+
+  test("a deferred focus restore cannot cross a reconnect", async ({ page }) => {
+    const active = await page.evaluate(async () => {
+      const picker = document.createElement("date-picker");
+      const input = document.createElement("input");
+      picker.append(input);
+      const sentinel = document.createElement("button");
+      sentinel.id = "picker-focus-sentinel";
+      document.body.append(picker, sentinel);
+      picker.show({ moveFocus: false });
+      await picker.calendar.activateDate("2026-09-10");
+      picker.remove();
+      document.body.append(picker);
+      sentinel.focus();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return document.activeElement?.id;
+    });
+    expect(active).toBe("picker-focus-sentinel");
+  });
 });

@@ -38,6 +38,8 @@ calendar.focusDate("2026-10-10", { moveFocus: false });
 void calendar.getDateState("2026-10-10");
 
 const start = new DatePickerElement();
+// @ts-expect-error underscore-prefixed implementation state is not public API
+start._field;
 start.controlClasses = { nav: "btn", month: "data-[state=open]:bg-muted" };
 const pickerYear: string = start.controlClasses.year;
 start.controlClasses = null;
@@ -61,6 +63,8 @@ const valueIsUndefined: string | undefined = rangePicker.value;
 void valueIsUndefined;
 
 const model = new CalendarModel({ value: "2026-09-10" });
+// @ts-expect-error underscore-prefixed calendar state is not public API
+calendar._model;
 model.navigateMonth(1);
 
 const adapter = createDateAdapter("fr-BE");

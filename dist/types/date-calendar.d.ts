@@ -1,4 +1,3 @@
-import { CalendarModel } from "./calendar-model.js";
 export type DateRange = {
     start: string;
     end: string;
@@ -34,45 +33,6 @@ export type DateDisabledPredicate = (date: string) => boolean;
 /** @typedef {(date:string, state:DateState) => Node | string | null | undefined} DayRenderer */
 /** @typedef {(date:string) => boolean} DateDisabledPredicate */
 export declare class DateCalendarElement extends HTMLElement {
-    _id: string;
-    _model: CalendarModel;
-    _connected: boolean;
-    _rendering: boolean;
-    /** @type {DateSource | null} */
-    _source: DateSource | null;
-    /** Intent the host attached to the next activation of `date`.
-     * @type {{date: string, intent: unknown} | null} */
-    _hostIntent: {
-        date: string;
-        intent: unknown;
-    } | null;
-    _sourceStates: Map<any, any>;
-    _loadedRanges: Set<any>;
-    _loadController: AbortController | null;
-    _loadingKey: string;
-    /** @type {Promise<"loaded" | "cancelled" | "failed"> | null} */
-    _loadingPromise: Promise<"loaded" | "cancelled" | "failed"> | null;
-    /** @type {DateStateResolver | null} */
-    _dateState: DateStateResolver | null;
-    /** @type {DayRenderer | null} */
-    _renderDay: DayRenderer | null;
-    /** @type {DateDisabledPredicate | null} */
-    _isDateDisabled: DateDisabledPredicate | null;
-    /** @type {DateRange} */
-    _highlightedRange: DateRange;
-    /** @type {DateRange} */
-    _paintedRange: DateRange;
-    _paintedPreview: boolean;
-    /** @type {Map<string, DateState>} States of the current rendered grid. */
-    _renderedStates: Map<string, DateState>;
-    /** @type {typeof import("./messages.js").DEFAULT_MESSAGES | null} */
-    _messages: typeof import("./messages.js").DEFAULT_MESSAGES | null;
-    /** @type {Partial<import("./control-classes.js").ControlClasses> | null} */
-    _controlClasses: Partial<import("./control-classes.js").ControlClasses> | null;
-    /** @type {(() => void) | null} */
-    _stopDefaultMessages: (() => void) | null;
-    /** @type {(() => void) | null} */
-    _stopDefaultControlClasses: (() => void) | null;
     static observedAttributes: string[];
     /** @public @param {Partial<import("./control-classes.js").ControlClasses>} classes */
     static setDefaultControlClasses(classes: Partial<import("./control-classes.js").ControlClasses>): void;
@@ -108,7 +68,8 @@ export declare class DateCalendarElement extends HTMLElement {
     constructor();
     connectedCallback(): void;
     disconnectedCallback(): void;
-    attributeChangedCallback(): void;
+    /** @param {string} name @param {string|null} _oldValue @param {string|null} newValue */
+    attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null): void;
     /** @public */
     get locale(): string;
     set locale(value: string);
@@ -175,19 +136,6 @@ export declare class DateCalendarElement extends HTMLElement {
     /** @public @returns {DateDisabledPredicate | null} */
     get isDateDisabled(): DateDisabledPredicate | null;
     set isDateDisabled(value: DateDisabledPredicate | null);
-    _syncModel(): void;
-    /** @param {string} name @param {string} value */
-    _reflect(name: string, value: string): void;
-    /** @param {string} value */
-    _clamp(value: string): string;
-    _weeks(display?: string): string[][];
-    /** @param {HTMLElement} element @returns {string} */
-    _focusTargetKey(element: HTMLElement): string;
-    /** @param {string} [display] */
-    _range(display?: string): {
-        start: string;
-        end: string;
-    };
     /** @public @param {string} date @returns {DateState & {disabled: boolean}} */
     getDateState(date: string): DateState & {
         disabled: boolean;
@@ -197,13 +145,6 @@ export declare class DateCalendarElement extends HTMLElement {
     /** @public Ensure source state exists for the month containing a typed/selected date.
      * @param {string} date @returns {Promise<boolean>} */
     ensureDate(date: string): Promise<boolean>;
-    /** @param {string} display @param {boolean} [rerender] @returns {Promise<"loaded" | "cancelled" | "failed">} */
-    _loadDisplay(display: string, rerender?: boolean): Promise<"loaded" | "cancelled" | "failed">;
-    /** @param {string} display @param {{emit?:boolean}} [options] */
-    _setDisplay(display: string, options?: {
-        emit?: boolean;
-    }): string;
-    _emitDisplayChange(): void;
     /** @public */
     previousMonth(): string;
     /** @public */
@@ -212,28 +153,6 @@ export declare class DateCalendarElement extends HTMLElement {
     focusDate(date: string, options?: {
         moveFocus?: boolean;
     }): void;
-    /** @param {string} previous @param {string} next @param {boolean} [moveFocus] */
-    _moveFocusDom(previous: string, next: string, moveFocus?: boolean): void;
-    /** Leave exactly one roving tab stop, on `date`'s cell when rendered.
-     * @param {string} date */
-    _syncRovingDom(date: string): void;
-    /** @param {string} previousValue @param {string} nextValue */
-    _moveSelectionDom(previousValue: string, nextValue: string): boolean;
-    /**
-     * Accessible name of one day cell. The band contribution is dropped while a
-     * preview is projected onto `highlightedRange`: a proposal must not be
-     * announced as a committed range start/end.
-     * @param {string} date @param {DateState} state
-     * @param {"" | "start" | "in" | "end" | "single"} position
-     */
-    _dayLabel(date: string, state: DateState, position: "" | "start" | "in" | "end" | "single"): string;
-    /**
-     * Repaint the range band over the cells already rendered. The band is
-     * presentation on top of the same grid, so it must never rebuild it: a full
-     * render would drop `renderDay()` nodes and fight the roving focus on every
-     * hover of a live range preview.
-     */
-    _updateRangeDom(): void;
     /** @public */
     focusGrid(): void;
     /**
@@ -245,21 +164,6 @@ export declare class DateCalendarElement extends HTMLElement {
      * @param {string} date @returns {Promise<boolean>}
      */
     activateDate(date: string): Promise<boolean>;
-    /** @param {MouseEvent} event */
-    _onClick(event: MouseEvent): void;
-    /** @param {Event} event */
-    _onChange(event: Event): void;
-    /**
-     * Real DOM focus is the single source of truth for `datefocus`: the model is
-     * synced here and the event is announced from here, so the temporary focus
-     * arithmetic in `_onKeyDown` cannot emit phantom events, and setting
-     * `focusedDate` without moving focus stays silent.
-     * @param {FocusEvent} event
-     */
-    _onFocusIn(event: FocusEvent): void;
-    /** @param {KeyboardEvent} event */
-    _onKeyDown(event: KeyboardEvent): void;
     /** @public @param {boolean} [load] */
     render(load?: boolean): void;
 }
-//# sourceMappingURL=date-calendar.d.ts.map
