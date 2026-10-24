@@ -4,7 +4,7 @@
 
 ### Removed
 
-- Endpoint dragging on `<date-picker range>`. The drag was a second interaction machine (pointer capture, travel threshold, trailing-click suppression, per-gesture endpoint identity) around rules the range machine already owns. The picker now moves a bound only through a calendar activation (`activateDate()` / `dateactivate`); an application that wants a pointer gesture writes the public API (`calendar.activateDate()` for availability plus the cancelable veto, then `picker.range`, then native `input`/`change` on the bound it moved). See [DECISIONS D9](docs/DECISIONS.md). No drop-in replacement is promised; whether a tested recipe ships is tracked by the migration gate.
+- Endpoint dragging on `<date-picker range>`. The drag was a second interaction machine (pointer capture, travel threshold, trailing-click suppression, per-gesture endpoint identity) around rules the range machine already owns. The picker now moves a bound only through a calendar activation (`activateDate()` / `dateactivate`); an application that wants a pointer gesture writes the public API (`calendar.activateDate()` for availability plus the cancelable veto, then `picker.range`, then native `input`/`change` on the bound it moved). See [DECISIONS D9](docs/DECISIONS.md). A tested recipe ships in [CALENDAR-INTEGRATION.md](docs/CALENDAR-INTEGRATION.md); touch handling, cursor affordance and the discard of a draft in the other bound stay application-owned.
 - `DateRangeController` is no longer presented as public API in `docs/API.md`. The class was never exported by the package, so this is a documentation correction, not an API removal. Its internal `projectEndpoint()`, `moveEndpoint()` and the `endpoint` argument of `previewRange()` are gone.
 
 ### Changed

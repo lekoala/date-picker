@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>App-owned endpoint drag</title>
+    <script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+    <link rel="stylesheet" href="/src/date-picker.css" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 1rem;
+      }
+      date-picker {
+        display: inline-flex;
+        gap: 0.5rem;
+      }
+    </style>
+    <script type="module">
+      import "/src/define.js";
+
+      const picker = document.getElementById("app-drag");
+      const calendar = picker.calendar;
+      const startInput = picker.querySelector("input[data-range-start]");
+      const endInput = picker.querySelector("input[data-range-end]");
+
+      const inputFor = (bound) => (bound === "end" ? endInput : startInput);
+      const editable = (bound) => {
+        const input = inputFor(bound);
+        return !input.matches(":disabled") && !input.readOnly;
+      };
+      // Stable day-cell marker (docs/API.md): the ISO date under the pointer.
+      const isoAt = (x, y) => {
+        const element = document.elementFromPoint(x, y);
+        const cell = element instanceof Element ? element.closest("[data-date]") : null;
+        return cell?.getAttribute("data-date") || "";
+      };
+      // App-owned clamp against the opposite bound.
+      const clamp = (date, bound, range) => {
+        if (bound === "start") return range.end && date > range.end ? range.end : date;
+        return range.start && date < range.start ? range.start : date;
+      };
+
+      /** @type {{id:number, bound:"start"|"end", x:number, y:number} | null} */
+      let armed = null;
+      let gesture = 0;
+      const events = [];
+      window.appDrag = { events, gesture: () => gesture };
+
+      picker.addEventListener("rangechange", (event) => {
+        events.push(["rangechange", event.detail.start, event.detail.end]);
+      });
+      for (const [name, input] of [
+        ["start", startInput],
+        ["end", endInput],
+      ]) {
+        input.addEventListener("input", () => events.push([`${name}:input`]));
+        input.addEventListener("change", () => events.push([`${name}:change`]));
+      }
+
+      calendar.addEventListener("pointerdown", (event) => {
+        if (!event.isPrimary || event.button !== 0) return;
+        if (event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+        const cell = event.target instanceof Element ? event.target.closest("[data-date]") : null;
+        const range = picker.range;
+        if (!cell || !range?.start || !range?.end) return;
+        const isStart = cell.hasAttribute("data-range-start");
+        const isEnd = cell.hasAttribute("data-range-end");
+        if (isStart === isEnd) return;
+        const bound = isStart ? "start" : "end";
+        if (!editable(bound)) return;
+        armed = { id: ++gesture, bound, x: event.clientX, y: event.clientY };
+        calendar.setPointerCapture(event.pointerId);
+      });
+
+      calendar.addEventListener("pointerup", async (event) => {
+        const drag = armed;
+        armed = null;
+        if (!drag) return;
+        if (calendar.hasPointerCapture(event.pointerId)) calendar.releasePointerCapture(event.pointerId);
+        const date = isoAt(event.clientX, event.clientY);
+        const range = picker.range;
+        if (!date || !range?.start || !range?.end) return;
+        const next = clamp(date, drag.bound, range);
+        if (next === range[drag.bound]) return;
+        // Availability plus the cancelable activation veto, in one public call.
+        if (!(await calendar.activateDate(next))) return;
+        // App-owned intent generation: a newer gesture supersedes this one.
+        if (drag.id !== gesture || !picker.open) return;
+        picker.range =
+          drag.bound === "start" ? { start: next, end: range.end } : { start: range.start, end: next };
+        const input = inputFor(drag.bound);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+
+      calendar.addEventListener("pointercancel", () => {
+        armed = null;
+      });
+    </script>
+  </head>
+  <body>
+    <date-picker range id="app-drag">
+      <input data-range-start name="from" value="2026-09-10" aria-label="From" />
+      <input data-range-end name="to" value="2026-09-15" aria-label="To" />
+    </date-picker>
+    <script>
+      customElements.whenDefined("date-picker").then(() => {
+        document.getElementById("app-drag").calendar.display = "2026-09";
+      });
+    </script>
+  </body>
+</html>

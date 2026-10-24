@@ -27,6 +27,16 @@ The public surface — flat event names, `selection` values, `--dp-*` styling to
 
 Presentation-only range band. It never changes `value`, `selection` or `focusedDate`. It accepts an ordered `{ start, end }` pair of `YYYY-MM-DD` values; `end` may be empty (range in progress), and a `start === end` range renders both endpoints with a dedicated label. `null` and `{ start: "", end: "" }` reset the band. Inverted ranges and `{ start: "", end: "…" }` throw a `TypeError` — the property never reorders or guesses. Styled spans render `data-range-start="true"`, `data-in-range="true"`, `data-range-end="true"` and extend each day's `aria-label` accordingly.
 
+### Day cell data attributes
+
+Day cells stay component-owned DOM (D3): `.dp-*` classes are not a styling API and the cell cannot be replaced. These read-only data attributes are stable hooks for application-owned interactions:
+
+- `data-date="YYYY-MM-DD"` — canonical date of the cell;
+- `data-range-start` / `data-in-range` / `data-range-end` — band position painted from `highlightedRange` (a one-day range carries both start and end);
+- `data-range-preview` — on the calendar, not the cell: the band is a proposal, so cells stop contributing a range start/end to their accessible name while it is set.
+
+Applications may read them (for example to hit-test a pointer gesture, see [CALENDAR-INTEGRATION](CALENDAR-INTEGRATION.md)); they must not write them.
+
 ### Callback properties
 
 ```js

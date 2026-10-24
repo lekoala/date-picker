@@ -79,8 +79,9 @@ Writable public properties assigned before element definition are replayed throu
 
 - A pointer gesture that moves a bound is a second interaction machine (pointer capture, travel threshold, `pointercancel`, `lostpointercapture`, trailing-click suppression, a per-gesture endpoint identity). It duplicates rules that already exist in the range machine and in the public seams, so it stays application-owned.
 - The application writes the public API, not internal state: `calendar.activateDate(date)` for availability plus the cancelable `dateactivate` veto, then `picker.range = { start, end }`, then native `input`/`change` on the bound it moved. `dates.compareDates` stays public for the clamp against the opposite bound.
-- The calendar keeps the seams this requires: `datefocus`, `highlightedRange`, `data-range-preview` (a proposal is never announced as a range start/end) and `activateDate()`.
+- The calendar keeps the seams this requires: `datefocus`, `highlightedRange`, `data-range-preview` (a proposal is never announced as a range start/end), `activateDate()`, and the stable day-cell markers `data-date` / `data-range-start` / `data-range-end`.
 - Moving a bound is an availability-checked action, never a silent rewrite: a refused or vetoed activation leaves the range untouched.
-- A replacement recipe is application-owned and evaluated before release. When it holds, it is documented in `docs/CALENDAR-INTEGRATION.md` and covered by a browser spec; when it does not, the removal is a documented feature loss with no drop-in replacement.
+- A tested replacement recipe ships in `docs/CALENDAR-INTEGRATION.md` and is covered by `test/browser/app-owned-drag.spec.js`: slow source, cancelled activation, concurrent gestures and the moved-bound events are all proven. It reads the stable day-cell markers and writes only public API.
+- The application keeps what the built-in gesture used to provide around the rules: travel threshold or not, touch handling, cursor affordance, and deciding whether a draft typed in the other bound may be discarded by writing `picker.range`.
 
 Dragging is not replaced by an opt-in attribute. Either the application implements it, or the picker does not offer it.
