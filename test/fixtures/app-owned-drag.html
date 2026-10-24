@@ -68,6 +68,9 @@
         if (isStart === isEnd) return;
         const bound = isStart ? "start" : "end";
         if (!editable(bound)) return;
+        // Without this, Firefox starts a text-selection drag and cancels the
+        // pointer sequence before it can become a range gesture.
+        event.preventDefault();
         armed = { id: ++gesture, bound, x: event.clientX, y: event.clientY };
         calendar.setPointerCapture(event.pointerId);
       });

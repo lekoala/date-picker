@@ -115,6 +115,7 @@ calendar.addEventListener("pointerdown", (event) => {
   if (start === end) return; // no handle on a one-day range
   const bound = start ? "start" : "end";
   if (!isEditable(bound)) return;
+  event.preventDefault(); // otherwise Firefox starts a text-selection drag
   armed = { id: ++gesture, bound };
   calendar.setPointerCapture(event.pointerId);
 });
