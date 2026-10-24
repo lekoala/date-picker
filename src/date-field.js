@@ -187,7 +187,10 @@ export class DateFieldController {
   async commit(options = {}) {
     const input = this.input;
     const commitId = ++this._commitId;
-    if (this._session.signal.aborted) return { status: "stale", commitId };
+    // One controller has one lifetime, so this captured session is the
+    // controller's only session: teardown aborts it for good.
+    const session = this._session;
+    if (session.signal.aborted) return { status: "stale", commitId };
     const text = input.value.trim();
     if (!text) {
       if (commitId !== this._commitId) return { status: "stale", commitId };
@@ -206,7 +209,7 @@ export class DateFieldController {
       // The session is captured by this controller's own lifetime: a teardown
       // aborts it, so the pending result must not touch validity or the hidden
       // field any more.
-      if (this._session.signal.aborted || commitId !== this._commitId) {
+      if (session.signal.aborted || commitId !== this._commitId) {
         return { status: "stale", commitId };
       }
       if (!result?.ok) {

@@ -957,10 +957,7 @@
       const session = this._session;
       if (!session)
         return;
-      queueMicrotask(guard(session.signal, () => {
-        if (this._connected)
-          callback();
-      }));
+      queueMicrotask(guard(session.signal, callback));
     }
     get locale() {
       return resolveLocale(this.getAttribute("locale") || "");
@@ -1395,7 +1392,7 @@
         return event;
       };
       const confirmed = await this.ensureDate(date);
-      if (!this._connected || !session || session.signal.aborted)
+      if (!session || session.signal.aborted)
         return false;
       const state = this.getDateState(date);
       if (!confirmed || state.disabled) {
@@ -2129,7 +2126,8 @@
     async commit(options = {}) {
       const input = this.input;
       const commitId = ++this._commitId;
-      if (this._session.signal.aborted)
+      const session = this._session;
+      if (session.signal.aborted)
         return { status: "stale", commitId };
       const text = input.value.trim();
       if (!text) {
@@ -2149,7 +2147,7 @@
       }
       if (this.confirm) {
         const result = await this.confirm(parsed, options);
-        if (this._session.signal.aborted || commitId !== this._commitId) {
+        if (session.signal.aborted || commitId !== this._commitId) {
           return { status: "stale", commitId };
         }
         if (!result?.ok) {

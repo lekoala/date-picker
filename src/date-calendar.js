@@ -316,11 +316,7 @@ export class DateCalendarElement extends HTMLElement {
   _queueFocus(callback) {
     const session = this._session;
     if (!session) return;
-    queueMicrotask(
-      guard(session.signal, () => {
-        if (this._connected) callback();
-      }),
-    );
+    queueMicrotask(guard(session.signal, callback));
   }
 
   /** @public */
@@ -854,7 +850,7 @@ export class DateCalendarElement extends HTMLElement {
     // source resolves must not be treated as available, and a cancelled or
     // failed load must not authorize it either.
     const confirmed = await this.ensureDate(date);
-    if (!this._connected || !session || session.signal.aborted) return false;
+    if (!session || session.signal.aborted) return false;
     const state = this.getDateState(date);
     if (!confirmed || state.disabled) {
       this.dispatchEvent(tagged(new CustomEvent("dateinvalid", { detail: { date, state }, bubbles: true })));
