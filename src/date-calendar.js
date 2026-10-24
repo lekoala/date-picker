@@ -31,6 +31,7 @@ import {
   weekdayNames,
 } from "./intl.js";
 import { getDefaultMessages, setDefaultMessages, subscribeDefaultMessages } from "./messages.js";
+import { createSession, guard } from "./session.js";
 import { normalizeDateStates } from "./source.js";
 import { upgradeProperties } from "./upgrade-properties.js";
 
@@ -163,8 +164,9 @@ export class DateCalendarElement extends HTMLElement {
     this._id = `date-calendar-${++uid}`;
     this._model = new CalendarModel();
     this._connected = false;
-    /** Connect/disconnect generation guarding deferred work. */
-    this._lifecycleId = 0;
+    /** Connection lifetime token. Deferred work captures it, never reads it late. */
+    /** @type {AbortController | null} */
+    this._session = null;
     this._rendering = false;
     /** Persistent live heading; render() updates its text after it is attached. @type {HTMLHeadingElement | null} */
     this._heading = null;
@@ -213,7 +215,7 @@ export class DateCalendarElement extends HTMLElement {
 
   connectedCallback() {
     if (this._connected) return;
-    this._lifecycleId++;
+    this._session = createSession();
     upgradeProperties(this, [
       "locale",
       "min",
@@ -242,10 +244,11 @@ export class DateCalendarElement extends HTMLElement {
       if (this._messages === null) this.render();
     });
     this._connected = true;
-    this.addEventListener("click", this._onClick);
-    this.addEventListener("change", this._onChange);
-    this.addEventListener("keydown", this._onKeyDown);
-    this.addEventListener("focusin", this._onFocusIn);
+    const { signal } = this._session;
+    this.addEventListener("click", this._onClick, { signal });
+    this.addEventListener("change", this._onChange, { signal });
+    this.addEventListener("keydown", this._onKeyDown, { signal });
+    this.addEventListener("focusin", this._onFocusIn, { signal });
     this.render();
   }
 
@@ -255,15 +258,12 @@ export class DateCalendarElement extends HTMLElement {
     this._stopDefaultMessages?.();
     this._stopDefaultMessages = null;
     this._connected = false;
-    this._lifecycleId++;
     this._loadController?.abort();
     this._loadController = null;
     this._loadingKey = "";
     this._loadingPromise = null;
-    this.removeEventListener("click", this._onClick);
-    this.removeEventListener("change", this._onChange);
-    this.removeEventListener("keydown", this._onKeyDown);
-    this.removeEventListener("focusin", this._onFocusIn);
+    this._session?.abort();
+    this._session = null;
   }
 
   /** @param {string} name @param {string|null} _oldValue @param {string|null} newValue */
@@ -294,13 +294,15 @@ export class DateCalendarElement extends HTMLElement {
     this.render();
   }
 
-  /** Run a focus microtask only in the lifecycle that scheduled it. @param {() => void} callback */
+  /** Run a focus microtask only in the connection that scheduled it. @param {() => void} callback */
   _queueFocus(callback) {
-    const lifecycleId = this._lifecycleId;
-    queueMicrotask(() => {
-      if (!this._connected || lifecycleId !== this._lifecycleId) return;
-      callback();
-    });
+    const session = this._session;
+    if (!session) return;
+    queueMicrotask(
+      guard(session.signal, () => {
+        if (this._connected) callback();
+      }),
+    );
   }
 
   /** @public */
@@ -821,7 +823,7 @@ export class DateCalendarElement extends HTMLElement {
    */
   async activateDate(date) {
     if (!this._connected) return false;
-    const lifecycleId = this._lifecycleId;
+    const session = this._session;
     const hostIntent = this._hostIntent?.date === date ? this._hostIntent.intent : undefined;
     this._hostIntent = null;
     /** @param {Event} event */
@@ -833,7 +835,7 @@ export class DateCalendarElement extends HTMLElement {
     // source resolves must not be treated as available, and a cancelled or
     // failed load must not authorize it either.
     const confirmed = await this.ensureDate(date);
-    if (!this._connected || lifecycleId !== this._lifecycleId) return false;
+    if (!this._connected || !session || session.signal.aborted) return false;
     const state = this.getDateState(date);
     if (!confirmed || state.disabled) {
       this.dispatchEvent(tagged(new CustomEvent("dateinvalid", { detail: { date, state }, bubbles: true })));
