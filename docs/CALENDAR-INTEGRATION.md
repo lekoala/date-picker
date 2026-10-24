@@ -77,7 +77,7 @@ This keeps the two packages dependency-free from each other: a circular dependen
 
 ## App-owned range endpoint drag
 
-`<date-picker range>` does not implement pointer dragging of endpoints ([D9](DECISIONS.md)). An application that wants it reads the stable day-cell markers and writes the public API: it never touches picker internals.
+`<date-picker range>` owns the range workflow, not pointer interaction ([D9](DECISIONS.md)). This recipe is a **tested starting point**, not a feature-equivalent replacement for the removed built-in drag: it shows the public seams and the guarantees they give, and leaves the gesture policy to the application.
 
 ```js
 const picker = document.querySelector("date-picker[range]");
@@ -87,15 +87,14 @@ const inputs = {
   end: picker.querySelector("input[data-range-end]"),
 };
 
+const TRAVEL = 4; // px; below this a press never moves a bound
 const isoAt = (x, y) => {
   const element = document.elementFromPoint(x, y);
   const cell = element instanceof Element ? element.closest("[data-date]") : null;
   return cell?.getAttribute("data-date") || "";
 };
-
 const isEditable = (bound) =>
   !inputs[bound].matches(":disabled") && !inputs[bound].readOnly;
-
 const clamp = (date, bound, range) =>
   bound === "start"
     ? range.end && date > range.end ? range.end : date
@@ -104,9 +103,12 @@ const clamp = (date, bound, range) =>
 let armed = null;
 let gesture = 0; // app-owned intent generation
 
+const cancel = () => { armed = null; };
+
 calendar.addEventListener("pointerdown", (event) => {
   if (!event.isPrimary || event.button !== 0) return;
   if (event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+  armed = null; // a new primary press supersedes a stale gesture
   const cell = event.target.closest("[data-date]");
   const range = picker.range;
   if (!cell || !range?.start || !range?.end) return;
@@ -116,7 +118,7 @@ calendar.addEventListener("pointerdown", (event) => {
   const bound = start ? "start" : "end";
   if (!isEditable(bound)) return;
   event.preventDefault(); // otherwise Firefox starts a text-selection drag
-  armed = { id: ++gesture, bound };
+  armed = { id: ++gesture, bound, x: event.clientX, y: event.clientY };
   calendar.setPointerCapture(event.pointerId);
 });
 
@@ -125,6 +127,9 @@ calendar.addEventListener("pointerup", async (event) => {
   armed = null;
   if (!drag) return;
   if (calendar.hasPointerCapture(event.pointerId)) calendar.releasePointerCapture(event.pointerId);
+  const travelled =
+    Math.abs(event.clientX - drag.x) > TRAVEL || Math.abs(event.clientY - drag.y) > TRAVEL;
+  if (!travelled) return;
   const range = picker.range;
   const date = isoAt(event.clientX, event.clientY);
   if (!date || !range?.start || !range?.end) return;
@@ -132,8 +137,10 @@ calendar.addEventListener("pointerup", async (event) => {
   if (next === range[drag.bound]) return;
   // Availability plus the cancelable dateactivate veto, in one public call.
   if (!(await calendar.activateDate(next))) return;
-  // A newer gesture supersedes this one.
+  // A newer gesture supersedes this one, and a concurrent range change wins.
   if (drag.id !== gesture || !picker.open) return;
+  const current = picker.range;
+  if (!current || current.start !== range.start || current.end !== range.end) return;
   picker.range = drag.bound === "start"
     ? { start: next, end: range.end }
     : { start: range.start, end: next };
@@ -141,18 +148,26 @@ calendar.addEventListener("pointerup", async (event) => {
   inputs[drag.bound].dispatchEvent(new Event("change", { bubbles: true }));
 });
 
-calendar.addEventListener("pointercancel", () => { armed = null; });
+calendar.addEventListener("pointercancel", cancel);
+calendar.addEventListener("lostpointercapture", cancel);
 ```
 
-The contract this relies on, covered by `test/browser/app-owned-drag.spec.js`:
+What the recipe implements, and `test/browser/app-owned-drag.spec.js` covers:
 
-- a slow source writes nothing until `activateDate()` resolves;
-- a cancelled `dateactivate` leaves the range untouched;
-- the older of two pending gestures never wins (the app owns its generation);
-- one `rangechange`, plus `input`/`change` only on the bound that moved.
+- a **travel threshold** (4 px): a press that does not travel far enough never moves a bound;
+- a new primary press supersedes any stale armed gesture; `pointercancel` and `lostpointercapture` abandon it;
+- pointer capture, so a drag that leaves the grid still ends correctly;
+- the bound the gesture started on, clamped against the opposite bound;
+- availability plus the cancelable `dateactivate` veto through `activateDate()`;
+- an app-owned generation, so the older of two pending gestures never wins;
+- a committed-range check after the await, so a programmatic or validation-driven `rangechange` during availability wins;
+- one `rangechange`, plus native `input`/`change` only on the bound that moved.
 
-Differences from the removed built-in drag:
+What stays application-owned, and is **not** provided by this recipe:
 
-- touch is application-owned (the picker no longer ships `touch-action` or capture rules);
-- the cursor affordance (`data-range-drag`) is gone; style your own;
-- writing `picker.range` reformats both committed fields, so a draft typed in the *other* bound is discarded. Call `picker.validate()` first if that draft must be preserved.
+- touch: the recipe handles mouse and pen only; add `touch-action`, a threshold and long-press policy if you need touch dragging;
+- a cursor affordance: the removed `data-range-drag` styling is gone, style your own;
+- a draft typed in the *other* bound: writing `picker.range` reformats both committed fields, so the draft is discarded;
+- a mid-flight active-endpoint switch: the recipe applies the bound the gesture started on.
+
+The component still guarantees the parts that belong to it: the activation is availability-checked and cancellable, and only a displayable (ordered) pair is ever forwarded to `highlightedRange`.

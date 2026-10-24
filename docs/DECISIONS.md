@@ -77,12 +77,12 @@ Writable public properties assigned before element definition are replayed throu
 
 `<date-picker range>` owns the range workflow: which bound a pick targets, sorting, atomic pair writes, validation and events. It does **not** implement pointer dragging of the two endpoints.
 
-- A pointer gesture that moves a bound is a second interaction machine (pointer capture, travel threshold, `pointercancel`, `lostpointercapture`, trailing-click suppression, a per-gesture endpoint identity). It duplicates rules that already exist in the range machine and in the public seams, so it stays application-owned.
+- A pointer gesture that moves a bound is a second interaction machine (pointer capture, travel threshold, `pointercancel`, `lostpointercapture`, trailing-click suppression, a per-gesture endpoint identity). It is not rejected as a feature; it sits at a different abstraction level from range semantics. The picker owns the range rules, not the pointer gesture.
 - The application writes the public API, not internal state: `calendar.activateDate(date)` for availability plus the cancelable `dateactivate` veto, then `picker.range = { start, end }`, then native `input`/`change` on the bound it moved. `dates.compareDates` stays public for the clamp against the opposite bound.
 - The calendar keeps the seams this requires: `datefocus`, `highlightedRange`, `data-range-preview` (a proposal is never announced as a range start/end), `activateDate()`, and the stable day-cell markers `data-date` / `data-range-start` / `data-range-end`.
 - Moving a bound is an availability-checked action, never a silent rewrite: a refused or vetoed activation leaves the range untouched.
-- A tested replacement recipe ships in `docs/CALENDAR-INTEGRATION.md` and is covered by `test/browser/app-owned-drag.spec.js`: slow source, cancelled activation, concurrent gestures and the moved-bound events are all proven. It reads the stable day-cell markers and writes only public API.
-- The application keeps what the built-in gesture used to provide around the rules: travel threshold or not, touch handling, cursor affordance, and deciding whether a draft typed in the other bound may be discarded by writing `picker.range`.
+- A tested **starting point** ships in `docs/CALENDAR-INTEGRATION.md` and is covered by `test/browser/app-owned-drag.spec.js`. It implements the travel threshold, supersedes stale gestures, abandons a gesture on `pointercancel`/`lostpointercapture`, and refuses to apply after a concurrent `picker.range` change. It is not a feature-equivalent replacement: touch handling, a cursor affordance, the discard of a draft typed in the other bound, and a mid-flight endpoint switch stay application-owned.
+- The existence of that recipe is not a reason to re-add an integrated drag. A separate optional `range-drag` module is not introduced before a real consumer demonstrates the need.
 
 Dragging is not replaced by an opt-in attribute. Either the application implements it, or the picker does not offer it.
 
