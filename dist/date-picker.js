@@ -473,28 +473,12 @@
         ...canContinue ? {} : { close: true }
       };
     }
-    projectEndpoint(date, endpoint, editable = () => true) {
-      if (!isDate(date))
-        throw new TypeError(`Invalid range activation: ${date}`);
-      if (!this.complete || !editable(endpoint))
-        return this._refuse(endpoint);
-      const { start, end } = this;
-      const previous = endpoint === "start" ? start : end;
-      const target = endpoint === "start" ? earlier(date, end) : later(date, start);
-      return {
-        status: "complete",
-        endpoint,
-        changedEndpoints: target === previous ? [] : [endpoint],
-        range: endpoint === "start" ? { start: target, end } : { start, end: target },
-        activeEndpoint: endpoint
-      };
-    }
-    previewRange(date, endpoint = "", editable = () => true) {
+    previewRange(date, editable = () => true) {
       if (!isDate(date))
         return null;
-      if (!endpoint && Boolean(this.start) === Boolean(this.end))
+      if (Boolean(this.start) === Boolean(this.end))
         return null;
-      const transition = endpoint ? this.projectEndpoint(date, endpoint, editable) : this.project(date, editable);
+      const transition = this.project(date, editable);
       if (transition.status === "refused")
         return null;
       const { start, end } = transition.range;
@@ -513,23 +497,6 @@
     activate(date, editable = () => true) {
       return this._apply(this.project(date, editable));
     }
-    moveEndpoint(date, endpoint, editable = () => true) {
-      return this._apply(this.projectEndpoint(date, endpoint, editable));
-    }
-  }
-  function later(a, b) {
-    if (!a)
-      return b;
-    if (!b)
-      return a;
-    return compareDates(a, b) >= 0 ? a : b;
-  }
-  function earlier(a, b) {
-    if (!a)
-      return b;
-    if (!b)
-      return a;
-    return compareDates(a, b) <= 0 ? a : b;
   }
 
   // src/intl.js
@@ -744,6 +711,17 @@
     };
   }
 
+  // src/session.js
+  function createSession() {
+    return new AbortController;
+  }
+  function guard(signal, callback) {
+    return () => {
+      if (!signal.aborted)
+        callback();
+    };
+  }
+
   // src/source.js
   function normalizeDateStates(payload) {
     const raw = payload && typeof payload === "object" && !Array.isArray(payload) && "dates" in payload ? payload.dates : payload;
@@ -851,7 +829,7 @@
       this._id = `date-calendar-${++uid}`;
       this._model = new CalendarModel;
       this._connected = false;
-      this._lifecycleId = 0;
+      this._session = null;
       this._rendering = false;
       this._heading = null;
       this._renderRoot = null;
@@ -881,7 +859,7 @@
     connectedCallback() {
       if (this._connected)
         return;
-      this._lifecycleId++;
+      this._session = createSession();
       upgradeProperties(this, [
         "locale",
         "min",
@@ -901,7 +879,10 @@
         "value",
         "display"
       ]);
+      this._normalizeAttributes();
       this._syncModel();
+      if (this.hasAttribute("display"))
+        this._reflect("display", this._model.display);
       upgradeProperties(this, ["focusedDate"]);
       this._stopDefaultControlClasses = subscribeDefaultControlClasses(() => {
         if (usesDefaultControlClasses(this._controlClasses))
@@ -912,10 +893,11 @@
           this.render();
       });
       this._connected = true;
-      this.addEventListener("click", this._onClick);
-      this.addEventListener("change", this._onChange);
-      this.addEventListener("keydown", this._onKeyDown);
-      this.addEventListener("focusin", this._onFocusIn);
+      const { signal } = this._session;
+      this.addEventListener("click", this._onClick, { signal });
+      this.addEventListener("change", this._onChange, { signal });
+      this.addEventListener("keydown", this._onKeyDown, { signal });
+      this.addEventListener("focusin", this._onFocusIn, { signal });
       this.render();
     }
     disconnectedCallback() {
@@ -924,18 +906,27 @@
       this._stopDefaultMessages?.();
       this._stopDefaultMessages = null;
       this._connected = false;
-      this._lifecycleId++;
       this._loadController?.abort();
       this._loadController = null;
       this._loadingKey = "";
       this._loadingPromise = null;
-      this.removeEventListener("click", this._onClick);
-      this.removeEventListener("change", this._onChange);
-      this.removeEventListener("keydown", this._onKeyDown);
-      this.removeEventListener("focusin", this._onFocusIn);
+      this._session?.abort();
+      this._session = null;
+    }
+    _normalizeAttributes() {
+      const value = this.getAttribute("value");
+      if (value && !isDate(value))
+        this.removeAttribute("value");
+      for (const name of ["min", "max"]) {
+        const raw = this.getAttribute(name);
+        if (raw && !isDate(raw))
+          this.removeAttribute(name);
+      }
     }
     attributeChangedCallback(name, _oldValue, newValue) {
       if (this._rendering)
+        return;
+      if (!this._connected)
         return;
       if (name === "value" && newValue && !isDate(newValue)) {
         this._reflect("value", this._model.value);
@@ -958,18 +949,17 @@
           return;
         }
       }
-      if (!this._connected)
-        return;
       this._syncModel();
       this.render();
     }
     _queueFocus(callback) {
-      const lifecycleId = this._lifecycleId;
-      queueMicrotask(() => {
-        if (!this._connected || lifecycleId !== this._lifecycleId)
-          return;
-        callback();
-      });
+      const session = this._session;
+      if (!session)
+        return;
+      queueMicrotask(guard(session.signal, () => {
+        if (this._connected)
+          callback();
+      }));
     }
     get locale() {
       return resolveLocale(this.getAttribute("locale") || "");
@@ -1397,7 +1387,7 @@
     async activateDate(date) {
       if (!this._connected)
         return false;
-      const lifecycleId = this._lifecycleId;
+      const session = this._session;
       const hostIntent = this._hostIntent?.date === date ? this._hostIntent.intent : undefined;
       this._hostIntent = null;
       const tagged = (event) => {
@@ -1406,7 +1396,7 @@
         return event;
       };
       const confirmed = await this.ensureDate(date);
-      if (!this._connected || lifecycleId !== this._lifecycleId)
+      if (!this._connected || !session || session.signal.aborted)
         return false;
       const state = this.getDateState(date);
       if (!confirmed || state.disabled) {
@@ -2037,7 +2027,7 @@
       this.canonical = "";
       this._dirty = false;
       this._commitId = 0;
-      this._disposed = false;
+      this._session = createSession();
       this._originalName = input.getAttribute("name") || "";
       this._attributeObserver = null;
       this.onAttributesChanged = null;
@@ -2140,7 +2130,7 @@
     async commit(options = {}) {
       const input = this.input;
       const commitId = ++this._commitId;
-      if (this._disposed)
+      if (this._session.signal.aborted)
         return { status: "stale", commitId };
       const text = input.value.trim();
       if (!text) {
@@ -2160,8 +2150,9 @@
       }
       if (this.confirm) {
         const result = await this.confirm(parsed, options);
-        if (this._disposed || commitId !== this._commitId)
+        if (this._session.signal.aborted || commitId !== this._commitId) {
           return { status: "stale", commitId };
+        }
         if (!result?.ok) {
           if (this.hidden)
             this.hidden.value = "";
@@ -2194,7 +2185,7 @@
     }
     teardown() {
       this.dirty();
-      this._disposed = true;
+      this._session.abort();
       this._attributeObserver?.disconnect();
       this._attributeObserver = null;
       const hiddenName = this.hidden?.getAttribute("name") || this._originalName;
@@ -2236,7 +2227,6 @@
 
   // src/date-picker.js
   var uid2 = 0;
-  var DRAG_THRESHOLD = 4;
 
   class DatePickerElement extends HTMLElement {
     static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
@@ -2268,8 +2258,6 @@
       this._lastFocusEndpoint = "";
       this._activationId = 0;
       this._previewDate = "";
-      this._drag = null;
-      this._suppressGridClick = false;
       this._buttons = [];
       this._returnFocus = null;
       this._panel = null;
@@ -2278,7 +2266,7 @@
       this._rangeOriginalDescribedBy = ["", ""];
       this._formatHint = null;
       this._generatedPlaceholders = new WeakSet;
-      this._controller = null;
+      this._session = null;
       this._stopTracking = null;
       this._open = false;
       this._suppressFocusOpen = false;
@@ -2294,12 +2282,10 @@
     _rangeMode() {
       return this.hasAttribute("range") && Boolean(this._range);
     }
-    _ownsField(field) {
-      return this._connected && (field === this._field || Boolean(this._fields?.includes(field)));
-    }
     connectedCallback() {
       if (this._connected)
         return;
+      this._session = createSession();
       upgradeProperties(this, [
         "locale",
         "min",
@@ -2314,17 +2300,31 @@
         "renderDay",
         "isDateDisabled"
       ]);
+      this._normalizeAttributes();
       if (this.hasAttribute("range"))
         this._connectRange();
       else
         this._connectSingle();
-      if (this._connected) {
-        upgradeProperties(this, ["value", "range"]);
-        this._stopDefaultMessages = subscribeDefaultMessages(() => {
-          if (this._messages === null)
-            this._refreshMessages();
-        });
-        this.validate();
+      if (!this._connected) {
+        this._session.abort();
+        this._session = null;
+        return;
+      }
+      upgradeProperties(this, ["value", "range"]);
+      this._stopDefaultMessages = subscribeDefaultMessages(() => {
+        if (this._messages === null)
+          this._refreshMessages();
+      });
+      this.validate();
+    }
+    _normalizeAttributes() {
+      const value = this.getAttribute("value");
+      if (value && !isDate(value))
+        this.removeAttribute("value");
+      for (const name of ["min", "max"]) {
+        const raw = this.getAttribute(name);
+        if (raw && !isDate(raw))
+          this.removeAttribute(name);
       }
     }
     _connectSingle() {
@@ -2436,8 +2436,8 @@
       this._connected = false;
       this._suppressFocusOpen = false;
       this.hide(false);
-      this._controller?.abort();
-      this._controller = null;
+      this._session?.abort();
+      this._session = null;
       this._clearTimeOrderValidity();
       this._timeFields = [null, null];
       if (this._rangeMode()) {
@@ -2477,6 +2477,8 @@
     attributeChangedCallback(name, oldValue, newValue) {
       if (this._reflecting || oldValue === newValue)
         return;
+      if (!this._connected)
+        return;
       if (name === "value" && newValue && !isDate(newValue)) {
         this._reflectValue(this._value);
         return;
@@ -2489,8 +2491,6 @@
         }
         return;
       }
-      if (!this._connected)
-        return;
       if (name === "value") {
         if (this._rangeMode())
           return;
@@ -2686,7 +2686,6 @@
         const field = this._fields[index];
         button.disabled = Boolean(field?.input.disabled || field?.input.readOnly);
       }
-      this._syncDragAffordance();
       const active = this._range?.activeEndpoint === "end" ? 1 : 0;
       const activeInput = this._fields[active]?.input;
       if (this._open && activeInput && !isEditable(activeInput))
@@ -2775,10 +2774,10 @@
         if (!(event.target instanceof HTMLFormElement) || !input || event.target !== input.form)
           return;
         this.hide(false);
-        queueMicrotask(() => {
-          if (!signal.aborted && !event.defaultPrevented)
+        queueMicrotask(guard(signal, () => {
+          if (!event.defaultPrevented)
             restore();
-        });
+        }));
       }, { capture: true, signal });
       this.addEventListener("keydown", (event) => this._onEscape(event), { signal });
     }
@@ -2788,9 +2787,10 @@
       const calendar = this._calendar;
       if (!input || !button || !calendar)
         return;
-      const controller = new AbortController;
-      this._controller = controller;
-      const { signal } = controller;
+      const session = this._session;
+      if (!session)
+        return;
+      const { signal } = session;
       input.addEventListener("input", () => {
         this._field?.handleInput();
       }, { signal });
@@ -2839,7 +2839,7 @@
           return;
         const intent = activationIntents.get(custom);
         queueMicrotask(() => {
-          if (signal.aborted || custom.defaultPrevented || !this._connected)
+          if (signal.aborted || custom.defaultPrevented)
             return;
           if (intent && intent.id !== this._activationId)
             return;
@@ -2858,9 +2858,10 @@
       const calendar = this._calendar;
       if (!this._fields || !this._buttons.length || !calendar)
         return;
-      const controller = new AbortController;
-      this._controller = controller;
-      const { signal } = controller;
+      const session = this._session;
+      if (!session)
+        return;
+      const { signal } = session;
       for (const [index, field] of this._fields.entries()) {
         const endpoint = index === 1 ? "end" : "start";
         field.input.addEventListener("input", () => {
@@ -2886,12 +2887,6 @@
         });
       }
       calendar.addEventListener("click", (event) => {
-        if (this._suppressGridClick) {
-          this._suppressGridClick = false;
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          return;
-        }
         this._captureGridIntent(event);
       }, { capture: true, signal });
       calendar.addEventListener("keydown", (event) => this._captureGridIntent(event), {
@@ -2904,13 +2899,13 @@
         if (!isDate(date))
           return;
         queueMicrotask(() => {
-          if (signal.aborted || custom.defaultPrevented || !this._connected || !this._range)
+          if (signal.aborted || custom.defaultPrevented || !this._range)
             return;
           const intent = activationIntents.get(custom);
           if (intent === undefined || intent.id !== this._activationId)
             return;
           const editable = (bound) => this._boundEditable(bound);
-          const result = intent.endpoint ? this._range.moveEndpoint(date, intent.endpoint, editable) : this._range.activate(date, editable);
+          const result = this._range.activate(date, editable);
           if (result.status === "refused") {
             this._calendar?.dispatchEvent(new CustomEvent("dateinvalid", {
               detail: { date, state: this._calendar.getDateState(date) },
@@ -2919,8 +2914,6 @@
             return;
           }
           this._applyRangeTransition(result);
-          if (intent.endpoint)
-            return;
           if (result.close || result.status === "complete") {
             this.hide(false);
             this._focusField(result.endpoint);
@@ -2930,11 +2923,6 @@
       calendar.addEventListener("datefocus", (event) => this._onGridDateFocus(event), { signal });
       calendar.addEventListener("pointerover", (event) => this._onGridPointerOver(event), { signal });
       calendar.addEventListener("pointerleave", () => this._onGridPointerLeave(), { signal });
-      calendar.addEventListener("pointerdown", (event) => this._onGridPointerDown(event), { signal });
-      calendar.addEventListener("pointermove", (event) => this._onGridPointerMove(event), { signal });
-      calendar.addEventListener("pointerup", (event) => this._onGridPointerUp(event), { signal });
-      calendar.addEventListener("pointercancel", (event) => this._onGridPointerCancel(event), { signal });
-      calendar.addEventListener("lostpointercapture", (event) => this._onGridPointerCancel(event), { signal });
       calendar.addEventListener("dateloadend", () => void this.validate(), { signal });
       this._bindPopup(signal, this._fields?.[0]?.input, () => this._restoreRangeDefault());
     }
@@ -3023,20 +3011,18 @@
         if (key !== "Enter" && key !== " ")
           return;
       }
-      if (event.type === "click" && this._suppressGridClick)
-        return;
       if (!(event.target instanceof Element))
         return;
       const cell = event.target.closest(".dp-day[data-date]");
       const date = cell?.getAttribute("data-date") || "";
       if (!isDate(date))
         return;
-      this._attachIntent(date, "");
+      this._attachIntent(date);
     }
-    _attachIntent(date, endpoint) {
+    _attachIntent(date) {
       if (!this._calendar)
         return;
-      this._calendar._hostIntent = { date, intent: { id: ++this._activationId, endpoint } };
+      this._calendar._hostIntent = { date, intent: { id: ++this._activationId } };
     }
     _supersedeActivations() {
       this._activationId++;
@@ -3069,12 +3055,12 @@
         field.input.dispatchEvent(new Event("change", { bubbles: true }));
       }
     }
-    _setPreview(date, endpoint = "") {
+    _setPreview(date) {
       const calendar = this._calendar;
       if (!calendar || !this._range || !this._open)
         return;
       const candidate = isDate(date) && !calendar.getDateState(date).disabled ? date : "";
-      const preview = candidate ? this._range.previewRange(candidate, endpoint, (bound) => this._boundEditable(bound)) : null;
+      const preview = candidate ? this._range.previewRange(candidate, (bound) => this._boundEditable(bound)) : null;
       if (!preview) {
         this._clearPreview();
         return;
@@ -3089,139 +3075,23 @@
       this._syncHighlight();
     }
     _onGridDateFocus(event) {
-      if (this._drag)
-        return;
       const date = event.detail?.date;
       if (isDate(date))
         this._setPreview(date);
     }
     _onGridPointerOver(event) {
       const pointer = event;
-      if (this._drag || pointer.pointerType === "touch")
+      if (pointer.pointerType === "touch")
         return;
       this._setPreview(this._cellDate(pointer.target));
     }
     _onGridPointerLeave() {
-      if (this._drag?.active === false)
-        this._drag = null;
-      if (this._drag)
-        return;
       this._clearPreview();
     }
     _cellDate(target) {
       const cell = target instanceof Element ? target.closest(".dp-day[data-date]") : null;
       const date = cell?.getAttribute("data-date") || "";
       return isDate(date) ? date : "";
-    }
-    _dateAtPoint(x, y) {
-      const element = this.ownerDocument.elementFromPoint(x, y);
-      if (!(element instanceof Element) || !this._calendar?.contains(element))
-        return "";
-      return this._cellDate(element);
-    }
-    _onGridPointerDown(event) {
-      const pointer = event;
-      this._suppressGridClick = false;
-      if (this._drag?.active === false)
-        this._drag = null;
-      if (!this._open || !this._range || this._drag)
-        return;
-      if (!pointer.isPrimary || pointer.button !== 0)
-        return;
-      if (pointer.pointerType !== "mouse" && pointer.pointerType !== "pen")
-        return;
-      if (!this._range.complete)
-        return;
-      const cell = pointer.target instanceof Element ? pointer.target.closest(".dp-day[data-date]") : null;
-      if (!(cell instanceof HTMLElement))
-        return;
-      const isStart = cell.hasAttribute("data-range-start");
-      const isEnd = cell.hasAttribute("data-range-end");
-      if (isStart === isEnd)
-        return;
-      const endpoint = isStart ? "start" : "end";
-      const date = this._cellDate(cell);
-      if (!date || !this._boundEditable(endpoint))
-        return;
-      this._drag = {
-        pointerId: pointer.pointerId,
-        endpoint,
-        x: pointer.clientX,
-        y: pointer.clientY,
-        date,
-        active: false
-      };
-    }
-    _onGridPointerMove(event) {
-      const pointer = event;
-      const drag = this._drag;
-      if (!drag || pointer.pointerId !== drag.pointerId)
-        return;
-      if (!drag.active) {
-        const travelled = Math.abs(pointer.clientX - drag.x) > DRAG_THRESHOLD || Math.abs(pointer.clientY - drag.y) > DRAG_THRESHOLD;
-        if (!travelled)
-          return;
-        drag.active = true;
-        try {
-          this._calendar?.setPointerCapture(drag.pointerId);
-        } catch {}
-        this._syncDragAffordance();
-      }
-      const date = this._dateAtPoint(pointer.clientX, pointer.clientY);
-      if (!date || this._calendar?.getDateState(date).disabled)
-        return;
-      drag.date = date;
-      this._setPreview(date, drag.endpoint);
-    }
-    _onGridPointerUp(event) {
-      const pointer = event;
-      const drag = this._drag;
-      if (!drag || pointer.pointerId !== drag.pointerId)
-        return;
-      this._drag = null;
-      this._releaseDragCapture(drag.pointerId);
-      if (!drag.active) {
-        this._syncDragAffordance();
-        return;
-      }
-      this._suppressGridClick = true;
-      const transition = this._range?.projectEndpoint(drag.date, drag.endpoint, (bound) => this._boundEditable(bound));
-      if (!transition || transition.status === "refused" || !transition.changedEndpoints.length) {
-        this._syncHighlight();
-        return;
-      }
-      const target = drag.endpoint === "start" ? transition.range.start : transition.range.end;
-      this._attachIntent(target, drag.endpoint);
-      this._calendar?.activateDate(target);
-    }
-    _onGridPointerCancel(event) {
-      const pointer = event;
-      const drag = this._drag;
-      if (!drag || pointer.pointerId !== drag.pointerId)
-        return;
-      this._drag = null;
-      this._releaseDragCapture(drag.pointerId);
-      this._syncHighlight();
-    }
-    _releaseDragCapture(pointerId) {
-      const calendar = this._calendar;
-      if (calendar?.hasPointerCapture(pointerId))
-        calendar.releasePointerCapture(pointerId);
-    }
-    _syncDragAffordance() {
-      const calendar = this._calendar;
-      if (!calendar || !this._range)
-        return;
-      if (this._drag?.active) {
-        calendar.setAttribute("data-range-drag", "active");
-        return;
-      }
-      const { start, end } = this._range;
-      const draggable = this._range.complete && start !== end && (this._boundEditable("start") || this._boundEditable("end"));
-      if (draggable)
-        calendar.setAttribute("data-range-drag", "ready");
-      else
-        calendar.removeAttribute("data-range-drag");
     }
     _onEscape(event) {
       if (event.key === "Escape" && this._open) {
@@ -3355,12 +3225,13 @@
     }
     async _commitText(emit, options = {}) {
       const field = this._field;
-      if (!field)
+      const session = this._session;
+      if (!field || !session)
         return false;
       if (!options.force && !field.isDirty)
         return false;
       const result = await field.commit(options);
-      if (!this._ownsField(field) || !field.isCommitCurrent(result.commitId)) {
+      if (session.signal.aborted || !field.isCommitCurrent(result.commitId)) {
         return false;
       }
       if (result.status === "stale" || result.status === "invalid")
@@ -3374,14 +3245,15 @@
     }
     async _commitFieldText(which) {
       const fields = this._fields;
-      if (!fields)
+      const session = this._session;
+      if (!fields || !session)
         return false;
       const index = which === "end" ? 1 : 0;
       const field = fields[index];
       if (!field?.isDirty)
         return false;
       const result = await field.commit();
-      if (!this._ownsField(field) || !field.isCommitCurrent(result.commitId))
+      if (session.signal.aborted || !field.isCommitCurrent(result.commitId))
         return false;
       if (result.status === "stale")
         return false;
@@ -3460,7 +3332,6 @@
       this._previewDate = "";
       this._calendar.removeAttribute("data-range-preview");
       this._calendar.highlightedRange = this._displayRange();
-      this._syncDragAffordance();
     }
     _revalidateRange(which) {
       if (!this._fields || !this._range)
@@ -3510,12 +3381,10 @@
       this._timeOrderOwned.clear();
     }
     _defer(callback) {
-      const controller = this._controller;
-      setTimeout(() => {
-        if (!this._connected || !controller || controller.signal.aborted || this._controller !== controller)
-          return;
-        callback();
-      }, 0);
+      const session = this._session;
+      if (!session)
+        return;
+      setTimeout(guard(session.signal, callback), 0);
     }
     _restoreDefault() {
       const field = this._field;
@@ -3587,11 +3456,14 @@
     async validate() {
       if (this._rangeMode()) {
         const fields = this._fields;
+        const session = this._session;
         if (!fields)
           return true;
         for (const [index, field] of fields.entries()) {
           const result = await field.commit({ moveDisplay: false });
-          if (!this._ownsField(field) || !field.isCommitCurrent(result.commitId))
+          if (!session || session.signal.aborted)
+            break;
+          if (!field.isCommitCurrent(result.commitId))
             continue;
           if (result.status === "invalid")
             this._orderTags.delete(index);
@@ -3649,12 +3521,9 @@
       position();
       this._stopTracking = autoUpdate(this, panel, position);
       if (options.moveFocus !== false) {
-        const controller = this._controller;
-        queueMicrotask(() => {
-          if (!this._connected || !controller || controller.signal.aborted || this._controller !== controller)
-            return;
-          calendar.focusGrid();
-        });
+        const session = this._session;
+        if (session)
+          queueMicrotask(guard(session.signal, () => calendar.focusGrid()));
       }
       this.dispatchEvent(new Event("open", { bubbles: true }));
     }
@@ -3677,11 +3546,6 @@
       this._open = false;
       this._setExpanded(false);
       this._supersedeActivations();
-      this._suppressGridClick = false;
-      if (this._drag) {
-        this._releaseDragCapture(this._drag.pointerId);
-        this._drag = null;
-      }
       this._syncHighlight();
       if (restoreFocus) {
         if (this._rangeMode()) {

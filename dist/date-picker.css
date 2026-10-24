@@ -267,25 +267,14 @@ date-picker > input:not([type="hidden"]):focus-visible,
 }
 
 /* Projected band: the range the next commit would produce. It reads as one
-   step short of the committed band, so a hovered, keyboard or dragged preview
-   is never mistaken for the selection itself. */
+   step short of the committed band, so a hovered or keyboard preview is never
+   mistaken for the selection itself. */
 [data-range-preview] .dp-day:is([data-range-start="true"], [data-range-end="true"]) {
   background: color-mix(in srgb, var(--dp-accent) 58%, var(--dp-bg));
 }
 
 [data-range-preview] .dp-day[data-in-range="true"] {
   background: color-mix(in srgb, var(--dp-accent) 11%, var(--dp-bg));
-}
-
-/* Endpoint handles are draggable only while the committed range is complete
-   and its two ends sit on different days. */
-[data-range-drag] .dp-day:is([data-range-start="true"], [data-range-end="true"]) {
-  cursor: grab;
-}
-
-[data-range-drag="active"],
-[data-range-drag="active"] .dp-day {
-  cursor: grabbing;
 }
 
 .dp-day-number {
