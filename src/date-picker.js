@@ -115,6 +115,14 @@ export class DatePickerElement extends HTMLElement {
     return this.hasAttribute("range") && Boolean(this._range);
   }
 
+  /** A commit result may only be applied while this picker still owns the
+   * controller that produced it. Disconnect tears controllers down and
+   * reconnect builds new ones, so a previous instance can never write again.
+   * @param {DateFieldController} field */
+  _ownsField(field) {
+    return this._connected && (field === this._field || Boolean(this._fields?.includes(field)));
+  }
+
   connectedCallback() {
     if (this._connected) return;
     upgradeProperties(this, [
@@ -1423,9 +1431,10 @@ export class DatePickerElement extends HTMLElement {
     // current value against the latest constraints regardless of dirtiness.
     if (!options.force && !field.isDirty) return false;
     const result = await field.commit(options);
-    if (!field.isCommitCurrent(result.commitId) || result.status === "stale" || result.status === "invalid") {
+    if (!this._ownsField(field) || !field.isCommitCurrent(result.commitId)) {
       return false;
     }
+    if (result.status === "stale" || result.status === "invalid") return false;
     this._setValue(result.value || "", {
       emit,
       format: result.status === "ok",
@@ -1442,7 +1451,8 @@ export class DatePickerElement extends HTMLElement {
     const field = fields[index];
     if (!field?.isDirty) return false;
     const result = await field.commit();
-    if (!field.isCommitCurrent(result.commitId) || result.status === "stale") return false;
+    if (!this._ownsField(field) || !field.isCommitCurrent(result.commitId)) return false;
+    if (result.status === "stale") return false;
     if (result.status === "invalid") {
       this._orderTags.delete(index);
       return false;
@@ -1693,7 +1703,7 @@ export class DatePickerElement extends HTMLElement {
       // Empty text flows through commit()'s "clear" outcome, not an early exit.
       for (const [index, field] of fields.entries()) {
         const result = await field.commit({ moveDisplay: false });
-        if (!field.isCommitCurrent(result.commitId)) continue;
+        if (!this._ownsField(field) || !field.isCommitCurrent(result.commitId)) continue;
         // A parse/source error replaced the order error, which no longer owns it.
         if (result.status === "invalid") this._orderTags.delete(index);
         if (result.status === "ok" || result.status === "clear") {

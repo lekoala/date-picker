@@ -75,6 +75,39 @@ test("a recovering source lets the same text commit on the next validation", asy
   await expect(page.locator("#source-picker")).toHaveAttribute("value", "2026-09-10");
 });
 
+test("a validation aborted by reconnect cannot write validity into the new instance", async ({ page }) => {
+  const state = await page.evaluate(async () => {
+    const picker = document.getElementById("source-picker");
+    const input = /** @type {HTMLInputElement} */ (document.getElementById("source-date"));
+    window.__hang = true;
+    input.value = "10/09/2026";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("blur"));
+    // Rebuild the picker while the source confirmation is pending. The old
+    // controller is torn down; its aborted load must not report the date as
+    // unavailable on the instance that now holds 2026-09-20.
+    const parent = picker.parentNode;
+    const next = picker.nextSibling;
+    picker.remove();
+    parent.insertBefore(picker, next);
+    picker.value = "2026-09-20";
+    // Flush the aborted confirmation without releasing the new instance's load.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return {
+      value: picker.value,
+      text: input.value,
+      hidden: picker.querySelector('input[type="hidden"]')?.value,
+      message: input.validationMessage,
+    };
+  });
+  expect(state).toEqual({
+    value: "2026-09-20",
+    text: "20/09/2026",
+    hidden: "2026-09-20",
+    message: "",
+  });
+});
+
 test("a source reload revalidates without resetting the visible month", async ({ page }) => {
   await page.evaluate(() => {
     window.__fail = false;

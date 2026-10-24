@@ -2037,6 +2037,7 @@
       this.canonical = "";
       this._dirty = false;
       this._commitId = 0;
+      this._disposed = false;
       this._originalName = input.getAttribute("name") || "";
       this._attributeObserver = null;
       this.onAttributesChanged = null;
@@ -2139,6 +2140,8 @@
     async commit(options = {}) {
       const input = this.input;
       const commitId = ++this._commitId;
+      if (this._disposed)
+        return { status: "stale", commitId };
       const text = input.value.trim();
       if (!text) {
         if (commitId !== this._commitId)
@@ -2157,7 +2160,7 @@
       }
       if (this.confirm) {
         const result = await this.confirm(parsed, options);
-        if (commitId !== this._commitId)
+        if (this._disposed || commitId !== this._commitId)
           return { status: "stale", commitId };
         if (!result?.ok) {
           if (this.hidden)
@@ -2190,6 +2193,8 @@
       return parsed && isDate(parsed) ? parsed : "";
     }
     teardown() {
+      this.dirty();
+      this._disposed = true;
       this._attributeObserver?.disconnect();
       this._attributeObserver = null;
       const hiddenName = this.hidden?.getAttribute("name") || this._originalName;
@@ -2288,6 +2293,9 @@
     }
     _rangeMode() {
       return this.hasAttribute("range") && Boolean(this._range);
+    }
+    _ownsField(field) {
+      return this._connected && (field === this._field || Boolean(this._fields?.includes(field)));
     }
     connectedCallback() {
       if (this._connected)
@@ -3352,9 +3360,11 @@
       if (!options.force && !field.isDirty)
         return false;
       const result = await field.commit(options);
-      if (!field.isCommitCurrent(result.commitId) || result.status === "stale" || result.status === "invalid") {
+      if (!this._ownsField(field) || !field.isCommitCurrent(result.commitId)) {
         return false;
       }
+      if (result.status === "stale" || result.status === "invalid")
+        return false;
       this._setValue(result.value || "", {
         emit,
         format: result.status === "ok",
@@ -3371,7 +3381,9 @@
       if (!field?.isDirty)
         return false;
       const result = await field.commit();
-      if (!field.isCommitCurrent(result.commitId) || result.status === "stale")
+      if (!this._ownsField(field) || !field.isCommitCurrent(result.commitId))
+        return false;
+      if (result.status === "stale")
         return false;
       if (result.status === "invalid") {
         this._orderTags.delete(index);
@@ -3579,7 +3591,7 @@
           return true;
         for (const [index, field] of fields.entries()) {
           const result = await field.commit({ moveDisplay: false });
-          if (!field.isCommitCurrent(result.commitId))
+          if (!this._ownsField(field) || !field.isCommitCurrent(result.commitId))
             continue;
           if (result.status === "invalid")
             this._orderTags.delete(index);

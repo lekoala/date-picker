@@ -35,6 +35,8 @@ export class DateFieldController {
     this.canonical = "";
     this._dirty = false;
     this._commitId = 0;
+    /** A torn-down controller is terminal: no commit may start or resume. */
+    this._disposed = false;
     this._originalName = input.getAttribute("name") || "";
     /** @type {MutationObserver | null} */
     this._attributeObserver = null;
@@ -184,6 +186,7 @@ export class DateFieldController {
   async commit(options = {}) {
     const input = this.input;
     const commitId = ++this._commitId;
+    if (this._disposed) return { status: "stale", commitId };
     const text = input.value.trim();
     if (!text) {
       if (commitId !== this._commitId) return { status: "stale", commitId };
@@ -199,7 +202,9 @@ export class DateFieldController {
     }
     if (this.confirm) {
       const result = await this.confirm(parsed, options);
-      if (commitId !== this._commitId) return { status: "stale", commitId };
+      // A disconnect tears this controller down while the confirm is pending;
+      // its result must not touch validity or the hidden field any more.
+      if (this._disposed || commitId !== this._commitId) return { status: "stale", commitId };
       if (!result?.ok) {
         if (this.hidden) this.hidden.value = "";
         input.setCustomValidity(result?.message || this.messages.unavailableDate);
@@ -241,8 +246,12 @@ export class DateFieldController {
   }
 
   /** Remove the hidden field and attribute observer, restoring the original
-   * authored `name` on the visible input. */
+   * authored `name` on the visible input. A disconnect is a teardown, not a
+   * pause: in-flight commits are invalidated and later ones are refused, so a
+   * reconnected picker rebuilds from the live DOM instead of resuming them. */
   teardown() {
+    this.dirty();
+    this._disposed = true;
     this._attributeObserver?.disconnect();
     this._attributeObserver = null;
     const hiddenName = this.hidden?.getAttribute("name") || this._originalName;

@@ -126,6 +126,8 @@ Supported response shapes:
 
 No server URL, query parameter names or backend schema are hard-coded into the core. `createFetchSource()` is only a convenience adapter.
 
+A commit belongs to the field controller and connection that started it. Disconnect tears controllers down: pending validation is invalidated, and neither the controller nor the picker may apply a result produced before the rebuild. A reconnected picker re-derives its state from the live DOM instead of resuming pending work.
+
 ## 7. Picker composition
 
 `<date-picker>` enhances a direct child text input.

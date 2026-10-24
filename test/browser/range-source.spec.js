@@ -207,6 +207,37 @@ test("a drop resolving after the popup closed never moves a bound", async ({ pag
   expect(events.some((entry) => entry.startsWith("rangechange"))).toBe(false);
 });
 
+test("a typed commit pending at disconnect cannot corrupt the reconnected range", async ({ page }) => {
+  const state = await page.evaluate(async () => {
+    const picker = document.getElementById("range-picker");
+    const input = /** @type {HTMLInputElement} */ (document.getElementById("start-date"));
+    const events = [];
+    picker.addEventListener("rangechange", (event) => events.push({ ...event.detail }));
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("blur"));
+    const parent = picker.parentNode;
+    const next = picker.nextSibling;
+    picker.remove();
+    parent.insertBefore(picker, next);
+    picker.range = { start: "2026-09-20", end: "2026-09-25" };
+    await Promise.resolve();
+    await Promise.resolve();
+    return {
+      range: picker.range,
+      startText: input.value,
+      hiddenStart: picker.querySelector('input[type="hidden"][name="arrival"]')?.value,
+      hiddenEnd: picker.querySelector('input[type="hidden"][name="departure"]')?.value,
+      events,
+    };
+  });
+  expect(state.range).toEqual({ start: "2026-09-20", end: "2026-09-25" });
+  expect(state.startText).toBe("20/09/2026");
+  expect(state.hiddenStart).toBe("2026-09-20");
+  expect(state.hiddenEnd).toBe("2026-09-25");
+  expect(state.events).toEqual([{ start: "2026-09-20", end: "2026-09-25" }]);
+});
+
 test("an atomic range assignment supersedes a still-pending grid pick", async ({ page }) => {
   await page.locator("#start-date").focus();
   await expect(page.locator("#range-picker .dp-picker-panel")).toBeVisible();

@@ -5,6 +5,7 @@
 ### Fixed
 
 - Prevent stale validation and deferred interactions from overwriting newer state or surviving lifecycle changes.
+- A disconnect invalidates pending field commits: a reconnected `<date-picker>` (single or range) no longer applies an earlier validation, writes its validity or hidden ISO, or emits `valuechange`/`rangechange`.
 - Stabilize calendar announcements, range placeholders, and invalid date/month attribute handling.
 - Keep internal implementation details out of published TypeScript declarations.
 

@@ -41,6 +41,39 @@ test.describe("form lifecycle and ownership", () => {
     expect(result.message.trim()).not.toBe("");
   });
 
+  test("a commit pending at disconnect cannot write into the reconnected picker", async ({ page }) => {
+    const state = await page.evaluate(async () => {
+      const picker = document.getElementById("reset-picker");
+      const input = /** @type {HTMLInputElement} */ (document.getElementById("reset-date"));
+      const events = [];
+      picker.addEventListener("valuechange", (event) => events.push(event.detail.value));
+      // Emptying the text commits through a microtask; no source is involved.
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("blur"));
+      // Moving the element tears the controllers down and rebuilds them.
+      const parent = picker.parentNode;
+      const next = picker.nextSibling;
+      picker.remove();
+      parent.insertBefore(picker, next);
+      picker.value = "2026-09-20";
+      await Promise.resolve();
+      await Promise.resolve();
+      return {
+        value: picker.value,
+        text: input.value,
+        hidden: picker.querySelector('input[type="hidden"]')?.value,
+        events,
+      };
+    });
+    expect(state).toEqual({
+      value: "2026-09-20",
+      text: "20/09/2026",
+      hidden: "2026-09-20",
+      events: ["2026-09-20"],
+    });
+  });
+
   test("form reset clears a field that had no default", async ({ page }) => {
     await page.fill("#min-date", "12/09/2026");
     await page.locator("#min-date").blur();
