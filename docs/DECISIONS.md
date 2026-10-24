@@ -85,3 +85,17 @@ Writable public properties assigned before element definition are replayed throu
 - The application keeps what the built-in gesture used to provide around the rules: travel threshold or not, touch handling, cursor affordance, and deciding whether a draft typed in the other bound may be discarded by writing `picker.range`.
 
 Dragging is not replaced by an opt-in attribute. Either the application implements it, or the picker does not offer it.
+
+## D10 — Range preview stays picker-owned
+
+The 0.6 scope review considered removing the hover/keyboard range preview together with endpoint dragging. Measured on the post-drag code, it does not meet the removal criteria:
+
+- one transient field (`_previewDate`), ~60 lines in the picker, a 20-line pure projection (`previewRange()`), three listeners and two CSS rules;
+- no lifecycle guard beyond `_open` and the current range;
+- synchronous (no `await`), so the transition harness covers it without a new async case.
+
+It also carries a real UX contract: the band shows what the next pick will commit, and a proposal is never announced as a committed selection (`data-range-preview`). Removing it would either lose that contract or force every application to reimplement it.
+
+The drag failed these criteria: pointer capture, cancellation, trailing click, endpoint identity and a cursor affordance were its own machine. The two features are therefore not a pair — drag is application-owned (D9), preview stays here.
+
+Revisit only if a real consumer needs a picker without preview. The answer would then be an explicit opt-out, not a silent removal.
