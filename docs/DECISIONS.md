@@ -54,12 +54,12 @@ Context: DOM-backed styling hooks become API the moment they are documented — 
 
 Pointing and typing are different contracts, deliberately.
 
-- **Interaction** (click, keyboard, endpoint drag) always yields an ordered range. While a range is being created, the second selection is sorted against the anchor: `10` then `5` commits `5 -> 10`, and `10` then `10` a one-day range. No `dateinvalid` is fired merely because the second point is earlier.
+- **Interaction** (click, keyboard) always yields an ordered range. While a range is being created, the second selection is sorted against the anchor: `10` then `5` commits `5 -> 10`, and `10` then `10` a one-day range. No `dateinvalid` is fired merely because the second point is earlier.
 - **Text entry** may be temporarily inverted. Typing `start` past `end` keeps both values and reports `rangeOrderStart` / `rangeOrderEnd` on the modified bound, because a half-typed pair is a normal editing state.
 - An explicit change to **one bound of an already complete pair** keeps that bound's identity: moving `end` before `start` is refused rather than silently rewriting the other field.
 - Because one interaction can move both bounds at once, a transition describes the whole resulting pair (`{ status, endpoint, changedEndpoints, range, activeEndpoint }`) and is applied in a single write: one `rangechange`, with synthetic `input` / `change` only on the bounds that actually moved.
-- Hover, keyboard focus and endpoint drag read the **same projection** (`previewRange()`) that the commit applies, so what the band promises is what the next selection commits. A preview writes nothing: no `rangechange`, no field write, no validation, no source request.
-- Click, keyboard and drop all end in that one range machine and in the same `ensureDate` plus cancelable `dateactivate` path, so an application veto cannot be bypassed by choosing another input device.
+- Hover and keyboard focus read the **same projection** (`previewRange()`) that the commit applies, so what the band promises is what the next selection commits. A preview writes nothing: no `rangechange`, no field write, no validation, no source request.
+- Click and keyboard end in that one range machine and in the same `ensureDate` plus cancelable `dateactivate` path, so an application veto cannot be bypassed by choosing another input device.
 
 ## D7 — Author classes own header control styling
 

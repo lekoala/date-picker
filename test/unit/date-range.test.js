@@ -106,39 +106,6 @@ test("previewRange stays silent without a selection in progress", () => {
   expect(complete.previewRange("2026-09-20")).toBeNull();
 });
 
-test("an endpoint drag moves one bound and never crosses the other", () => {
-  const model = new DateRangeController();
-  model.start = "2026-09-10";
-  model.end = "2026-09-15";
-  expect(model.previewRange("2026-09-05", "start")).toEqual({ start: "2026-09-05", end: "2026-09-15" });
-  expect(model.previewRange("2026-09-20", "end")).toEqual({ start: "2026-09-10", end: "2026-09-20" });
-  // Clamped to the opposite bound, so a drop commits exactly what was shown.
-  expect(model.previewRange("2026-09-30", "start")).toEqual({ start: "2026-09-15", end: "2026-09-15" });
-  expect(model.previewRange("2026-09-01", "end")).toEqual({ start: "2026-09-10", end: "2026-09-10" });
-  expect(model.range).toEqual({ start: "2026-09-10", end: "2026-09-15" });
-});
-
-test("an endpoint drag refuses an incomplete range and an uneditable bound", () => {
-  const model = new DateRangeController();
-  model.start = "2026-09-10";
-  expect(model.projectEndpoint("2026-09-05", "start").status).toBe("refused");
-  expect(model.previewRange("2026-09-05", "start")).toBeNull();
-  model.end = "2026-09-15";
-  expect(model.projectEndpoint("2026-09-05", "start", (bound) => bound !== "start").status).toBe("refused");
-  expect(model.moveEndpoint("2026-09-05", "start").range).toEqual({
-    start: "2026-09-05",
-    end: "2026-09-15",
-  });
-  expect(model.range).toEqual({ start: "2026-09-05", end: "2026-09-15" });
-});
-
-test("an endpoint drag back to its origin reports no change", () => {
-  const model = new DateRangeController();
-  model.start = "2026-09-10";
-  model.end = "2026-09-15";
-  expect(model.projectEndpoint("2026-09-10", "start").changedEndpoints).toEqual([]);
-});
-
 test("normalizeRange resets on null and empty values", () => {
   expect(normalizeRange(null)).toEqual({ start: "", end: "" });
   expect(normalizeRange(undefined)).toEqual({ start: "", end: "" });
