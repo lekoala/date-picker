@@ -126,6 +126,7 @@ export class DatePickerElement extends HTMLElement {
       "renderDay",
       "isDateDisabled",
     ]);
+    this._normalizeAttributes();
     if (this.hasAttribute("range")) this._connectRange();
     else this._connectSingle();
     // A refused structure (missing input) must not leave a live session behind:
@@ -143,6 +144,17 @@ export class DatePickerElement extends HTMLElement {
     // Applying the initial value clears custom validity; check it against
     // min/max/isDateDisabled/source like any later constraint change.
     void this.validate();
+  }
+
+  /** Establish the canonical connect-time state: invalid constraints are
+   * dropped here, not rewritten while the element is detached. */
+  _normalizeAttributes() {
+    const value = this.getAttribute("value");
+    if (value && !isDate(value)) this.removeAttribute("value");
+    for (const name of ["min", "max"]) {
+      const raw = this.getAttribute(name);
+      if (raw && !isDate(raw)) this.removeAttribute(name);
+    }
   }
 
   _connectSingle() {
@@ -309,6 +321,9 @@ export class DatePickerElement extends HTMLElement {
   /** @param {string} name @param {string|null} oldValue @param {string|null} newValue */
   attributeChangedCallback(name, oldValue, newValue) {
     if (this._reflecting || oldValue === newValue) return;
+    // Attributes are prepared offline and normalized at connect: no reflection,
+    // constrained sync or validation runs on a detached element.
+    if (!this._connected) return;
     if (name === "value" && newValue && !isDate(newValue)) {
       this._reflectValue(this._value);
       return;
@@ -321,7 +336,6 @@ export class DatePickerElement extends HTMLElement {
       }
       return;
     }
-    if (!this._connected) return;
     if (name === "value") {
       if (this._rangeMode()) return;
       if (!newValue || isDate(newValue)) {

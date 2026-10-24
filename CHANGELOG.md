@@ -10,6 +10,7 @@
 ### Changed
 
 - The range `dateactivate` path has one entry point: click and keyboard share the same activation machine. `PickIntent` no longer carries an endpoint.
+- Attributes are prepared offline and normalized at connect: a detached element no longer reflects or rewrites `value`/`min`/`max`/`display`, while getters keep returning canonical values. Invalid constraints are dropped when the element connects.
 
 ## 0.5.3 — 2026-10-24
 

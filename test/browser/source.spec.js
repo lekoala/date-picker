@@ -247,7 +247,7 @@ test("invalid picker attributes are normalized without changing its value", asyn
   expect(state.maxAttribute).toBeNull();
 });
 
-test("invalid picker attributes are normalized before connection", async ({ page }) => {
+test("invalid picker attributes are normalized at connect", async ({ page }) => {
   const state = await page.evaluate(() => {
     const picker = document.createElement("date-picker");
     picker.setAttribute("value", "bogus");
@@ -264,6 +264,21 @@ test("invalid picker attributes are normalized before connection", async ({ page
     };
   });
   expect(state).toEqual({ value: "", valueAttribute: null, minAttribute: null, maxAttribute: null });
+});
+
+test("a detached element keeps author attributes and normalizes only on read", async ({ page }) => {
+  const detached = await page.evaluate(() => {
+    const picker = document.createElement("date-picker");
+    picker.setAttribute("value", "bogus");
+    picker.setAttribute("min", "not-a-date");
+    return {
+      valueAttribute: picker.getAttribute("value"),
+      minAttribute: picker.getAttribute("min"),
+      min: picker.min,
+    };
+  });
+  // No reflection and no constraint sync on a detached element.
+  expect(detached).toEqual({ valueAttribute: "bogus", minAttribute: "not-a-date", min: "" });
 });
 
 test("validate() falls back to authored input validity while disconnected", async ({ page }) => {

@@ -235,7 +235,12 @@ export class DateCalendarElement extends HTMLElement {
       "value",
       "display",
     ]);
+    this._normalizeAttributes();
     this._syncModel();
+    // An authored display may be non-canonical or outside the renderable
+    // window: reflect the clamped model month rather than keeping author text
+    // that the model never accepted.
+    if (this.hasAttribute("display")) this._reflect("display", this._model.display);
     upgradeProperties(this, ["focusedDate"]);
     this._stopDefaultControlClasses = subscribeDefaultControlClasses(() => {
       if (usesDefaultControlClasses(this._controlClasses)) this.render();
@@ -266,9 +271,22 @@ export class DateCalendarElement extends HTMLElement {
     this._session = null;
   }
 
+  /** Establish canonical connect-time constraints. */
+  _normalizeAttributes() {
+    const value = this.getAttribute("value");
+    if (value && !isDate(value)) this.removeAttribute("value");
+    for (const name of ["min", "max"]) {
+      const raw = this.getAttribute(name);
+      if (raw && !isDate(raw)) this.removeAttribute(name);
+    }
+  }
+
   /** @param {string} name @param {string|null} _oldValue @param {string|null} newValue */
   attributeChangedCallback(name, _oldValue, newValue) {
     if (this._rendering) return;
+    // Attributes are prepared offline and normalized at connect: no reflection,
+    // model sync or render runs on a detached element.
+    if (!this._connected) return;
     if (name === "value" && newValue && !isDate(newValue)) {
       this._reflect("value", this._model.value);
       return;
@@ -289,7 +307,6 @@ export class DateCalendarElement extends HTMLElement {
         return;
       }
     }
-    if (!this._connected) return;
     this._syncModel();
     this.render();
   }
