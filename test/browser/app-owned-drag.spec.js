@@ -119,4 +119,66 @@ test.describe("app-owned endpoint drag", () => {
     const range = await page.evaluate(() => document.getElementById("app-drag").range);
     expect(range).toEqual({ start: "2026-09-10", end: "2026-09-15" });
   });
+
+  test("a press under the travel threshold never moves a bound", async ({ page }) => {
+    const box = await cell(page, "2026-09-10").boundingBox();
+    const y = box.y + box.height / 2;
+    // Start on the right edge of the start cell and cross 2px into the next
+    // day: below the 4px travel threshold, so it stays a press.
+    await page.mouse.move(box.x + box.width - 1, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width + 1, y);
+    await page.mouse.up();
+    const state = await page.evaluate(() => ({
+      range: document.getElementById("app-drag").range,
+      events: window.appDrag.events,
+    }));
+    expect(state.range).toEqual({ start: "2026-09-10", end: "2026-09-15" });
+    expect(state.events).toEqual([]);
+  });
+
+  test("a range change during availability supersedes the gesture", async ({ page }) => {
+    await page.evaluate(() => {
+      const picker = document.getElementById("app-drag");
+      picker.source = async (_range, { signal }) => {
+        await new Promise((resolve, reject) => {
+          window.__release = resolve;
+          signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
+            once: true,
+          });
+        });
+        return { dates: {} };
+      };
+    });
+    await drag(page, "2026-09-10", "2026-09-06");
+    await page.evaluate(() => {
+      document.getElementById("app-drag").range = { start: "2026-09-01", end: "2026-09-20" };
+    });
+    const beforeRelease = await page.evaluate(() => window.appDrag.events.slice());
+    await page.evaluate(() => window.__release());
+    await expect
+      .poll(() => page.evaluate(() => document.getElementById("app-drag").range))
+      .toEqual({ start: "2026-09-01", end: "2026-09-20" });
+    expect(await page.evaluate(() => window.appDrag.events.slice())).toEqual(beforeRelease);
+  });
+
+  test("a lost pointer capture abandons the gesture", async ({ page }) => {
+    const source = await cell(page, "2026-09-10").boundingBox();
+    const target = await cell(page, "2026-09-06").boundingBox();
+    await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+    await page.mouse.down();
+    await page.evaluate(() => {
+      document
+        .getElementById("app-drag")
+        .calendar.dispatchEvent(new PointerEvent("lostpointercapture", { pointerId: 1, bubbles: true }));
+    });
+    await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 3 });
+    await page.mouse.up();
+    const state = await page.evaluate(() => ({
+      range: document.getElementById("app-drag").range,
+      events: window.appDrag.events,
+    }));
+    expect(state.range).toEqual({ start: "2026-09-10", end: "2026-09-15" });
+    expect(state.events).toEqual([]);
+  });
 });
