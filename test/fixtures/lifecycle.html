@@ -26,8 +26,10 @@
       // the same contract a real fetch source implements.
       /** @type {Array<() => void>} */
       window.__pending = [];
+      window.__calls = 0;
       window.__source = (_range, { signal }) =>
         new Promise((resolve, reject) => {
+          window.__calls += 1;
           window.__pending.push(resolve);
           signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
             once: true,
@@ -63,5 +65,7 @@
         <input id="life-end" data-range-end name="end" value="2026-09-15" />
       </date-picker>
     </form>
+
+    <date-calendar id="life-cal" display="2026-09"></date-calendar>
   </body>
 </html>

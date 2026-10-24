@@ -910,6 +910,7 @@
       this._loadController = null;
       this._loadingKey = "";
       this._loadingPromise = null;
+      this.removeAttribute("data-loading");
       this._session?.abort();
       this._session = null;
     }
@@ -1248,11 +1249,9 @@
         } finally {
           if (this._loadController === controller) {
             this._loadController = null;
-            this.removeAttribute("data-loading");
-          }
-          if (this._loadingKey === key) {
             this._loadingKey = "";
             this._loadingPromise = null;
+            this.removeAttribute("data-loading");
           }
         }
       })();
@@ -3454,15 +3453,16 @@
       return "";
     }
     async validate() {
+      const session = this._session;
       if (this._rangeMode()) {
         const fields = this._fields;
-        const session = this._session;
         if (!fields)
           return true;
         for (const [index, field] of fields.entries()) {
           const result = await field.commit({ moveDisplay: false });
-          if (!session || session.signal.aborted)
-            break;
+          if (!session || session.signal.aborted) {
+            return fields.every((field) => field.input.checkValidity());
+          }
           if (!field.isCommitCurrent(result.commitId))
             continue;
           if (result.status === "invalid")
@@ -3483,6 +3483,9 @@
         return [...dateInputs, ...timeInputs].every((candidate) => candidate instanceof HTMLInputElement && candidate.checkValidity());
       }
       await this._commitText(false, { force: true, moveDisplay: false });
+      if (!session || session.signal.aborted) {
+        return input.checkValidity() && this._timeFields.every((timeInput) => timeInput?.checkValidity() ?? true);
+      }
       this._revalidateTimeOrder("start");
       this._revalidateTimeOrder("end");
       const timesValid = this._timeFields.every((timeInput) => timeInput?.checkValidity() ?? true);

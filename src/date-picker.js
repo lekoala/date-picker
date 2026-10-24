@@ -1539,16 +1539,20 @@ export class DatePickerElement extends HTMLElement {
 
   /** @public */
   async validate() {
+    const session = this._session;
     if (this._rangeMode()) {
       const fields = this._fields;
-      const session = this._session;
       if (!fields) return true;
       // One owner for values: each commit result is applied centrally so the
       // field controller, hidden ISO, range model and events stay coherent.
       // Empty text flows through commit()'s "clear" outcome, not an early exit.
       for (const [index, field] of fields.entries()) {
         const result = await field.commit({ moveDisplay: false });
-        if (!session || session.signal.aborted) break;
+        // A dead session owns nothing: report authored validity and stop,
+        // instead of revalidating (and writing) the rebuilt instance.
+        if (!session || session.signal.aborted) {
+          return fields.every((field) => field.input.checkValidity());
+        }
         if (!field.isCommitCurrent(result.commitId)) continue;
         // A parse/source error replaced the order error, which no longer owns it.
         if (result.status === "invalid") this._orderTags.delete(index);
@@ -1578,6 +1582,13 @@ export class DatePickerElement extends HTMLElement {
     // Empty text flows through commit()'s "clear" outcome so the canonical
     // value and hidden ISO are cleared with it.
     await this._commitText(false, { force: true, moveDisplay: false });
+    if (!session || session.signal.aborted) {
+      // Read native validity; never revalidate a rebuilt instance from a dead
+      // operation (the time order would write on the new companions).
+      return (
+        input.checkValidity() && this._timeFields.every((timeInput) => timeInput?.checkValidity() ?? true)
+      );
+    }
     // Same start-then-end order as the range path, so a from/to inversion
     // ends reported on "end". A programmatic time change resyncs here too.
     this._revalidateTimeOrder("start");

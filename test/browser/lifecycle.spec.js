@@ -207,3 +207,62 @@ test("#8 closing the popup drops a pending range activation", async ({ page }) =
   expect(state.range).toEqual({ start: "2026-09-10", end: "" });
   expect(state.events).toEqual([]);
 });
+
+test("#9 a stale load cleanup cannot clear a newer same-month load", async ({ page }) => {
+  const state = await page.evaluate(async () => {
+    const calendar = document.getElementById("life-cal");
+    window.__calls = 0;
+    window.__pending.length = 0;
+    const source = (range, context) => window.__source(range, context);
+    calendar.source = source; // call 1, pending
+    // Reconnect: render() starts call 2 for the same month.
+    const parent = calendar.parentNode;
+    const next = calendar.nextSibling;
+    calendar.remove();
+    parent.insertBefore(calendar, next);
+    // Let the aborted call's finally run.
+    await Promise.resolve();
+    await Promise.resolve();
+    const pending = calendar.ensureDate("2026-09-10");
+    const callsBeforeSettle = window.__calls;
+    window.__settle(10);
+    return { callsBeforeSettle, ok: await pending };
+  });
+  // The in-flight load must be reused, not aborted and restarted.
+  expect(state).toEqual({ callsBeforeSettle: 2, ok: true });
+});
+
+test("#10 a stale range validate writes no validity after reconnect", async ({ page }) => {
+  const state = await page.evaluate(async () => {
+    const picker = document.getElementById("life-range");
+    const start = document.getElementById("life-start");
+    const end = document.getElementById("life-end");
+    window.__pending.length = 0;
+    picker.range = { start: "2026-09-10", end: "2026-09-15" };
+    picker.calendar.display = "2026-09";
+    picker.source = window.__source;
+    start.value = "2026-09-20";
+    start.dispatchEvent(new Event("input", { bubbles: true }));
+    const pending = picker.validate(); // suspends on the pending source
+    const parent = picker.parentNode;
+    const next = picker.nextSibling;
+    picker.remove();
+    parent.insertBefore(picker, next);
+    // Count only writes made after the rebuild.
+    const writes = [];
+    for (const [name, input] of [
+      ["start", start],
+      ["end", end],
+    ]) {
+      const original = input.setCustomValidity.bind(input);
+      input.setCustomValidity = (message) => {
+        writes.push([name, message]);
+        original(message);
+      };
+    }
+    const result = await pending;
+    return { writes, result };
+  });
+  expect(state.writes).toEqual([]);
+  expect(state.result).toBe(false);
+});

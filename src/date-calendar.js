@@ -267,6 +267,7 @@ export class DateCalendarElement extends HTMLElement {
     this._loadController = null;
     this._loadingKey = "";
     this._loadingPromise = null;
+    this.removeAttribute("data-loading");
     this._session?.abort();
     this._session = null;
   }
@@ -665,13 +666,14 @@ export class DateCalendarElement extends HTMLElement {
         this.dispatchEvent(new CustomEvent("dateloaderror", { detail: { ...range, error }, bubbles: true }));
         return "failed";
       } finally {
+        // All cleanup belongs to the controller that started this load: a
+        // stale operation must never clear the key or promise of a newer load
+        // for the same month (a reconnect can start one immediately).
         if (this._loadController === controller) {
           this._loadController = null;
-          this.removeAttribute("data-loading");
-        }
-        if (this._loadingKey === key) {
           this._loadingKey = "";
           this._loadingPromise = null;
+          this.removeAttribute("data-loading");
         }
       }
     })();
