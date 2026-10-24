@@ -72,3 +72,15 @@ The `.dp-*` namespace stays internal (D3); it is reserved and ignored in author 
 Both element classes expose static `setDefaultControlClasses`, `getDefaultControlClasses`, `setDefaultMessages` and `getDefaultMessages` methods delegating to the existing module functions. This additive API makes defaults available in classic builds through `customElements.get()` without introducing a global. The constructors share one defaults state within a build. Instances without overrides resolve current defaults when used, and connected instances refresh when defaults change. Disconnected instances unsubscribe and read current defaults on reconnection. For `controlClasses`, an assignment stores only the normalized roles provided: omitted roles follow current global defaults at read/render time, an explicit empty string restores the library skin for that role, and `null` follows all defaults. Global class changes also refresh instances with partial overrides. Message assignments merge with current defaults and pin that instance setting; `null` resumes following global message defaults. Pickers forward only their own overrides to their calendar, preserving global inheritance.
 
 Writable public properties assigned before element definition are replayed through their setters on connection. Options are applied before building controls; picker `value` and `range` wait for the fields and range controller. The display, focus, activation and selection contracts remain distinct.
+
+## D9 — Endpoint dragging is an application interaction
+
+`<date-picker range>` owns the range workflow: which bound a pick targets, sorting, atomic pair writes, validation and events. It does **not** implement pointer dragging of the two endpoints.
+
+- A pointer gesture that moves a bound is a second interaction machine (pointer capture, travel threshold, `pointercancel`, `lostpointercapture`, trailing-click suppression, a per-gesture endpoint identity). It duplicates rules that already exist in the range machine and in the public seams, so it stays application-owned.
+- The application writes the public API, not internal state: `calendar.activateDate(date)` for availability plus the cancelable `dateactivate` veto, then `picker.range = { start, end }`, then native `input`/`change` on the bound it moved. `dates.compareDates` stays public for the clamp against the opposite bound.
+- The calendar keeps the seams this requires: `datefocus`, `highlightedRange`, `data-range-preview` (a proposal is never announced as a range start/end) and `activateDate()`.
+- Moving a bound is an availability-checked action, never a silent rewrite: a refused or vetoed activation leaves the range untouched.
+- A replacement recipe is application-owned and evaluated before release. When it holds, it is documented in `docs/CALENDAR-INTEGRATION.md` and covered by a browser spec; when it does not, the removal is a documented feature loss with no drop-in replacement.
+
+Dragging is not replaced by an opt-in attribute. Either the application implements it, or the picker does not offer it.
