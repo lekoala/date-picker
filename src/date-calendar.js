@@ -865,7 +865,7 @@ export class DateCalendarElement extends HTMLElement {
         }),
       ),
     );
-    if (!accepted) return false;
+    if (!accepted || session.signal.aborted) return false;
     if (this.selection === "single") {
       const previousValue = this._model.value;
       this._model.setValue(date);

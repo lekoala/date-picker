@@ -128,6 +128,36 @@ test("invalid date and month attributes are normalized before connection", async
   expect(state.display).not.toBe("0000-01");
 });
 
+test("disconnecting during dateactivate prevents selection and commit events", async ({ page }) => {
+  const state = await page.evaluate(async () => {
+    const calendar = document.createElement("date-calendar");
+    calendar.selection = "single";
+    calendar.value = "2026-09-09";
+    calendar.display = "2026-09";
+    document.body.append(calendar);
+    const events = [];
+    calendar.addEventListener("dateactivate", () => calendar.remove());
+    for (const type of ["datechange", "change"]) {
+      calendar.addEventListener(type, () => events.push(type));
+    }
+    const accepted = await calendar.activateDate("2026-09-10");
+    return {
+      accepted,
+      connected: calendar.isConnected,
+      value: calendar.value,
+      valueAttribute: calendar.getAttribute("value"),
+      events,
+    };
+  });
+  expect(state).toEqual({
+    accepted: false,
+    connected: false,
+    value: "2026-09-09",
+    valueAttribute: "2026-09-09",
+    events: [],
+  });
+});
+
 test("an activation cannot cross a disconnect and reconnect", async ({ page }) => {
   const state = await page.evaluate(async () => {
     const calendar = document.createElement("date-calendar");

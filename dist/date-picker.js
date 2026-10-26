@@ -1404,7 +1404,7 @@
         bubbles: true,
         cancelable: true
       })));
-      if (!accepted)
+      if (!accepted || session.signal.aborted)
         return false;
       if (this.selection === "single") {
         const previousValue = this._model.value;
