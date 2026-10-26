@@ -1,5 +1,6 @@
 import { isDate } from "./date.js";
 import { createDateAdapter } from "./intl.js";
+import { createSession } from "./session.js";
 
 /**
  * Whether the user may edit this input right now. `:disabled` is the effective
@@ -35,8 +36,8 @@ export class DateFieldController {
     this.canonical = "";
     this._dirty = false;
     this._commitId = 0;
-    /** A torn-down controller is terminal: no commit may start or resume. */
-    this._disposed = false;
+    /** Lifetime token: torn down with the field, so no commit can start or resume. */
+    this._session = createSession();
     this._originalName = input.getAttribute("name") || "";
     /** @type {MutationObserver | null} */
     this._attributeObserver = null;
@@ -186,7 +187,10 @@ export class DateFieldController {
   async commit(options = {}) {
     const input = this.input;
     const commitId = ++this._commitId;
-    if (this._disposed) return { status: "stale", commitId };
+    // One controller has one lifetime, so this captured session is the
+    // controller's only session: teardown aborts it for good.
+    const session = this._session;
+    if (session.signal.aborted) return { status: "stale", commitId };
     const text = input.value.trim();
     if (!text) {
       if (commitId !== this._commitId) return { status: "stale", commitId };
@@ -202,9 +206,12 @@ export class DateFieldController {
     }
     if (this.confirm) {
       const result = await this.confirm(parsed, options);
-      // A disconnect tears this controller down while the confirm is pending;
-      // its result must not touch validity or the hidden field any more.
-      if (this._disposed || commitId !== this._commitId) return { status: "stale", commitId };
+      // The session is captured by this controller's own lifetime: a teardown
+      // aborts it, so the pending result must not touch validity or the hidden
+      // field any more.
+      if (session.signal.aborted || commitId !== this._commitId) {
+        return { status: "stale", commitId };
+      }
       if (!result?.ok) {
         if (this.hidden) this.hidden.value = "";
         input.setCustomValidity(result?.message || this.messages.unavailableDate);
@@ -251,7 +258,7 @@ export class DateFieldController {
    * reconnected picker rebuilds from the live DOM instead of resuming them. */
   teardown() {
     this.dirty();
-    this._disposed = true;
+    this._session.abort();
     this._attributeObserver?.disconnect();
     this._attributeObserver = null;
     const hiddenName = this.hidden?.getAttribute("name") || this._originalName;

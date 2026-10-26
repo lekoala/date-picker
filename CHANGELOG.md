@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0 — 2026-10-24
+
+### Removed
+
+- Endpoint dragging on `<date-picker range>`. The drag was a second interaction machine (pointer capture, travel threshold, trailing-click suppression, per-gesture endpoint identity) around rules the range machine already owns. The picker now moves a bound only through a calendar activation (`activateDate()` / `dateactivate`); an application that wants a pointer gesture writes the public API (`calendar.activateDate()` for availability plus the cancelable veto, then `picker.range`, then native `input`/`change` on the bound it moved). See [DECISIONS D9](docs/DECISIONS.md). A tested starting point ships in [CALENDAR-INTEGRATION.md](docs/CALENDAR-INTEGRATION.md), with the 4px travel threshold, stale-gesture and lost-capture handling, and a concurrent-`rangechange` guard. Touch handling, a cursor affordance, the discard of a draft in the other bound and a mid-flight endpoint switch stay application-owned.
+- `DateRangeController` is no longer presented as public API in `docs/API.md`. The class was never exported by the package, so this is a documentation correction, not an API removal. Its internal `projectEndpoint()`, `moveEndpoint()` and the `endpoint` argument of `previewRange()` are gone.
+
+### Changed
+
+- The range `dateactivate` path has one entry point: click and keyboard share the same activation machine. `PickIntent` no longer carries an endpoint.
+- Attributes are prepared offline and normalized at connect: a detached element no longer reflects or rewrites `value`/`min`/`max`/`display`, while getters keep returning canonical values. Invalid constraints are dropped when the element connects.
+
+### Fixed
+
+- A source load aborted by a reconnect can no longer clear the tracking of a newer load for the same month. `ensureDate()` reuses the in-flight request instead of aborting it and starting another one, so an activation is not refused by a load the component itself cancelled.
+- `validate()` stops as soon as the session it started in is dead and returns authored native validity. A stale range validation no longer writes order errors on the rebuilt instance, and a stale single-mode validation no longer rewrites time-order validity on the new companions.
+- Disconnecting a calendar removes its `data-loading` marker.
+
 ## 0.5.3 — 2026-10-24
 
 ### Fixed

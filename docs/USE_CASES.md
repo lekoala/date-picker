@@ -113,7 +113,6 @@ Acceptance:
 - a stale async availability response arriving after the active endpoint changed never commits a value or closes the popup;
 - calendar interaction never produces an inverted range: while a range is being created, a second selection before the first is sorted (`10` then `5` commits `5 -> 10`) in one atomic update; an explicit change to one bound of an already complete pair keeps that bound's identity instead;
 - pointer hover and keyboard navigation project the range the next selection would commit onto the band, without changing any value, and a selection commits exactly what was projected;
-- the endpoints of a complete range can be dragged to adjust it, through the same projection, the same availability check and the same cancelable activation as a click;
 - only the bounds are validated; per-night availability stays application-owned.
 
 ## U10 — Date with native time companions
@@ -149,7 +148,7 @@ Do not grow the API to cover these without a separate design:
 - timezone conversion;
 - appointment recurrence;
 - resource scheduling;
-- drag/drop;
+- drag/drop of events or range endpoints (endpoint moves are application-owned, see [DECISIONS D9](DECISIONS.md));
 - event rendering;
 - multi-day scheduler views.
 

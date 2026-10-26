@@ -48,6 +48,14 @@ Browser tests should cover behavior that cannot be trusted to a DOM shim:
 - range validation;
 - forced-colors/zoom smoke cases.
 
+## Transition harness
+
+`test/browser/lifecycle.spec.js` is the controlled-promise matrix: an operation suspends on a source promise, a newer state change lands, then the old operation settles. Each case asserts canonical value, visible text, hidden ISO and events (plus validity for constraint cases). Extend this matrix instead of adding another one-off regression spec for a lifecycle guard.
+
+## Evidence bar
+
+A test for a defect fails before the fix. A finding states the violated invariant, a reproducible scenario reachable through supported usage, the concrete impact, and the failure mode. Unsupported structural mutations are closed by "disconnect and reconnect" (`ARCHITECTURE.md` §11.3). An audit or review that finds no actionable defect is a valid outcome.
+
 ## Core invariants
 
 Keep explicit tests for these regressions:

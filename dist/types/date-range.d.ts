@@ -78,10 +78,9 @@ export type RangeTransition = {
  * - activating through `start` commits `start`, moves the active endpoint to
  *   `end` and leaves the popup open for the second selection.
  *
- * Each rule exists once, as a `project*()` projection; `activate()` and
- * `moveEndpoint()` only apply one. Hover, keyboard and drag previews read the
- * same projections, so a second copy of the interaction rules cannot drift
- * into the DOM layer.
+ * Each rule exists once, as a `project()` projection; `activate()` only
+ * applies one. Keyboard and pointer previews read the same projection, so a
+ * second copy of the interaction rules cannot drift into the DOM layer.
  *
  * Text entry is deliberately outside this machine: a typed pair may be
  * temporarily inverted and report a validation error. It is the coordinator's
@@ -115,33 +114,19 @@ export declare class DateRangeController {
      */
     project(date: string, editable?: (bound: "start" | "end") => boolean): RangeTransition;
     /**
-     * Project a direct move of one bound (endpoint drag), without mutating.
-     *
-     * Only a complete, ordered pair offers two handles to grab, and a handle
-     * never crosses the other one: the candidate is clamped to the opposite
-     * bound, so the previewed band is exactly what a drop commits. Equality is
-     * allowed (a one-day range).
-     * @param {string} date
-     * @param {"start" | "end"} endpoint
-     * @param {(bound: "start" | "end") => boolean} [editable]
-     * @returns {RangeTransition}
-     */
-    projectEndpoint(date: string, endpoint: "start" | "end", editable?: (bound: "start" | "end") => boolean): RangeTransition;
-    /**
      * Displayable band a candidate date would produce, or `null` when there is
-     * nothing to promise. Single source of truth for hover, keyboard and drag
-     * previews: the projection rules with no mutation and no event.
+     * nothing to promise. Single source of truth for hover and keyboard previews:
+     * the projection rules with no mutation and no event.
      *
-     * Without a drag handle a preview only speaks during range creation, when
-     * exactly one bound is anchored and the other is still open. An empty range
-     * has no anchor to project from, and a complete pair is not a promise in
-     * progress — previewing it would repaint the committed band on every hover.
+     * A preview only speaks during range creation, when exactly one bound is
+     * anchored and the other is still open. An empty range has no anchor to
+     * project from, and a complete pair is not a promise in progress —
+     * previewing it would repaint the committed band on every hover.
      * @param {string} date
-     * @param {"" | "start" | "end"} [endpoint] drag handle, empty for a normal pick
      * @param {(bound: "start" | "end") => boolean} [editable]
      * @returns {DateRange | null}
      */
-    previewRange(date: string, endpoint?: "" | "start" | "end", editable?: (bound: "start" | "end") => boolean): DateRange | null;
+    previewRange(date: string, editable?: (bound: "start" | "end") => boolean): DateRange | null;
     /** @param {RangeTransition} transition @returns {RangeTransition} */
     _apply(transition: RangeTransition): RangeTransition;
     /**
@@ -151,14 +136,6 @@ export declare class DateRangeController {
      * @returns {RangeTransition}
      */
     activate(date: string, editable?: (bound: "start" | "end") => boolean): RangeTransition;
-    /**
-     * Apply a direct move of one bound (endpoint drag).
-     * @param {string} date
-     * @param {"start" | "end"} endpoint
-     * @param {(bound: "start" | "end") => boolean} [editable]
-     * @returns {RangeTransition}
-     */
-    moveEndpoint(date: string, endpoint: "start" | "end", editable?: (bound: "start" | "end") => boolean): RangeTransition;
 }
 /**
  * Link two date pickers without teaching either picker about its sibling.

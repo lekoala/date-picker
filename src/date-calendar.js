@@ -31,6 +31,7 @@ import {
   weekdayNames,
 } from "./intl.js";
 import { getDefaultMessages, setDefaultMessages, subscribeDefaultMessages } from "./messages.js";
+import { createSession, guard } from "./session.js";
 import { normalizeDateStates } from "./source.js";
 import { upgradeProperties } from "./upgrade-properties.js";
 
@@ -163,8 +164,9 @@ export class DateCalendarElement extends HTMLElement {
     this._id = `date-calendar-${++uid}`;
     this._model = new CalendarModel();
     this._connected = false;
-    /** Connect/disconnect generation guarding deferred work. */
-    this._lifecycleId = 0;
+    /** Connection lifetime token. Deferred work captures it, never reads it late. */
+    /** @type {AbortController | null} */
+    this._session = null;
     this._rendering = false;
     /** Persistent live heading; render() updates its text after it is attached. @type {HTMLHeadingElement | null} */
     this._heading = null;
@@ -213,7 +215,7 @@ export class DateCalendarElement extends HTMLElement {
 
   connectedCallback() {
     if (this._connected) return;
-    this._lifecycleId++;
+    this._session = createSession();
     upgradeProperties(this, [
       "locale",
       "min",
@@ -233,7 +235,12 @@ export class DateCalendarElement extends HTMLElement {
       "value",
       "display",
     ]);
+    this._normalizeAttributes();
     this._syncModel();
+    // An authored display may be non-canonical or outside the renderable
+    // window: reflect the clamped model month rather than keeping author text
+    // that the model never accepted.
+    if (this.hasAttribute("display")) this._reflect("display", this._model.display);
     upgradeProperties(this, ["focusedDate"]);
     this._stopDefaultControlClasses = subscribeDefaultControlClasses(() => {
       if (usesDefaultControlClasses(this._controlClasses)) this.render();
@@ -242,10 +249,11 @@ export class DateCalendarElement extends HTMLElement {
       if (this._messages === null) this.render();
     });
     this._connected = true;
-    this.addEventListener("click", this._onClick);
-    this.addEventListener("change", this._onChange);
-    this.addEventListener("keydown", this._onKeyDown);
-    this.addEventListener("focusin", this._onFocusIn);
+    const { signal } = this._session;
+    this.addEventListener("click", this._onClick, { signal });
+    this.addEventListener("change", this._onChange, { signal });
+    this.addEventListener("keydown", this._onKeyDown, { signal });
+    this.addEventListener("focusin", this._onFocusIn, { signal });
     this.render();
   }
 
@@ -255,20 +263,31 @@ export class DateCalendarElement extends HTMLElement {
     this._stopDefaultMessages?.();
     this._stopDefaultMessages = null;
     this._connected = false;
-    this._lifecycleId++;
     this._loadController?.abort();
     this._loadController = null;
     this._loadingKey = "";
     this._loadingPromise = null;
-    this.removeEventListener("click", this._onClick);
-    this.removeEventListener("change", this._onChange);
-    this.removeEventListener("keydown", this._onKeyDown);
-    this.removeEventListener("focusin", this._onFocusIn);
+    this.removeAttribute("data-loading");
+    this._session?.abort();
+    this._session = null;
+  }
+
+  /** Establish canonical connect-time constraints. */
+  _normalizeAttributes() {
+    const value = this.getAttribute("value");
+    if (value && !isDate(value)) this.removeAttribute("value");
+    for (const name of ["min", "max"]) {
+      const raw = this.getAttribute(name);
+      if (raw && !isDate(raw)) this.removeAttribute(name);
+    }
   }
 
   /** @param {string} name @param {string|null} _oldValue @param {string|null} newValue */
   attributeChangedCallback(name, _oldValue, newValue) {
     if (this._rendering) return;
+    // Attributes are prepared offline and normalized at connect: no reflection,
+    // model sync or render runs on a detached element.
+    if (!this._connected) return;
     if (name === "value" && newValue && !isDate(newValue)) {
       this._reflect("value", this._model.value);
       return;
@@ -289,18 +308,15 @@ export class DateCalendarElement extends HTMLElement {
         return;
       }
     }
-    if (!this._connected) return;
     this._syncModel();
     this.render();
   }
 
-  /** Run a focus microtask only in the lifecycle that scheduled it. @param {() => void} callback */
+  /** Run a focus microtask only in the connection that scheduled it. @param {() => void} callback */
   _queueFocus(callback) {
-    const lifecycleId = this._lifecycleId;
-    queueMicrotask(() => {
-      if (!this._connected || lifecycleId !== this._lifecycleId) return;
-      callback();
-    });
+    const session = this._session;
+    if (!session) return;
+    queueMicrotask(guard(session.signal, callback));
   }
 
   /** @public */
@@ -646,13 +662,14 @@ export class DateCalendarElement extends HTMLElement {
         this.dispatchEvent(new CustomEvent("dateloaderror", { detail: { ...range, error }, bubbles: true }));
         return "failed";
       } finally {
+        // All cleanup belongs to the controller that started this load: a
+        // stale operation must never clear the key or promise of a newer load
+        // for the same month (a reconnect can start one immediately).
         if (this._loadController === controller) {
           this._loadController = null;
-          this.removeAttribute("data-loading");
-        }
-        if (this._loadingKey === key) {
           this._loadingKey = "";
           this._loadingPromise = null;
+          this.removeAttribute("data-loading");
         }
       }
     })();
@@ -821,7 +838,7 @@ export class DateCalendarElement extends HTMLElement {
    */
   async activateDate(date) {
     if (!this._connected) return false;
-    const lifecycleId = this._lifecycleId;
+    const session = this._session;
     const hostIntent = this._hostIntent?.date === date ? this._hostIntent.intent : undefined;
     this._hostIntent = null;
     /** @param {Event} event */
@@ -833,7 +850,7 @@ export class DateCalendarElement extends HTMLElement {
     // source resolves must not be treated as available, and a cancelled or
     // failed load must not authorize it either.
     const confirmed = await this.ensureDate(date);
-    if (!this._connected || lifecycleId !== this._lifecycleId) return false;
+    if (!session || session.signal.aborted) return false;
     const state = this.getDateState(date);
     if (!confirmed || state.disabled) {
       this.dispatchEvent(tagged(new CustomEvent("dateinvalid", { detail: { date, state }, bubbles: true })));
@@ -848,7 +865,7 @@ export class DateCalendarElement extends HTMLElement {
         }),
       ),
     );
-    if (!accepted) return false;
+    if (!accepted || session.signal.aborted) return false;
     if (this.selection === "single") {
       const previousValue = this._model.value;
       this._model.setValue(date);

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lifecycle transitions</title>
+    <script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+    <link rel="stylesheet" href="/src/date-picker.css" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 1rem;
+      }
+      date-picker {
+        display: inline-flex;
+        gap: 0.5rem;
+      }
+      form {
+        margin-block-end: 1rem;
+      }
+    </style>
+    <script type="module">
+      import "/src/define.js";
+
+      // Controlled source: every call parks a resolver, so the spec decides
+      // when (and in which order) an operation settles. The abort listener is
+      // the same contract a real fetch source implements.
+      /** @type {Array<() => void>} */
+      window.__pending = [];
+      window.__calls = 0;
+      window.__source = (_range, { signal }) =>
+        new Promise((resolve, reject) => {
+          window.__calls += 1;
+          window.__pending.push(resolve);
+          signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
+            once: true,
+          });
+        });
+      /** Resolve the oldest pending source call(s). */
+      window.__settle = (count = 1) => {
+        for (let index = 0; index < count; index += 1) window.__pending.shift()?.();
+      };
+
+      window.__events = [];
+      for (const picker of document.querySelectorAll("date-picker")) {
+        picker.addEventListener("valuechange", (event) =>
+          window.__events.push(["valuechange", event.detail.value]),
+        );
+        picker.addEventListener("rangechange", (event) =>
+          window.__events.push(["rangechange", event.detail.start, event.detail.end]),
+        );
+      }
+    </script>
+  </head>
+  <body>
+    <form id="single-form">
+      <date-picker id="life-single" locale="en-CA">
+        <input id="life-single-input" name="single" value="2026-09-01" />
+      </date-picker>
+      <button id="life-reset" type="reset" form="single-form">Reset</button>
+    </form>
+
+    <form id="range-form">
+      <date-picker id="life-range" range locale="en-CA">
+        <input id="life-start" data-range-start name="start" value="2026-09-10" />
+        <input id="life-end" data-range-end name="end" value="2026-09-15" />
+      </date-picker>
+    </form>
+
+    <date-calendar id="life-cal" display="2026-09"></date-calendar>
+  </body>
+</html>

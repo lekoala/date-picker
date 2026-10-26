@@ -42,7 +42,7 @@ Moving focus never changes selection. Each cell that actually receives focus dis
 
 A range preview projected onto the band is visual only: it never contributes a range start/end to a day's accessible name, so a proposal is never announced as a committed selection.
 
-Endpoint dragging is a pointer enhancement. Every adjustment it offers is also reachable from the keyboard: activating before or after a complete range moves the corresponding bound.
+An application-owned pointer gesture that moves a range bound must end in the same `activateDate()` + `dateactivate` path as the keyboard: availability is checked and the activation is cancellable, so a pointer gesture cannot bypass the keyboard contract.
 
 ## Month/year controls
 
