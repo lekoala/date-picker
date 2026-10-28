@@ -17,7 +17,12 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:4859",
     headless: true,
-    trace: "retain-on-failure",
+    // CI only: a trace recorded for every passing test costs per-action
+    // instrumentation (screenshot + DOM snapshot) and is discarded on green.
+    // With retries enabled above, recording on the first retry keeps the happy
+    // path cheap and still yields a trace for a real failure; locally nothing
+    // changes and failures stay traced immediately.
+    trace: process.env.CI ? "on-first-retry" : "retain-on-failure",
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },

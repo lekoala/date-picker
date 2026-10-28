@@ -787,23 +787,34 @@ test("datefocus observes the roving focus without activating anything", async ({
   });
 
   await page.keyboard.press("ArrowRight");
-  const next = await page.evaluate(() => document.getElementById("inline").focusedDate);
-  expect(next).not.toBe(origin);
-  await expect(page.locator(`#inline .dp-day[data-date="${next}"]`)).toBeFocused();
+  // One round-trip per step: the focused date and the events it reported are
+  // two halves of the same assertion.
+  const right = await page.evaluate(() => ({
+    focusedDate: document.getElementById("inline").focusedDate,
+    focus: window.__focus,
+    other: window.__other,
+  }));
+  expect(right.focusedDate).not.toBe(origin);
+  await expect(page.locator(`#inline .dp-day[data-date="${right.focusedDate}"]`)).toBeFocused();
   // One cell moved, one datefocus: the temporary navigation arithmetic in the
   // key handler never announces an intermediate date.
-  expect(await page.evaluate(() => window.__focus)).toEqual([next]);
+  expect(right.focus).toEqual([right.focusedDate]);
+  expect(right.other).toEqual([]);
 
   await page.keyboard.press("ArrowDown");
-  const after = await page.evaluate(() => document.getElementById("inline").focusedDate);
-  expect(await page.evaluate(() => window.__focus)).toEqual([next, after]);
+  const down = await page.evaluate(() => ({
+    focusedDate: document.getElementById("inline").focusedDate,
+    focus: window.__focus,
+    other: window.__other,
+  }));
+  expect(down.focus).toEqual([right.focusedDate, down.focusedDate]);
   // Navigation observes; it never selects.
-  expect(await page.evaluate(() => window.__other)).toEqual([]);
+  expect(down.other).toEqual([]);
   await expect(page.locator("#inline")).toHaveAttribute("value", "2026-09-10");
 
   await page.keyboard.press("Enter");
   expect(await page.evaluate(() => window.__other)).toEqual(["dateactivate", "datechange"]);
-  await expect(page.locator("#inline")).toHaveAttribute("value", after);
+  await expect(page.locator("#inline")).toHaveAttribute("value", down.focusedDate);
 });
 
 test("datefocus follows real focus only, not the focusedDate setter", async ({ page }) => {

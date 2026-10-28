@@ -51,9 +51,15 @@ test("an inverted from/to range is invalid on the modified bound only", async ({
   test.skip(!(await supportsTime(page)), "needs native time input support");
   await page.fill("#time-end", "08:00");
   await expect(async () => {
-    expect(await page.evaluate(() => document.getElementById("time-end").checkValidity())).toBe(false);
-    expect(await page.evaluate(() => document.getElementById("time-start").checkValidity())).toBe(true);
-    expect(await page.evaluate(() => document.getElementById("time-picker").validate())).toBe(false);
+    // One round-trip: all three booleans describe the same post-fill state.
+    const state = await page.evaluate(async () => ({
+      end: document.getElementById("time-end").checkValidity(),
+      start: document.getElementById("time-start").checkValidity(),
+      picker: await document.getElementById("time-picker").validate(),
+    }));
+    expect(state.end).toBe(false);
+    expect(state.start).toBe(true);
+    expect(state.picker).toBe(false);
   }).toPass();
   await expect(page.locator("#time-end")).not.toHaveJSProperty("validationMessage", "");
 
