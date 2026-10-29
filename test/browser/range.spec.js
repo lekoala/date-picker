@@ -197,8 +197,11 @@ test("typing start past end keeps both values and flags the modified bound", asy
   const before = await page.evaluate(() => ({
     start: document.getElementById("stay-start").validationMessage,
     end: document.getElementById("stay-end").validationMessage,
+    expected: document.getElementById("stay-picker").messages.rangeOrderStart,
   }));
-  expect(before.start).toBe("Le début doit être antérieur ou égal à la fin");
+  // Compare against the effective dictionary: the demo ships English labels,
+  // and `locale` never drives `messages`.
+  expect(before.start).toBe(before.expected);
   expect(before.end).toBe("");
   // Inverted business range never reaches the band.
   await expect(page.locator('#stay-picker .dp-day[data-date="2026-09-15"]')).not.toHaveAttribute(

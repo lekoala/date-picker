@@ -49,6 +49,8 @@ Browser tests should cover behavior that cannot be trusted to a DOM shim:
 - manual entry: separator insertion, separator deletion, paste/complete-value normalization, IME composition, `aria-invalid` after commit (`test/browser/input-entry.spec.js`);
 - forced-colors/zoom smoke cases.
 
+Control-label assertions read the element's effective `messages` dictionary instead of a literal translation: `locale` drives `Intl` formatting only, so a demo language change must never fail a behavior test (`test/browser/calendar.spec.js`, `range.spec.js`).
+
 ## Transition harness
 
 `test/browser/lifecycle.spec.js` is the controlled-promise matrix: an operation suspends on a source promise, a newer state change lands, then the old operation settles. Each case asserts canonical value, visible text, hidden ISO and events (plus validity for constraint cases). Extend this matrix instead of adding another one-off regression spec for a lifecycle guard.

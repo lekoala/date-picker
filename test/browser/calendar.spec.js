@@ -488,10 +488,14 @@ test("highlightedRange paints start, in-range and end cells without touching sta
     "data-range-end",
     /.+/,
   );
-  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-13"]')).toHaveAttribute(
-    "aria-label",
-    /Dans la plage/,
+  // Label text comes from the element dictionary, not from the demo language:
+  // `locale` drives Intl formatting, `messages` owns the control labels.
+  const rangeInRange = await page.evaluate(
+    () => document.getElementById("stay-calendar").messages.rangeInRange,
   );
+  await expect
+    .poll(() => page.locator('#stay-calendar .dp-day[data-date="2026-09-13"]').getAttribute("aria-label"))
+    .toContain(rangeInRange);
   await expect(page.locator("#stay-calendar")).not.toHaveAttribute("value", /.+/);
   await expect(page.locator("#stay-calendar")).not.toHaveAttribute("selection", "single");
 });
@@ -534,10 +538,12 @@ test("a single-day highlightedRange renders both endpoints with a dedicated labe
     "data-range-end",
     "true",
   );
-  await expect(page.locator('#stay-calendar .dp-day[data-date="2026-09-10"]')).toHaveAttribute(
-    "aria-label",
-    /Plage d’un jour/,
+  const rangeSingle = await page.evaluate(
+    () => document.getElementById("stay-calendar").messages.rangeSingle,
   );
+  await expect
+    .poll(() => page.locator('#stay-calendar .dp-day[data-date="2026-09-10"]').getAttribute("aria-label"))
+    .toContain(rangeSingle);
 });
 
 test("forced colors keep a highlighted range band visually distinct", async ({ page, browserName }) => {
