@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+<link rel="stylesheet" href="/src/date-picker.css">
+<style>
+  /* Host design system stand-in. Deliberately unlike --dp-* (4px, offset +1px,
+     green/red) and lower specificity than the component rule it must beat:
+     `.input:focus-visible` is (0,2,0), the old component field rule was (0,2,2). */
+  :root { --host-ok: rgb(0, 128, 0); --host-danger: rgb(200, 0, 0); }
+  body { font-family: system-ui, sans-serif; }
+  .field { display: grid; gap: 0.35rem; inline-size: 18rem; margin-block: 0.75rem; }
+  .input {
+    min-block-size: 2.5rem;
+    border: 1px solid #767676;
+    border-radius: 0.5rem;
+    padding: 0.45rem 0.65rem;
+  }
+  .input[aria-invalid="true"] { --host-focus: var(--host-danger); }
+  .input:focus-visible { outline: 4px solid var(--host-focus, var(--host-ok)); outline-offset: 1px; }
+</style>
+
+<label class="field" for="host-date">Host-styled field</label>
+<date-picker id="host-picker" locale="fr-BE" open-on-focus="false">
+  <input id="host-date" class="input" name="date">
+</date-picker>
+
+<button id="before-bare" type="button">before</button>
+<label class="field" for="bare-date">Bare field</label>
+<date-picker id="bare-picker" locale="fr-BE" open-on-focus="false">
+  <input id="bare-date" name="bare">
+</date-picker>
+
+<date-calendar id="host-cal" display="2026-09" selection="none"></date-calendar>
+
+<script type="module">
+import "/src/define.js";
+</script>

@@ -155,9 +155,11 @@ html[dir="rtl"] .dp-month-select.dp-skin {
 }
 
 /* Inner outlines survive forced colors and keep focus inside each control.
-   The picker trigger uses a tighter inset around its icon below. */
+   The picker trigger uses a tighter inset around its icon below.
+   The consumer-supplied field is deliberately absent: its box, focus ring
+   included, belongs to the application, so a host design system (layered or
+   not) keeps its focus and validation colors (ACCESSIBILITY.md). */
 .dp-calendar-header .dp-skin:focus-visible,
-date-picker > input:not([type="hidden"]):focus-visible,
 .dp-day:focus-visible {
   outline: var(--dp-focus-width) solid var(--dp-focus);
   outline-offset: calc(var(--dp-focus-width) * -1);

@@ -164,9 +164,16 @@ The calendar follows the WAI-ARIA date-picker/grid interaction model:
 
 The picker popup uses native Popover for the top layer and `@lekoala/floating` for geometry. It has `role="dialog"`, but it is intentionally **not** marked `aria-modal` because the current implementation does not inert the rest of the document.
 
-The calendar trigger is a real button painted inside the field's own box (like the native `input[type=time]` indicator): the field reserves its place with `padding-inline-end`, keeps its own border and background, and its focus ring wraps the trigger too. The trigger draws no chrome of its own and shows a small inner ring when focused.
+The calendar trigger is a real button painted inside the field's own box (like the native `input[type=time]` indicator): the field reserves its place with `padding-inline-end` and keeps its own border, background and focus ring. The trigger draws no chrome of its own and shows a small inner ring when focused.
 
-Fields, header controls and days share an inner outline that survives forced colors. Customize its color with `--dp-focus` (default `var(--dp-accent)`) and thickness with `--dp-focus-width` (default `2px`) on `date-picker` and `date-calendar`. The trigger keeps a `-5px` inset around its icon; selected days and range endpoints use `--dp-accent-fg` for contrast. Fields and header controls now show this solid outline instead of the previous soft halo.
+Calendar header controls (with the default `.dp-skin` class), days and the trigger share an inner outline that survives forced colors. Customize its color with `--dp-focus` (default `var(--dp-accent)`) and thickness with `--dp-focus-width` (default `2px`) on `date-picker` and `date-calendar`. The trigger keeps a `-5px` inset around its icon; selected days and range endpoints use `--dp-accent-fg` for contrast. A field you supply keeps its own focus styling: the component never draws on it, so an invalid field keeps its design system's validation color whether that stylesheet is layered or not. To give a bare field the calendar's ring, one rule is enough:
+
+```css
+date-picker > input:focus-visible {
+  outline: var(--dp-focus-width) solid var(--dp-focus);
+  outline-offset: calc(var(--dp-focus-width) * -1);
+}
+```
 
 When the popup opens on the field's focus, grid navigation is reachable via `ArrowDown` (or the trigger button) so the focus-restore/Escape flow stays predictable. Closing returns focus to the control that opened the popover: the field when it opened by focus, the trigger when it was activated. In range mode focus follows the active bound instead, because a first pick moves the workflow to the other bound.
 

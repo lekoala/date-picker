@@ -118,13 +118,22 @@ Guard: re-run the `color-contrast` review and the forced-colors screenshot bundl
 
 ## Visible focus
 
-Fields (including native time companions), calendar header controls and day cells use an inner solid outline. `--dp-focus` defaults to `var(--dp-accent)` and `--dp-focus-width` defaults to `2px`; the inward offset follows the width. This replaces the previous accent border and soft halo on fields and header controls. The resting input appearance stays consumer-owned.
+A field you supply owns its focus. The component never draws an outline on your `<input>`, so a design-system class keeps its own ring, its invalid color and its focus width — whether the host stylesheet is imported plainly or wrapped in a cascade layer. A bare field keeps the browser's native indicator. To reuse the calendar's focus language on a bare field, one consumer rule is enough:
 
-Focus is only ever drawn on a real box. The calendar trigger is a real button painted inside the date field's own box, so the field's focus ring naturally wraps the affordance too — no host-level ring, no pseudo-element. When the trigger itself is focused it shows a small inner ring, like the native `input[type=time]` indicator, instead of pretending the whole field is focused.
+```css
+date-picker > input:focus-visible {
+  outline: var(--dp-focus-width) solid var(--dp-focus);
+  outline-offset: calc(var(--dp-focus-width) * -1);
+}
+```
+
+Component-owned controls — header controls with the default `.dp-skin` class, day cells and the trigger — use an inner solid outline. `--dp-focus` defaults to `var(--dp-accent)` and `--dp-focus-width` defaults to `2px`; the inward offset follows the width. Passing your own `controlClasses` hands the header controls back to the application, focus included.
+
+Focus is only ever drawn on a real box. The calendar trigger is a real button painted inside the date field's own box: the field reserves its place with `padding-inline-end` and keeps its border, background and focus ring, so the application's ring wraps the affordance too — no host-level ring, no pseudo-element. When the trigger itself is focused it shows a small inner ring, like the native `input[type=time]` indicator, instead of pretending the whole field is focused.
 
 Day cells use an **inner** ring too: keyboard focus stays inside the 44px cell instead of reading as a second selected state, and it never bleeds onto a neighbouring range band. The ring is an `outline` with `outline-offset: -2px`, not an inset `box-shadow`, because forced colors computes `box-shadow` to `none` — an inset shadow would erase the keyboard indicator (including on disabled days, which must stay discoverable). `outline-color` is force-adjusted to a system color there, so the ring survives high contrast. On a cell already filled with the accent (selected, range endpoints) the ring inverts to `--dp-accent-fg` so it stays readable.
 
-Each native time companion is an independent control and keeps its own ring; they are not joined, so rings never merge and no neighbour swallows another's focus. In `[range]`, each bound owns its trigger and its own ring, and focus follows the active bound rather than the original trigger.
+Native time companions keep their own application or browser indicator, and a `[range]` bound keeps the one its application draws: the component never joins them, so rings never merge and no neighbour swallows another's focus. In `[range]`, focus follows the active bound rather than the trigger that opened the popup.
 
 Closing returns focus to the control that opened the popover (field or trigger) in single mode.
 

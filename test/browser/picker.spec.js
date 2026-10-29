@@ -47,15 +47,19 @@ test("Tab reaches the trigger, month/year controls and the single grid tab stop"
   await expect(page.locator('#simple-picker .dp-day[tabindex="0"]')).toBeFocused();
 });
 
-const expectInnerRing = async (locator) => {
-  await expect(locator).toHaveCSS("outline-style", "solid");
-  await expect(locator).toHaveCSS("outline-width", "2px");
-  await expect(locator).toHaveCSS("outline-offset", "-2px");
-  await expect(locator).toHaveCSS("outline-color", "rgb(37, 99, 235)");
-  await expect(locator).toHaveCSS("box-shadow", "none");
+// A consumer-supplied field is application-owned, focus ring included: assert
+// a visible indicator, never the component tokens. The host contract (including
+// the invalid-field color) lives in host-focus.spec.js.
+const expectFocusIndicator = async (locator) => {
+  const indicator = await locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { line: style.outlineStyle, width: Number.parseFloat(style.outlineWidth) };
+  });
+  expect(indicator.line).not.toBe("none");
+  expect(indicator.width).toBeGreaterThan(0);
 };
 
-test("the trigger is painted inside the field box, which owns the focus ring", async ({ page }) => {
+test("the trigger is painted inside the field box the application styles", async ({ page }) => {
   await page.locator("#simple-date").focus();
   const box = await page.evaluate(() => {
     const picker = document.getElementById("simple-picker");
@@ -77,8 +81,9 @@ test("the trigger is painted inside the field box, which owns the focus ring", a
   expect(box.buttonLeft).toBeLessThan(box.inputRight);
   expect(box.height).toBe(box.inputHeight);
   expect(box.padEnd).toBe("48px");
-  // The field is the real box: its own ring wraps the affordance too.
-  await expectInnerRing(page.locator("#simple-date"));
+  // The field is the real box: whatever ring the application draws on it wraps
+  // the affordance too.
+  await expectFocusIndicator(page.locator("#simple-date"));
   await expect(page.locator("#simple-picker")).toHaveCSS("box-shadow", "none");
   // No chrome of its own: transparent, borderless (the authored field shows).
   await expect(page.locator("#simple-picker .dp-picker-button")).toHaveCSS("border-top-width", "0px");
@@ -99,22 +104,22 @@ test("a focused trigger draws a small inner ring, like the native time indicator
   await expect(page.locator("#simple-date")).toHaveCSS("box-shadow", "none");
 });
 
-test("a focused time companion keeps its own ring, outside the date field", async ({ page }) => {
+test("a focused time companion keeps its own indicator, outside the date field", async ({ page }) => {
   await page.locator("#time-start").focus();
   await expect(page.locator("#time-start")).toBeFocused();
   // The time companion is a separate control: focusing it never rings the
   // date field's own box.
   await expect(page.locator("#time-picker")).toHaveCSS("box-shadow", "none");
   // WebKit's native `input[type=time]` (enabled in recent builds) does not
-  // expose `:focus-visible`, so the shared inner-ring rule cannot match there.
-  // Assert the ring wherever the engine reports focus-visible for the control.
+  // expose `:focus-visible`, so no author indicator can apply there. Assert a
+  // visible indicator wherever the engine reports focus-visible for the control.
   const ringApplies = await page.evaluate(() =>
     document.getElementById("time-start").matches(":focus-visible"),
   );
-  if (ringApplies) await expectInnerRing(page.locator("#time-start"));
+  if (ringApplies) await expectFocusIndicator(page.locator("#time-start"));
 });
 
-test("the date field beside time companions rings its own box, trigger included", async ({ page }) => {
+test("the date field sits beside time companions without merging their boxes", async ({ page }) => {
   await page.locator("#time-date").focus();
   const boxes = await page.evaluate(() => {
     const input = document.getElementById("time-date");
@@ -134,7 +139,6 @@ test("the date field beside time companions rings its own box, trigger included"
   expect(boxes.buttonRight).toBe(boxes.inputRight);
   expect(boxes.buttonLeft).toBeLessThan(boxes.inputRight);
   expect(boxes.timeLeft).toBeGreaterThan(boxes.inputRight);
-  await expectInnerRing(page.locator("#time-date"));
   await expect(page.locator("#time-picker")).toHaveCSS("box-shadow", "none");
   // The time companions are separate controls: no ring while unfocused.
   await expect(page.locator("#time-start")).toHaveCSS("box-shadow", "none");
@@ -142,8 +146,9 @@ test("the date field beside time companions rings its own box, trigger included"
 
 test("range bounds keep per-bound focus on their own box", async ({ page }) => {
   await page.locator("#stay-start").focus();
-  await expectInnerRing(page.locator("#stay-start"));
-  await expect(page.locator("#stay-end")).toHaveCSS("box-shadow", "none");
+  await expect(page.locator("#stay-start")).toBeFocused();
+  await expect(page.locator("#stay-end")).not.toBeFocused();
+  await expectFocusIndicator(page.locator("#stay-start"));
   await expect(page.locator("#stay-picker")).toHaveCSS("box-shadow", "none");
 });
 
@@ -152,7 +157,6 @@ test("focus tokens style controls and days while filled days keep their contrast
     content: "date-picker, date-calendar { --dp-focus: #b42318; --dp-focus-width: 3px; }",
   });
   for (const selector of [
-    "#simple-date",
     "#simple-picker .dp-picker-button",
     "#inline .dp-month-select",
     "#inline .dp-year-input",
@@ -179,11 +183,7 @@ for (const colorScheme of ["light", "dark"]) {
     test.skip(browserName !== "chromium", "forced-colors assertions follow the Chromium capture pipeline");
     await page.emulateMedia({ forcedColors: "active", colorScheme });
     for (const selector of [
-      "#simple-date",
       "#simple-picker .dp-picker-button",
-      "#time-start",
-      "#stay-start",
-      "#stay-end",
       "#inline .dp-month-select",
       "#inline .dp-year-input",
       "#inline .dp-prev",

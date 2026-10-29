@@ -146,7 +146,7 @@
     "test:syntax": "bun scripts/check-syntax.js",
     "test:types": "tsc -p test/types/tsconfig.json",
     "test:browser": "playwright test browser --project chromium",
-    "test:browser:accessibility": "playwright test test/browser/picker.spec.js test/browser/focus.spec.js test/browser/calendar.spec.js test/browser/form-state.spec.js test/browser/surfaces.spec.js",
+    "test:browser:accessibility": "playwright test test/browser/picker.spec.js test/browser/focus.spec.js test/browser/calendar.spec.js test/browser/form-state.spec.js test/browser/surfaces.spec.js test/browser/host-focus.spec.js",
     "test:browser:headed": "playwright test browser --project chromium --headed",
     "test:browser:all": "playwright test browser",
     "test:dist": "playwright test dist --project chromium",

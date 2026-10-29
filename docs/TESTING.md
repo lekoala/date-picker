@@ -30,7 +30,7 @@ For the accessibility-adjacent browser subset used by the AT checklist:
 bun run test:browser:accessibility
 ```
 
-This runs the focused picker/calendar/focus/form/surface specs across the configured desktop projects, including the forced-colors regression check in `calendar.spec.js`.
+This runs the focused picker/calendar/focus/form/surface/host-focus specs across the configured desktop projects, including the forced-colors regression check in `calendar.spec.js` and the host-stylesheet focus ownership contract in `host-focus.spec.js`.
 The forced-colors style assertion follows the Chromium capture pipeline, so it is intentionally skipped on Firefox and WebKit.
 
 ## What belongs in browser tests

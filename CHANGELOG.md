@@ -13,6 +13,7 @@
 
 ### Changed
 
+- Focus on a consumer-supplied field is application-owned: `<date-picker>` no longer draws an inner outline on its `<input>`. A design-system field keeps its own ring, its invalid color and its focus width in both the plain and the `@layer`-wrapped import of a host stylesheet, instead of being forced to the accent ring; a bare field keeps the browser's native indicator. `--dp-focus` and `--dp-focus-width` now scope to component-owned controls (header controls with the default `.dp-skin`, days, trigger). The one-rule recipe that gives a bare field the calendar ring is in [ACCESSIBILITY.md](docs/ACCESSIBILITY.md#visible-focus).
 - Manual parsing is tolerant on separators and accepts the compact eight-digit form. A foreign component order (`10/29/2026` in `fr-BE`) and a two-digit year remain invalid.
 - A partial draft with explicit separators (or a digit inserted inside a complete value) is kept exactly as typed and reported invalid at commit, instead of being redistributed by the entry formatter.
 - Combining an external `data-mask` with `<date-picker>` is documented as unsupported: two writers on the same value have no defined caret behavior.
