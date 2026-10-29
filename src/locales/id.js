@@ -8,6 +8,7 @@ export default {
   calendar: "Pilih tanggal",
   unavailable: "Tidak tersedia",
   invalidDate: "Masukkan tanggal yang valid",
+  outOfRangeDate: "Tanggal di luar rentang yang diizinkan",
   unavailableDate: "Tanggal ini tidak tersedia",
   formatHint: "Format",
   week: "Minggu",

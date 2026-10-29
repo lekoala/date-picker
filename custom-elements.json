@@ -294,6 +294,9 @@
               "name": "open-on-focus"
             },
             {
+              "name": "format-on-type"
+            },
+            {
               "name": "month-format"
             },
             {
@@ -356,6 +359,10 @@
             {
               "kind": "getter",
               "name": "openOnFocus"
+            },
+            {
+              "kind": "getter",
+              "name": "formatOnType"
             },
             {
               "kind": "getter",

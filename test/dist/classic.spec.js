@@ -293,3 +293,59 @@ test("pre-definition assignments reach every writable public accessor", async ({
   }
   expect(errors).toEqual([]);
 });
+
+test("manual entry is formatted by the packaged bundle", async ({ page }) => {
+  await page.evaluate(() => {
+    /** @type {HTMLElement & {locale: string}} */ (document.getElementById("picker")).locale = "fr-BE";
+  });
+  const input = page.locator('#picker > input:not([type="hidden"])');
+  await input.fill("");
+  await page.focus('#picker > input:not([type="hidden"])');
+  await page.keyboard.type("12102026");
+  await expect(input).toHaveValue("12/10/2026");
+  await input.blur();
+  await expect(page.locator("#picker")).toHaveAttribute("value", "2026-10-12");
+  await expect(page.locator('#picker input[type="hidden"][name="date"]')).toHaveValue("2026-10-12");
+
+  // Replacing a group keeps the caret and whitespace is a separator: both
+  // rules must live in the shipped bundle, not only in `src/`.
+  await input.fill("");
+  await page.focus('#picker > input:not([type="hidden"])');
+  await page.keyboard.type("29102026");
+  await page.evaluate(() => {
+    /** @type {HTMLInputElement} */ (
+      document.querySelector('#picker > input:not([type="hidden"])')
+    ).setSelectionRange(0, 2);
+  });
+  await page.keyboard.type("15");
+  await expect(input).toHaveValue("15/10/2026");
+  await input.blur();
+  await expect(page.locator("#picker")).toHaveAttribute("value", "2026-10-15");
+
+  await input.fill("");
+  await page.focus('#picker > input:not([type="hidden"])');
+  await page.keyboard.type("2 9 2026");
+  await expect(input).toHaveValue("02/09/2026");
+  await input.blur();
+  await expect(page.locator("#picker")).toHaveAttribute("value", "2026-09-02");
+
+  // Replacing the last group ends at the end of the text, so it must not be
+  // read as an append either.
+  await page.evaluate(() => {
+    /** @type {HTMLElement & {locale: string, value: string}} */ (document.getElementById("picker")).locale =
+      "sv-SE";
+    /** @type {HTMLElement & {locale: string, value: string}} */ (document.getElementById("picker")).value =
+      "2026-10-29";
+  });
+  await expect(input).toHaveValue("2026-10-29");
+  await page.focus('#picker > input:not([type="hidden"])');
+  await page.evaluate(() => {
+    /** @type {HTMLInputElement} */ (
+      document.querySelector('#picker > input:not([type="hidden"])')
+    ).setSelectionRange(8, 10);
+  });
+  await page.keyboard.type("15");
+  await expect(input).toHaveValue("2026-10-15");
+  await input.blur();
+  await expect(page.locator("#picker")).toHaveAttribute("value", "2026-10-15");
+});

@@ -8,7 +8,7 @@ bun run typecheck
 bun run test
 ```
 
-Pure date math, locale parsing and model transitions belong in `test/unit` and must remain DOM-free.
+Pure date math, locale parsing and model transitions belong in `test/unit` and must remain DOM-free. The entry mask (`date-mask.js`) is pure too: its digit/caret projection is tested in `test/unit/mask.test.js` rather than through the browser.
 
 ## Browser loop
 
@@ -46,6 +46,7 @@ Browser tests should cover behavior that cannot be trusted to a DOM shim:
 - outside pointer close;
 - source cancellation;
 - range validation;
+- manual entry: separator insertion, separator deletion, paste/complete-value normalization, IME composition, `aria-invalid` after commit (`test/browser/input-entry.spec.js`);
 - forced-colors/zoom smoke cases.
 
 ## Transition harness

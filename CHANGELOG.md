@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.6.1 — 2026-10-29
+
+### Added
+
+- Locale entry formatting in `<date-picker>`: typing digits inserts the `Intl` separator (`29102026` → `29/10/2026`), the logical caret position is preserved, and deleting a separator removes the digit it separates. A complete draft is normalized by the existing parser whatever shape it was typed or pasted in (`2/9/2026`, `29-10-2026`, `29.10.2026`, `29102026`, ISO); a partial draft with explicit separators is kept as typed instead of being redistributed.
+- `inputmode="numeric"` is added for numeric date formats unless the author already set one.
+- The visible field is bounded by `maxlength` to one complete locale value (an authored `maxlength` wins), so an unparsable draft can never grow without limit.
+- `format-on-type` / `formatOnType` disable the automatic separators; parsing, validation and the ISO value are unaffected.
+- `aria-invalid` on the visible field once a commit fails, cleared when the draft parses again or a value is applied programmatically.
+- `messages.outOfRangeDate` separates a date outside `min`/`max` from one disabled by `dateState`, `isDateDisabled` or the source. All shipped locales carry the new message.
+
+### Changed
+
+- Manual parsing is tolerant on separators and accepts the compact eight-digit form. A foreign component order (`10/29/2026` in `fr-BE`) and a two-digit year remain invalid.
+- A partial draft with explicit separators (or a digit inserted inside a complete value) is kept exactly as typed and reported invalid at commit, instead of being redistributed by the entry formatter.
+- Combining an external `data-mask` with `<date-picker>` is documented as unsupported: two writers on the same value have no defined caret behavior.
+
+### Fixed
+
+- Replacing a day inside a complete value no longer completes the first digit: with the day of `29/10/2026` selected, typing `15` commits `2026-10-15` instead of silently committing `2026-10-01`. The same rule covers the last group of a locale like `sv-SE`, where the caret is at the end of the text after the first digit.
+- A paste is never read as a separator deletion: pasting `31022026` over a selected `31/02/2026` keeps all eight digits instead of dropping one, because only a `delete*` input erases the digit a removed separator separated.
+- Whitespace in a typed draft is a separator like `/`, `-` and `.`, so `2 9 2026` reaches the parser instead of being redistributed into `29/20/26`.
+- Submission safety covered by tests for the new entry path: an invalid draft never submits the previous ISO value, and native constraint validation blocks the form until the text is corrected.
+
+### Known limitation
+
+- Typing an ISO string character by character inside a masked field is reformatted as locale digits. Pasting the ISO string still works, and `format-on-type="false"` restores ISO-first typing.
+
 ## 0.6.0 — 2026-10-24
 
 ### Removed

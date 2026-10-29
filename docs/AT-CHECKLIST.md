@@ -14,7 +14,7 @@ Release decision (0.1.0): the human reader/OS pairings below are **deferred past
 
 - Engines: Chrome/Narrator (Windows), Firefox/NVDA, macOS/VoiceOver at least once.
 - Contrast: run `color-contrast` review in DevTools on the demo plus a forced-colors spot check.
-- Page under test: `demo/index.html` (uses `fr-BE` labels) and `test/fixtures/form-state.html`.
+- Page under test: `demo/index.html` (English labels; `fr-BE`, `sv-SE` and `ko` date formats) and `test/fixtures/form-state.html`.
 
 ## Keyboard only
 

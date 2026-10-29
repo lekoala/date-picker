@@ -8,6 +8,7 @@ declare const _default: {
     calendar: string;
     unavailable: string;
     invalidDate: string;
+    outOfRangeDate: string;
     unavailableDate: string;
     formatHint: string;
     week: string;

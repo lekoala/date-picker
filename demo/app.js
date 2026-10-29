@@ -1,11 +1,6 @@
 import "../src/define.js";
 import { dates, linkDateRange } from "../src/index.js";
-import fr from "../src/locales/fr.js";
 import ko from "../src/locales/ko.js";
-
-for (const element of document.querySelectorAll("date-calendar, date-picker")) {
-  element.messages = fr;
-}
 
 const inline = document.getElementById("inline");
 const inlineState = document.getElementById("inline-state");
@@ -21,9 +16,9 @@ form.addEventListener("submit", (event) => {
   formState.textContent = `submitted date=${data.get("date")}`;
 });
 
-// Exotic-format field: the locale drives the editable text (ko-KR refuses to
-// parse its own "2026. 09. 06." output when spaces are trimmed), while the
-// submitted value stays canonical YYYY-MM-DD.
+// Exotic-format field: the locale drives the editable text ("2026. 09. 06." for
+// ko-KR), while the submitted value stays canonical YYYY-MM-DD. Its control
+// labels are localized too, which is why it loads the Korean dictionary.
 const koreanPicker = document.getElementById("korean-picker");
 koreanPicker.messages = ko;
 const koreanForm = document.getElementById("korean-form");
@@ -32,6 +27,25 @@ koreanForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(koreanForm);
   koreanState.textContent = `submitted date=${data.get("date")} ; display=${koreanPicker.input.value}`;
+});
+
+// One canonical value, two displays: the locale decides the visible text, the
+// submitted value stays YYYY-MM-DD in both fields.
+const formatForm = document.getElementById("format-form");
+const formatState = document.getElementById("format-state");
+const formatPickers = [
+  document.getElementById("format-local-picker"),
+  document.getElementById("format-iso-picker"),
+];
+for (const picker of formatPickers) {
+  picker.addEventListener("valuechange", (event) => {
+    for (const other of formatPickers) other.value = event.detail.value;
+  });
+}
+formatForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(formatForm);
+  formatState.textContent = `submitted local=${data.get("local")} iso=${data.get("iso")} — same canonical value`;
 });
 
 const timeForm = document.getElementById("time-form");
@@ -61,10 +75,10 @@ constrained.dateState = (date) => ({
   enabled: date === "2026-09-12" ? true : undefined,
   description:
     date === "2026-09-12"
-      ? "Ouverture exceptionnelle"
+      ? "Special opening"
       : [0, 6].includes(dates.dayOfWeek(date))
-        ? "Cabinet fermé"
-        : "Disponible",
+        ? "Office closed"
+        : "Available",
 });
 
 const stayCalendar = document.getElementById("stay-calendar");
@@ -91,8 +105,6 @@ updateStayPicker();
 const start = document.getElementById("start-picker");
 const end = document.getElementById("end-picker");
 const rangeState = document.getElementById("range-state");
-start.messages = fr;
-end.messages = fr;
 linkDateRange(start, end);
 function updateRange() {
   rangeState.textContent = `start=${start.value || "—"}; end=${end.value || "—"}; effective end.min=${end.min || "—"}; start.max=${start.max || "—"}`;
@@ -118,9 +130,13 @@ availability.source = async ({ start, end }, { signal }) => {
   for (let date = start; dates.compareDates(date, end) <= 0; date = dates.addDays(date, 1)) {
     const day = Number(date.slice(8, 10));
     if (day % 3 === 0)
-      states[date] = { morning: true, afternoon: true, description: "Disponible matin et après-midi" };
+      states[date] = {
+        morning: true,
+        afternoon: true,
+        description: "Available morning and afternoon",
+      };
     else if (day % 2 === 0)
-      states[date] = { morning: true, afternoon: false, description: "Disponible le matin" };
+      states[date] = { morning: true, afternoon: false, description: "Available in the morning" };
   }
   return { dates: states };
 };
@@ -137,7 +153,7 @@ const mini = document.getElementById("mini");
 const agenda = document.getElementById("agenda");
 let anchorDate = agenda.getAttribute("date");
 mini.dateState = (date) => ({
-  description: date === anchorDate ? "Date affichée dans l’agenda" : "Naviguer à cette date",
+  description: date === anchorDate ? "Date shown in the agenda" : "Go to this date",
   anchor: date === anchorDate,
 });
 mini.renderDay = (date, state) => {

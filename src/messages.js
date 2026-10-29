@@ -8,6 +8,7 @@ export const DEFAULT_MESSAGES = {
   calendar: "Choose a date",
   unavailable: "Unavailable",
   invalidDate: "Enter a valid date",
+  outOfRangeDate: "Date outside the allowed range",
   unavailableDate: "This date is unavailable",
   formatHint: "Format",
   week: "Week",

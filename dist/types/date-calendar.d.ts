@@ -55,6 +55,7 @@ export declare class DateCalendarElement extends HTMLElement {
         calendar: string;
         unavailable: string;
         invalidDate: string;
+        outOfRangeDate: string;
         unavailableDate: string;
         formatHint: string;
         week: string;

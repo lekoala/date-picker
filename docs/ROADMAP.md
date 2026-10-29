@@ -75,9 +75,9 @@ Cross-check our coverage against the Open UI datepicker research: <https://open-
 | `disabled` | core | native disabled state on the component and its controls. |
 | `disabled dates` | core | `min` / `max`, `isDateDisabled`, source state (P0). |
 | `required` | core | forwarded to the visible native input. |
-| `manual input` | core | editable native field with localized parsing (U1). |
-| `format` | core | `intl.js`; format hint exposed via `aria-describedby`. |
-| `error` | core | distinct `setCustomValidity` messages for invalid vs unavailable dates. |
+| `manual input` | core | editable native field with localized parsing (U1); digits are rendered with the locale separator, `format-on-type="false"` opts out. |
+| `format` | core | `intl.js`; format hint exposed via `aria-describedby`, `inputmode` added for numeric patterns. |
+| `error` | core | distinct `setCustomValidity` messages for impossible, out-of-range and unavailable dates, plus `aria-invalid` after a failed commit. |
 | `readonly` / `disabled` | core | native semantics kept separate (D4). |
 | `default` | core | form reset via `defaultValue` (D4). |
 | `clear` | contract boundary | no internal clear button; clearing happens by editing the text input (D4). |

@@ -1,4 +1,5 @@
 import { isDate, normalizeFirstDay, parseDate, toIntlDate, toISODate } from "./date.js";
+import { createDateMask } from "./date-mask.js";
 
 const BIDI = /[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g;
 
@@ -156,6 +157,16 @@ function escapeRegExp(value) {
 
 /**
  * Localized, editable numeric date adapter. The canonical value remains YYYY-MM-DD.
+ *
+ * Parsing stays tolerant on purpose: day and month accept one or two digits,
+ * any of `"/"`, `"-"`, `"."` or a blank run separates the groups, and an
+ * eight-digit compact entry is split using the locale's own widths. Component
+ * order is never guessed: `10/29/2026` is invalid in `fr-BE`.
+ *
+ * `mask` is the entry mask for patterns that are exactly
+ * `group separator group separator group` with a shared, simple separator.
+ * Locales whose numeric format embeds spaces or a suffix (for example
+ * `ko-KR` → `2026. 09. 06.`) keep plain typing: no `mask`, no auto separators.
  * @param {string} [locale]
  */
 export function createDateAdapter(locale = "") {
@@ -189,11 +200,54 @@ export function createDateAdapter(locale = "") {
       return escapeRegExp(literal).replace(/\s+/g, "\\s*");
     })
     .join("");
-  const regex = new RegExp(`^\\s*${pattern}\\s*$`);
+  // A mask needs the simplest shape: three numeric groups split by the same
+  // literal, with no leading/trailing text and no embedded blanks.
+  const rawLiterals = parts.filter((part) => part.type === "literal").map((part) => part.value);
+  const literals = rawLiterals.map((literal) => normalizeDigits(literal, resolved, { trim: false }));
+  const separator =
+    order.length === 3 &&
+    literals.length === 2 &&
+    literals[0] === literals[1] &&
+    literals[0].length > 0 &&
+    !/[\s\d]/u.test(literals[0])
+      ? literals[0]
+      : "";
+  const localDigits = [...digitMap(resolved)].reduce(
+    (map, [local, ascii]) => map.set(ascii, local),
+    new Map(),
+  );
+  // Render with the raw literal (bidi marks included) so a masked draft is
+  // byte-for-byte what `format()` produces.
+  const maskLiteral = separator ? rawLiterals[0] : "";
+  const mask =
+    separator && [...localDigits.values()].every((digit) => Array.from(digit).length === 1)
+      ? createDateMask({
+          order: /** @type {import("./date-mask.js").DateMaskPart[]} */ (order),
+          separator: maskLiteral,
+          toLocalDigit: (digit) => localDigits.get(digit) ?? digit,
+          toAsciiText: (text) => normalizeDigits(text, resolved, { trim: false }),
+        })
+      : null;
+  // Digits rendered by the mask must look exactly like `format()` output;
+  // otherwise the mask would rewrite a correct value into a different string.
+  const formattedSample = formatter.format(sample);
+  const usableMask = mask && mask.render(mask.digits(formattedSample)) === formattedSample ? mask : null;
+  const numericGroups = order.map((type) => (type === "year" ? "(\\d{4})" : "(\\d{1,2})"));
+  const regex = separator
+    ? new RegExp(`^\\s*${numericGroups.join(`[\\s/.\\-${escapeRegExp(separator)}]+`)}\\s*$`)
+    : new RegExp(`^\\s*${pattern}\\s*$`);
+  // Compact entry ("29102026") is split by the locale widths, never by guesswork.
+  const compactRegex = new RegExp(
+    `^\\s*${order.map((type) => (type === "year" ? "(\\d{4})" : "(\\d{2})")).join("")}\\s*$`,
+  );
 
   return {
     locale: resolved,
     placeholder,
+    /** Length of one complete formatted value, used as the field's `maxlength`. */
+    entryLength: formattedSample.length,
+    /** Entry mask for this locale, or null when the format is not maskable. */
+    mask: usableMask,
     /** @param {string} value */
     format(value) {
       if (!isDate(value)) return "";
@@ -203,7 +257,7 @@ export function createDateAdapter(locale = "") {
     parse(text) {
       const normalized = normalizeDigits(text, resolved);
       if (isDate(normalized)) return normalized;
-      const match = regex.exec(normalized);
+      const match = compactRegex.exec(normalized) || regex.exec(normalized);
       if (!match) return "";
       /** @type {Record<string, number>} */
       const values = {};

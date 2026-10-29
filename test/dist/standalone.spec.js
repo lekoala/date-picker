@@ -52,4 +52,14 @@ test.describe("packaged standalone bundle", () => {
     await expect(page.locator("#picker")).toHaveAttribute("value", "2026-09-11");
     await expect(page.locator('#picker input[type="hidden"][name="date"]')).toHaveValue("2026-09-11");
   });
+
+  test("manual entry is formatted by the bundle", async ({ page }) => {
+    await page.fill("#date-input", "");
+    await page.focus("#date-input");
+    await page.keyboard.type("12102026");
+    await expect(page.locator("#date-input")).toHaveValue("12/10/2026");
+    await page.locator("#date-input").blur();
+    await expect(page.locator("#picker")).toHaveAttribute("value", "2026-10-12");
+    await expect(page.locator('#picker input[type="hidden"][name="date"]')).toHaveValue("2026-10-12");
+  });
 });

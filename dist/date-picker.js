@@ -1,4 +1,4 @@
-/*** @lekoala/date-picker v0.6.0 - https://github.com/lekoala/date-picker ***/
+/*** @lekoala/date-picker v0.6.1 - https://github.com/lekoala/date-picker ***/
 (() => {
   var __defProp = Object.defineProperty;
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -499,8 +499,108 @@
     }
   }
 
+  // src/date-mask.js
+  var ASCII_DIGIT = /^[0-9]$/;
+  var DATE_SEPARATORS = new Set(["/", "-", ".", " "]);
+  var BIDI = /[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/u;
+
+  class DateMask {
+    constructor(options) {
+      this.widths = options.order.map((part) => part === "year" ? 4 : 2);
+      this.separator = options.separator;
+      this.total = this.widths.reduce((sum, width) => sum + width, 0);
+      this._toLocalDigit = options.toLocalDigit;
+      this._toAsciiText = options.toAsciiText;
+    }
+    _asciiDigit(char) {
+      if (ASCII_DIGIT.test(char))
+        return char;
+      const mapped = this._toAsciiText(char);
+      return ASCII_DIGIT.test(mapped) ? mapped : "";
+    }
+    isDigit(char) {
+      return this._asciiDigit(char) !== "";
+    }
+    digits(text) {
+      let out = "";
+      for (const char of String(text || "")) {
+        const digit = this._asciiDigit(char);
+        if (digit)
+          out += digit;
+      }
+      return out;
+    }
+    countDigits(text, index) {
+      return this.digits(String(text || "").slice(0, Math.max(0, index))).length;
+    }
+    _localize(chunk) {
+      let out = "";
+      for (const digit of chunk)
+        out += this._toLocalDigit(digit);
+      return out;
+    }
+    render(digits) {
+      const list = Array.from(String(digits || "").slice(0, this.total));
+      let out = "";
+      let index = 0;
+      for (let group = 0;group < this.widths.length; group++) {
+        const width = this.widths[group];
+        const chunk = list.slice(index, index + width).join("");
+        out += this._localize(chunk);
+        index += width;
+        if (group < this.widths.length - 1 && chunk.length === width && index < list.length) {
+          out += this.separator;
+        }
+      }
+      return out;
+    }
+    caretIndex(digits, digitCount) {
+      const count = Math.max(0, Math.min(digitCount, this.total));
+      return this.render(String(digits || "").slice(0, count)).length;
+    }
+    _groupEnd(count) {
+      let total = 0;
+      for (const width of this.widths) {
+        total += width;
+        if (count === total)
+          return true;
+      }
+      return false;
+    }
+    accepts(text) {
+      const chars = [];
+      for (const char of String(text || "")) {
+        if (this.isDigit(char))
+          chars.push("d");
+        else if (BIDI.test(char))
+          continue;
+        else if (DATE_SEPARATORS.has(char) || /\s/u.test(char) || this.separator.includes(char)) {
+          chars.push("s");
+        } else
+          return false;
+      }
+      let count = 0;
+      for (let index = 0;index < chars.length; index++) {
+        if (chars[index] === "s") {
+          if (count === 0 || !this._groupEnd(count))
+            return false;
+          if (chars[index + 1] === "s")
+            return false;
+          continue;
+        }
+        count++;
+        if (count > this.total)
+          return false;
+      }
+      return true;
+    }
+  }
+  function createDateMask(options) {
+    return new DateMask(options);
+  }
+
   // src/intl.js
-  var BIDI = /[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g;
+  var BIDI2 = /[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]/g;
   var dateFormatters = new Map;
   var digitMaps = new Map;
   function cached(cache, key, create) {
@@ -537,7 +637,7 @@
     });
   }
   function normalizeDigits(text, locale, options = {}) {
-    let result = String(text || "").replace(BIDI, "");
+    let result = String(text || "").replace(BIDI2, "");
     if (options.trim !== false)
       result = result.trim();
     for (const [local, ascii] of digitMap(locale))
@@ -632,7 +732,7 @@
         return "MM";
       if (part.type === "year")
         return "YYYY";
-      return part.value.replace(BIDI, "");
+      return part.value.replace(BIDI2, "");
     }).join("");
     const pattern = parts.map((part) => {
       if (part.type === "day" || part.type === "month")
@@ -642,10 +742,27 @@
       const literal = normalizeDigits(part.value, resolved, { trim: false });
       return escapeRegExp(literal).replace(/\s+/g, "\\s*");
     }).join("");
-    const regex = new RegExp(`^\\s*${pattern}\\s*$`);
+    const rawLiterals = parts.filter((part) => part.type === "literal").map((part) => part.value);
+    const literals = rawLiterals.map((literal) => normalizeDigits(literal, resolved, { trim: false }));
+    const separator = order.length === 3 && literals.length === 2 && literals[0] === literals[1] && literals[0].length > 0 && !/[\s\d]/u.test(literals[0]) ? literals[0] : "";
+    const localDigits = [...digitMap(resolved)].reduce((map, [local, ascii]) => map.set(ascii, local), new Map);
+    const maskLiteral = separator ? rawLiterals[0] : "";
+    const mask = separator && [...localDigits.values()].every((digit) => Array.from(digit).length === 1) ? createDateMask({
+      order,
+      separator: maskLiteral,
+      toLocalDigit: (digit) => localDigits.get(digit) ?? digit,
+      toAsciiText: (text) => normalizeDigits(text, resolved, { trim: false })
+    }) : null;
+    const formattedSample = formatter.format(sample);
+    const usableMask = mask && mask.render(mask.digits(formattedSample)) === formattedSample ? mask : null;
+    const numericGroups = order.map((type) => type === "year" ? "(\\d{4})" : "(\\d{1,2})");
+    const regex = separator ? new RegExp(`^\\s*${numericGroups.join(`[\\s/.\\-${escapeRegExp(separator)}]+`)}\\s*$`) : new RegExp(`^\\s*${pattern}\\s*$`);
+    const compactRegex = new RegExp(`^\\s*${order.map((type) => type === "year" ? "(\\d{4})" : "(\\d{2})").join("")}\\s*$`);
     return {
       locale: resolved,
       placeholder,
+      entryLength: formattedSample.length,
+      mask: usableMask,
       format(value) {
         if (!isDate(value))
           return "";
@@ -655,7 +772,7 @@
         const normalized = normalizeDigits(text, resolved);
         if (isDate(normalized))
           return normalized;
-        const match = regex.exec(normalized);
+        const match = compactRegex.exec(normalized) || regex.exec(normalized);
         if (!match)
           return "";
         const values = {};
@@ -684,6 +801,7 @@
     calendar: "Choose a date",
     unavailable: "Unavailable",
     invalidDate: "Enter a valid date",
+    outOfRangeDate: "Date outside the allowed range",
     unavailableDate: "This date is unavailable",
     formatHint: "Format",
     week: "Week",
@@ -2013,12 +2131,24 @@
   function isEditable(input) {
     return !input.matches(":disabled") && !input.readOnly;
   }
+  function setInputValidity(input, message = "", options = {}) {
+    const text = message || "";
+    input.setCustomValidity(text);
+    if (text && options.announce)
+      input.setAttribute("aria-invalid", "true");
+    else
+      input.removeAttribute("aria-invalid");
+  }
 
   class DateFieldController {
     constructor(input, options = {}) {
       this.input = input;
       this.messages = options.messages || {};
       this.adapter = createDateAdapter(options.locale || "");
+      this.mask = this.adapter.mask;
+      this.formatOnType = true;
+      this._entryText = "";
+      this._generatedMaxLength = null;
       this.hidden = null;
       this.canonical = "";
       this._dirty = false;
@@ -2034,9 +2164,22 @@
       const generated = this._generatedDefault;
       const previous = generated ? this.adapter.format(generated) : null;
       this.adapter = createDateAdapter(locale || "");
+      this.mask = this.adapter.mask;
       if (generated && this.input.defaultValue === previous) {
         this.input.defaultValue = this.adapter.format(generated);
       }
+    }
+    setFormatOnType(value) {
+      this.formatOnType = value !== false;
+    }
+    get entryLength() {
+      return this.adapter.entryLength;
+    }
+    applyMaxLength(length) {
+      if (this._generatedMaxLength === null && this.input.hasAttribute("maxlength"))
+        return;
+      this._generatedMaxLength = length;
+      this.input.maxLength = length;
     }
     adoptDefault() {
       const input = this.input;
@@ -2102,8 +2245,60 @@
     get isDirty() {
       return this._dirty;
     }
-    handleInput() {
+    _formatEntry(event) {
+      if (!this.formatOnType || event?.isComposing)
+        return;
       const input = this.input;
+      const text = input.value;
+      if (!text.trim()) {
+        this._entryText = text;
+        return;
+      }
+      const caret = input.selectionStart ?? text.length;
+      const previous = this._entryText;
+      const inputType = event?.inputType || "";
+      const atEnd = caret >= text.length;
+      const appended = text.length > previous.length && text.startsWith(previous);
+      const parsed = this.adapter.parse(text);
+      if (parsed && atEnd && appended) {
+        const formatted = this.adapter.format(parsed);
+        this._writeEntry(formatted, formatted.length);
+        return;
+      }
+      const mask = this.mask;
+      if (!mask)
+        return;
+      const digits = mask.digits(text);
+      if (inputType.startsWith("delete") && previous && mask.accepts(previous) && digits === mask.digits(previous) && text.length < previous.length) {
+        const before = mask.countDigits(text, caret);
+        const drop = event?.inputType === "deleteContentForward" ? before : before - 1;
+        if (drop >= 0 && drop < digits.length) {
+          const next = digits.slice(0, drop) + digits.slice(drop + 1);
+          this._writeEntry(mask.render(next), mask.caretIndex(next, drop));
+        }
+        return;
+      }
+      if (!atEnd || !mask.accepts(text)) {
+        this._entryText = text;
+        return;
+      }
+      this._writeEntry(mask.render(digits), mask.caretIndex(digits, mask.countDigits(text, caret)));
+    }
+    _writeEntry(text, caret = text.length) {
+      const input = this.input;
+      this._entryText = text;
+      if (input.value === text)
+        return;
+      input.value = text;
+      if (document.activeElement !== input)
+        return;
+      try {
+        input.setSelectionRange(caret, caret);
+      } catch {}
+    }
+    handleInput(event) {
+      const input = this.input;
+      this._formatEntry(event);
       const text = input.value.trim();
       const canonical = this.canonical ? this.adapter.format(this.canonical) : "";
       this.dirty();
@@ -2111,17 +2306,20 @@
         this._dirty = false;
         if (this.hidden)
           this.hidden.value = this.canonical;
-        input.setCustomValidity("");
+        this.setValidity("");
         return;
       }
       this._dirty = true;
       if (this.hidden)
         this.hidden.value = "";
       if (!text) {
-        input.setCustomValidity("");
+        this.setValidity("");
         return;
       }
-      input.setCustomValidity(this.messages.invalidDate);
+      this.setValidity(this.messages.invalidDate);
+    }
+    setValidity(message = "", options = {}) {
+      setInputValidity(this.input, message, options);
     }
     async commit(options = {}) {
       const input = this.input;
@@ -2133,7 +2331,7 @@
       if (!text) {
         if (commitId !== this._commitId)
           return { status: "stale", commitId };
-        input.setCustomValidity("");
+        this.setValidity("");
         return { status: "clear", value: "", commitId };
       }
       const parsed = this.adapter.parse(text);
@@ -2142,7 +2340,7 @@
           return { status: "stale", commitId };
         if (this.hidden)
           this.hidden.value = "";
-        input.setCustomValidity(this.messages.invalidDate);
+        this.setValidity(this.messages.invalidDate, { announce: true });
         return { status: "invalid", commitId };
       }
       if (this.confirm) {
@@ -2153,7 +2351,7 @@
         if (!result?.ok) {
           if (this.hidden)
             this.hidden.value = "";
-          input.setCustomValidity(result?.message || this.messages.unavailableDate);
+          this.setValidity(result?.message || this.messages.unavailableDate, { announce: true });
           return { status: "invalid", commitId };
         }
       }
@@ -2173,7 +2371,8 @@
         this.hidden.value = next;
       if (options.format !== false)
         this.input.value = next ? this.adapter.format(next) : "";
-      this.input.setCustomValidity("");
+      this._entryText = this.input.value;
+      this.setValidity("");
     }
     restoreDefault() {
       const text = String(this.input.defaultValue ?? "").trim();
@@ -2185,6 +2384,10 @@
       this._session.abort();
       this._attributeObserver?.disconnect();
       this._attributeObserver = null;
+      this.input.removeAttribute("aria-invalid");
+      if (this._generatedMaxLength !== null)
+        this.input.removeAttribute("maxlength");
+      this._generatedMaxLength = null;
       const hiddenName = this.hidden?.getAttribute("name") || this._originalName;
       if (hiddenName)
         this.input.setAttribute("name", hiddenName);
@@ -2226,7 +2429,15 @@
   var uid2 = 0;
 
   class DatePickerElement extends HTMLElement {
-    static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
+    static observedAttributes = [
+      "value",
+      "locale",
+      "min",
+      "max",
+      "open-on-focus",
+      "format-on-type",
+      "month-format"
+    ];
     static setDefaultControlClasses(classes) {
       setDefaultControlClasses(classes);
     }
@@ -2289,6 +2500,7 @@
         "max",
         "monthFormat",
         "openOnFocus",
+        "formatOnType",
         "coordinateSpace",
         "controlClasses",
         "messages",
@@ -2334,6 +2546,7 @@
       this._input = input;
       this._discoverTimeFields();
       this._field = new DateFieldController(input, { messages: this.messages, locale: this.locale });
+      this._configureField(this._field);
       this._field.onAttributesChanged = () => this._syncInputState();
       this._field.confirm = (date, options) => this._confirmDate(date, options);
       this._setupFormValue();
@@ -2396,6 +2609,7 @@
         endInput.getAttribute("aria-describedby") || ""
       ];
       for (const field of this._fields) {
+        this._configureField(field);
         field.onAttributesChanged = () => this._syncRangeFields();
         field.confirm = (date, options) => this._confirmDate(date, options);
         field.setupFormValue();
@@ -2501,6 +2715,10 @@
         this._refreshLocale();
       if (name === "open-on-focus")
         return;
+      if (name === "format-on-type") {
+        this._applyFormatOnType();
+        return;
+      }
       this._syncCalendarOptions();
       this.validate();
     }
@@ -2578,6 +2796,15 @@
         this.setAttribute("open-on-focus", "false");
       else
         this.removeAttribute("open-on-focus");
+    }
+    get formatOnType() {
+      return this.getAttribute("format-on-type") !== "false";
+    }
+    set formatOnType(value) {
+      if (value === false)
+        this.setAttribute("format-on-type", "false");
+      else
+        this.removeAttribute("format-on-type");
     }
     get open() {
       return this._open;
@@ -2661,6 +2888,15 @@
     }
     _setupFormValue() {
       this._field?.setupFormValue();
+    }
+    _configureField(field) {
+      field.setFormatOnType(this.formatOnType);
+    }
+    _applyFormatOnType() {
+      for (const field of this._fields || [])
+        this._configureField(field);
+      if (this._field)
+        this._configureField(this._field);
     }
     _syncInputState() {
       const input = this._input;
@@ -2788,8 +3024,8 @@
       if (!session)
         return;
       const { signal } = session;
-      input.addEventListener("input", () => {
-        this._field?.handleInput();
+      input.addEventListener("input", (event) => {
+        this._field?.handleInput(event);
       }, { signal });
       input.addEventListener("change", () => void this._commitText(false), { signal });
       input.addEventListener("blur", () => void this._commitText(false), { signal });
@@ -2861,8 +3097,8 @@
       const { signal } = session;
       for (const [index, field] of this._fields.entries()) {
         const endpoint = index === 1 ? "end" : "start";
-        field.input.addEventListener("input", () => {
-          field.handleInput();
+        field.input.addEventListener("input", (event) => {
+          field.handleInput(event);
           this._orderTags.delete(index);
           if (!field.isDirty)
             this._revalidateRange(endpoint);
@@ -3126,6 +3362,8 @@
         this._fields[1].setLocale(this.locale);
         hint.textContent = `${this.messages.formatHint}: ${this._fields[0].placeholder}`;
         for (const [index, field] of this._fields.entries()) {
+          this._applyInputMode(field);
+          this._applyMaxLength(field);
           if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholders.has(field.input)) {
             field.input.placeholder = field.placeholder;
             this._generatedPlaceholders.add(field.input);
@@ -3141,6 +3379,8 @@
       if (!field)
         return;
       field.setLocale(this.locale);
+      this._applyInputMode(field);
+      this._applyMaxLength(field);
       hint.textContent = `${this.messages.formatHint}: ${field.placeholder}`;
       if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholders.has(field.input)) {
         field.input.placeholder = field.placeholder;
@@ -3149,6 +3389,14 @@
       if (this._value)
         field.input.value = field.format(this._value);
       this._refreshButtonLabel();
+    }
+    _applyInputMode(field) {
+      if (field.mask && !field.input.hasAttribute("inputmode")) {
+        field.input.setAttribute("inputmode", "numeric");
+      }
+    }
+    _applyMaxLength(field) {
+      field.applyMaxLength(field.entryLength);
     }
     _refreshButtonLabel() {
       const single = this._buttons[0]?.button;
@@ -3216,8 +3464,15 @@
       }
       const confirmed = await calendar.ensureDate(date);
       const state = calendar.getDateState(date);
-      if (!confirmed || state.disabled)
+      if (!confirmed)
         return { ok: false, message: this.messages.unavailableDate };
+      if (state.disabled) {
+        const outsideBounds = Boolean(calendar.min && compareDates(date, calendar.min) < 0) || Boolean(calendar.max && compareDates(date, calendar.max) > 0);
+        return {
+          ok: false,
+          message: outsideBounds ? this.messages.outOfRangeDate : this.messages.unavailableDate
+        };
+      }
       return { ok: true };
     }
     async _commitText(emit, options = {}) {
@@ -3338,14 +3593,14 @@
       const bounds = ["start", "end"];
       for (const bound of bounds) {
         const index = bound === "end" ? 1 : 0;
-        const input = this._fields[index].input;
+        const field = this._fields[index];
         const message = bound === "end" ? this.messages.rangeOrderEnd : this.messages.rangeOrderStart;
         const shouldHaveOrder = inverted && bound === which;
         if (shouldHaveOrder) {
-          input.setCustomValidity(message);
+          field.setValidity(message, { announce: true });
           this._orderTags.add(index);
         } else if (this._orderTags.has(index)) {
-          input.setCustomValidity("");
+          field.setValidity("");
           this._orderTags.delete(index);
         }
       }
@@ -3364,17 +3619,17 @@
         const message = bound === "end" ? this.messages.rangeOrderEnd : this.messages.rangeOrderStart;
         const shouldHaveOrder = inverted && bound === which;
         if (shouldHaveOrder) {
-          input.setCustomValidity(message);
+          setInputValidity(input, message, { announce: true });
           this._timeOrderOwned.add(input);
         } else if (this._timeOrderOwned.has(input)) {
-          input.setCustomValidity("");
+          setInputValidity(input, "");
           this._timeOrderOwned.delete(input);
         }
       }
     }
     _clearTimeOrderValidity() {
       for (const input of this._timeOrderOwned)
-        input.setCustomValidity("");
+        setInputValidity(input, "");
       this._timeOrderOwned.clear();
     }
     _defer(callback) {

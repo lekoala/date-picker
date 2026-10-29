@@ -8,6 +8,7 @@ export default {
   calendar: "Выберите дату",
   unavailable: "Недоступно",
   invalidDate: "Введите корректную дату",
+  outOfRangeDate: "Дата вне допустимого диапазона",
   unavailableDate: "Эта дата недоступна",
   formatHint: "Формат",
   week: "Неделя",

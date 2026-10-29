@@ -52,6 +52,8 @@ With JavaScript enabled the input displays `10/09/2026`; the hidden submitted va
 
 By default the calendar opens when the field receives focus — without stealing the keyboard focus, so typing works immediately. `open-on-focus="false"` makes the calendar opt-in (trigger button or `ArrowDown`). Under `readonly` the value stays editable-by-calendar-off but is still submitted; under `disabled` the field is also unsubmitted.
 
+Typing uses the locale format: the component inserts the separators itself (`29102026` becomes `29/10/2026` in `fr-BE`), accepts pasted drafts with other separators, and still validates the result against `min`/`max` and disabled dates. An invalid draft is kept and blocks submission; it is never silently replaced by the previous value. `format-on-type="false"` disables only the automatic separators.
+
 ## Start/end ranges
 
 Two product shapes cover ranges.

@@ -12,6 +12,23 @@ export function isEditable(input) {
 }
 
 /**
+ * Single write path for a field's custom validity. The message is the
+ * submission gate and stays active for the whole correction; `aria-invalid` is
+ * an announcement, not a state: it is set by a failed commit (`announce`) and
+ * removed as soon as the user edits the draft again, so mid-correction typing
+ * is not announced as an error. Clearing the message also clears it.
+ * @param {HTMLInputElement} input
+ * @param {string} [message]
+ * @param {{announce?: boolean}} [options]
+ */
+export function setInputValidity(input, message = "", options = {}) {
+  const text = message || "";
+  input.setCustomValidity(text);
+  if (text && options.announce) input.setAttribute("aria-invalid", "true");
+  else input.removeAttribute("aria-invalid");
+}
+
+/**
  * Owns a single editable form field inside a picker: the visible input, its
  * hidden canonical ISO field, the Intl adapter and the text commit pipeline
  * (parsing, availability gate, stale-response protection).
@@ -30,6 +47,14 @@ export class DateFieldController {
     this.input = input;
     this.messages = options.messages || {};
     this.adapter = createDateAdapter(options.locale || "");
+    /** Locale entry mask, or null when the format has no maskable pattern. */
+    this.mask = this.adapter.mask;
+    /** Whether typed digits are re-rendered with locale separators. */
+    this.formatOnType = true;
+    /** Last text produced by the entry formatter, used to recognize a deleted separator. */
+    this._entryText = "";
+    /** `maxlength` this controller generated, or null when the author owns it. @type {number | null} */
+    this._generatedMaxLength = null;
     /** @type {HTMLInputElement | null} */
     this.hidden = null;
     /** Current canonical value (YYYY-MM-DD or ""). */
@@ -59,12 +84,36 @@ export class DateFieldController {
     const generated = this._generatedDefault;
     const previous = generated ? this.adapter.format(generated) : null;
     this.adapter = createDateAdapter(locale || "");
+    this.mask = this.adapter.mask;
     // A generated default is localized text: reformat it so a later form reset
     // never parses the old locale's text with the new adapter. An app-changed
     // default no longer matches and stays untouched.
     if (generated && this.input.defaultValue === previous) {
       this.input.defaultValue = this.adapter.format(generated);
     }
+  }
+
+  /** @param {boolean} value */
+  setFormatOnType(value) {
+    this.formatOnType = value !== false;
+  }
+
+  /** Character bound of one complete locale value, masked or not. */
+  get entryLength() {
+    return this.adapter.entryLength;
+  }
+
+  /**
+   * Bound the field to one complete locale value. Native `maxlength` stops the
+   * draft from growing past a full date, which is what keeps an unparsable
+   * draft bounded (`1212. 12. 12.1212…` in a plain locale). An authored
+   * `maxlength` is never overridden.
+   * @param {number} length
+   */
+  applyMaxLength(length) {
+    if (this._generatedMaxLength === null && this.input.hasAttribute("maxlength")) return;
+    this._generatedMaxLength = length;
+    this.input.maxLength = length;
   }
 
   /**
@@ -151,28 +200,114 @@ export class DateFieldController {
     return this._dirty;
   }
 
+  /**
+   * Re-render the visible draft. Only an append is completed: the mask projects
+   * what the user types at the end of the draft, and a complete value is the
+   * existing parser's business (it already accepts every supported shape:
+   * `2/9/2026`, `29-10-2026`, compact or ISO). An edit inside an existing value
+   * is kept exactly as typed and normalized by the commit, because reformatting
+   * it would move the caret away from the edit and could complete the wrong
+   * date.
+   * @param {InputEvent} [event]
+   */
+  _formatEntry(event) {
+    if (!this.formatOnType || event?.isComposing) return;
+    const input = this.input;
+    const text = input.value;
+    if (!text.trim()) {
+      this._entryText = text;
+      return;
+    }
+    const caret = input.selectionStart ?? text.length;
+    const previous = this._entryText;
+    const inputType = event?.inputType || "";
+    // The caret sitting at the end does not mean an append: replacing the last
+    // group ends there too (`29` -> `1` in `2026-10-29`). Only a draft that
+    // extends the previous one is completed, so a group being replaced can
+    // always be finished before it is reformatted.
+    const atEnd = caret >= text.length;
+    const appended = text.length > previous.length && text.startsWith(previous);
+    const parsed = this.adapter.parse(text);
+    if (parsed && atEnd && appended) {
+      const formatted = this.adapter.format(parsed);
+      this._writeEntry(formatted, formatted.length);
+      return;
+    }
+    const mask = this.mask;
+    if (!mask) return;
+    const digits = mask.digits(text);
+    // Erasing a separator must erase the digit it separates, otherwise the
+    // separator is re-inserted immediately and Backspace appears stuck. Only a
+    // deletion does that: a paste that keeps the digits but shortens the text is
+    // a new draft, not a Backspace. This is the one edit inside the value the
+    // mask rewrites, and it keeps the caret.
+    if (
+      inputType.startsWith("delete") &&
+      previous &&
+      mask.accepts(previous) &&
+      digits === mask.digits(previous) &&
+      text.length < previous.length
+    ) {
+      const before = mask.countDigits(text, caret);
+      const drop = event?.inputType === "deleteContentForward" ? before : before - 1;
+      if (drop >= 0 && drop < digits.length) {
+        const next = digits.slice(0, drop) + digits.slice(drop + 1);
+        this._writeEntry(mask.render(next), mask.caretIndex(next, drop));
+      }
+      return;
+    }
+    // Any other draft (letters, explicit separators, an edit inside the value)
+    // stays exactly as typed; the parser reads it at commit.
+    if (!atEnd || !mask.accepts(text)) {
+      this._entryText = text;
+      return;
+    }
+    this._writeEntry(mask.render(digits), mask.caretIndex(digits, mask.countDigits(text, caret)));
+  }
+
+  /** @param {string} text @param {number} [caret] */
+  _writeEntry(text, caret = text.length) {
+    const input = this.input;
+    this._entryText = text;
+    if (input.value === text) return;
+    input.value = text;
+    if (document.activeElement !== input) return;
+    try {
+      input.setSelectionRange(caret, caret);
+    } catch {
+      // Input types without a selection API keep the value, only the caret.
+    }
+  }
+
   /** Live text input: the raw text no longer matches the canonical value, so
    * the hidden ISO must not submit it. A text that formats back to the current
    * canonical value (e.g. re-applied by a calendar pick) keeps the ISO value
-   * valid; invalidating in-flight commits first still drops stale async work. */
-  handleInput() {
+   * valid; invalidating in-flight commits first still drops stale async work.
+   * @param {InputEvent} [event] */
+  handleInput(event) {
     const input = this.input;
+    this._formatEntry(event);
     const text = input.value.trim();
     const canonical = this.canonical ? this.adapter.format(this.canonical) : "";
     this.dirty();
     if (text === canonical) {
       this._dirty = false;
       if (this.hidden) this.hidden.value = this.canonical;
-      input.setCustomValidity("");
+      this.setValidity("");
       return;
     }
     this._dirty = true;
     if (this.hidden) this.hidden.value = "";
     if (!text) {
-      input.setCustomValidity("");
+      this.setValidity("");
       return;
     }
-    input.setCustomValidity(this.messages.invalidDate);
+    this.setValidity(this.messages.invalidDate);
+  }
+
+  /** @param {string} [message] @param {{announce?: boolean}} [options] */
+  setValidity(message = "", options = {}) {
+    setInputValidity(this.input, message, options);
   }
 
   /**
@@ -194,14 +329,14 @@ export class DateFieldController {
     const text = input.value.trim();
     if (!text) {
       if (commitId !== this._commitId) return { status: "stale", commitId };
-      input.setCustomValidity("");
+      this.setValidity("");
       return { status: "clear", value: "", commitId };
     }
     const parsed = this.adapter.parse(text);
     if (!parsed) {
       if (commitId !== this._commitId) return { status: "stale", commitId };
       if (this.hidden) this.hidden.value = "";
-      input.setCustomValidity(this.messages.invalidDate);
+      this.setValidity(this.messages.invalidDate, { announce: true });
       return { status: "invalid", commitId };
     }
     if (this.confirm) {
@@ -214,7 +349,7 @@ export class DateFieldController {
       }
       if (!result?.ok) {
         if (this.hidden) this.hidden.value = "";
-        input.setCustomValidity(result?.message || this.messages.unavailableDate);
+        this.setValidity(result?.message || this.messages.unavailableDate, { announce: true });
         return { status: "invalid", commitId };
       }
     }
@@ -242,7 +377,8 @@ export class DateFieldController {
     this._dirty = false;
     if (this.hidden) this.hidden.value = next;
     if (options.format !== false) this.input.value = next ? this.adapter.format(next) : "";
-    this.input.setCustomValidity("");
+    this._entryText = this.input.value;
+    this.setValidity("");
   }
 
   /** Restore value from `input.defaultValue` (native form reset). */
@@ -261,6 +397,9 @@ export class DateFieldController {
     this._session.abort();
     this._attributeObserver?.disconnect();
     this._attributeObserver = null;
+    this.input.removeAttribute("aria-invalid");
+    if (this._generatedMaxLength !== null) this.input.removeAttribute("maxlength");
+    this._generatedMaxLength = null;
     const hiddenName = this.hidden?.getAttribute("name") || this._originalName;
     if (hiddenName) this.input.setAttribute("name", hiddenName);
     this.hidden?.remove();

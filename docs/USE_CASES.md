@@ -11,7 +11,10 @@ Acceptance:
 - input remains editable;
 - label still targets the real input;
 - required/custom validity still works;
-- display formatting does not leak into submitted data.
+- display formatting does not leak into submitted data;
+- typing digits only is enough: separators are inserted from the locale (`29102026` → `29/10/2026`);
+- an explicitly typed date (`2/9/2026`) is normalized by the existing parser once complete, and a partial explicit draft is kept as typed rather than redistributed;
+- a complete draft that is impossible, out of `min`/`max` or disabled keeps its text, is announced (`aria-invalid`) and never submits the previous ISO value.
 
 ## U2 — Inline selector
 

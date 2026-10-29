@@ -8,6 +8,7 @@ export default {
   calendar: "日付を選択",
   unavailable: "利用できません",
   invalidDate: "有効な日付を入力してください",
+  outOfRangeDate: "許可された範囲外の日付です",
   unavailableDate: "この日付は利用できません",
   formatHint: "形式",
   week: "週",

@@ -8,6 +8,7 @@ export default {
   calendar: "Wybierz datę",
   unavailable: "Niedostępne",
   invalidDate: "Wprowadź prawidłową datę",
+  outOfRangeDate: "Data poza dozwolonym zakresem",
   unavailableDate: "Ta data jest niedostępna",
   formatHint: "Format",
   week: "Tydzień",

@@ -8,6 +8,7 @@ export default {
   calendar: "Kies een datum",
   unavailable: "Niet beschikbaar",
   invalidDate: "Voer een geldige datum in",
+  outOfRangeDate: "Datum buiten het toegestane bereik",
   unavailableDate: "Deze datum is niet beschikbaar",
   formatHint: "Formaat",
   week: "Week",

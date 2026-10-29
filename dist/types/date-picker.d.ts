@@ -22,6 +22,7 @@ export declare class DatePickerElement extends HTMLElement {
         calendar: string;
         unavailable: string;
         invalidDate: string;
+        outOfRangeDate: string;
         unavailableDate: string;
         formatHint: string;
         week: string;
@@ -68,6 +69,9 @@ export declare class DatePickerElement extends HTMLElement {
     /** @public */
     get openOnFocus(): boolean;
     set openOnFocus(value: boolean);
+    /** @public Whether typed digits are rendered with locale separators (default true). Validation and parsing are never disabled. */
+    get formatOnType(): boolean;
+    set formatOnType(value: boolean);
     /** @public */
     get open(): boolean;
     /**

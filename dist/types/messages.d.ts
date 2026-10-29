@@ -8,6 +8,7 @@ export declare const DEFAULT_MESSAGES: {
     calendar: string;
     unavailable: string;
     invalidDate: string;
+    outOfRangeDate: string;
     unavailableDate: string;
     formatHint: string;
     week: string;
@@ -28,6 +29,7 @@ export declare function getDefaultMessages(): {
     calendar: string;
     unavailable: string;
     invalidDate: string;
+    outOfRangeDate: string;
     unavailableDate: string;
     formatHint: string;
     week: string;

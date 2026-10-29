@@ -93,9 +93,13 @@ Decision for 0.1: the popup stays **non-modal** on every surface, including smal
 
 ## Validation
 
-A typed invalid date uses `setCustomValidity()` on the visible input. A parsed but unavailable date uses a distinct message.
+A typed invalid date uses `setCustomValidity()` on the visible input. A parsed but unavailable date uses a distinct message, and a date outside `min`/`max` has its own (`outOfRangeDate`) so "fix the bound" and "business rule" are not conflated.
 
 The same resolved date state used by the grid is used for manual-entry validation.
+
+`aria-invalid="true"` is set on the visible input when a commit fails, and removed as soon as the user edits the draft again or a value is applied programmatically. It is deliberately not toggled on every keystroke: a half-typed date (`2`, `29/`, `31/02/`) is a normal editing state, while `setCustomValidity` keeps blocking submission until a commit succeeds.
+
+`inputmode="numeric"` is added for numeric date formats unless the author already set one. It is a keyboard hint, not a character restriction: separators are inserted by the component, and pasted drafts with other separators are normalized.
 
 ## Forced colors guard (selected day)
 

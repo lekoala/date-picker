@@ -2,7 +2,7 @@
 
 The mini calendar is intentionally a consumer of the date-picker package, not a feature duplicated inside the scheduling engine.
 
-The live integration lives in `demo/index.html` (card 6): a real `<calendar-view view="month">` is wired to the mini calendar. `@lekoala/calendar` (and its `temporal-polyfill` peer) are dev dependencies used by the demo only.
+The live integration lives in `demo/index.html` (card 8): a real `<calendar-view view="month">` is wired to the mini calendar. `@lekoala/calendar` (and its `temporal-polyfill` peer) are dev dependencies used by the demo only.
 
 `@lekoala/calendar` already exposes the right navigation seam:
 

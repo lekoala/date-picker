@@ -136,7 +136,7 @@ The visible input owns:
 
 - label association;
 - focus;
-- typing;
+- typing, including the locale entry mask (`date-mask.js`);
 - required state;
 - validation UI;
 - the localized display string.
@@ -192,6 +192,7 @@ Expected homes:
 
 - date arithmetic → `date.js`;
 - locale parsing/formatting → `intl.js`;
+- locale entry mask (pure digit/caret projection) → `date-mask.js`;
 - state transitions → `calendar-model.js`;
 - payload normalization/fetch adapter → `source.js`;
 - start/end relationship → `date-range.js`.

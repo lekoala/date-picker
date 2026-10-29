@@ -1,0 +1,96 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="importmap">{"imports":{"@lekoala/floating":"/node_modules/@lekoala/floating/src/floating.js"}}</script>
+<link rel="stylesheet" href="/src/date-picker.css">
+<style>
+  body { font-family: system-ui, sans-serif; }
+  .field { display: grid; gap: 0.35rem; inline-size: 18rem; margin-block: 0.75rem; }
+</style>
+
+<form id="entry-form">
+  <label class="field" for="entry-date">
+    Date libre
+    <date-picker id="entry-picker" locale="fr-BE">
+      <input id="entry-date" name="date" required>
+    </date-picker>
+  </label>
+  <button id="entry-submit" type="submit">Envoyer</button>
+  <output id="entry-out"></output>
+</form>
+
+<label class="field" for="bounds-date">
+  Bornes
+  <date-picker id="bounds-picker" locale="fr-BE" min="2026-09-10" max="2026-09-20">
+    <input id="bounds-date" name="bounds">
+  </date-picker>
+</label>
+
+<label class="field" for="disabled-date">
+  Date fermée
+  <date-picker id="disabled-picker" locale="fr-BE">
+    <input id="disabled-date" name="closed">
+  </date-picker>
+</label>
+
+<label class="field" for="us-date">
+  Ordre américain
+  <date-picker id="us-picker" locale="en-US">
+    <input id="us-date" name="us" maxlength="12">
+  </date-picker>
+</label>
+
+<label class="field" for="iso-entry-date">
+  Ordre ISO
+  <date-picker id="iso-entry-picker" locale="sv-SE">
+    <input id="iso-entry-date" name="iso-entry" value="2026-10-29">
+  </date-picker>
+</label>
+
+<label class="field" for="plain-date">
+  Sans formatage
+  <date-picker id="plain-picker" locale="fr-BE" format-on-type="false">
+    <input id="plain-date" name="plain">
+  </date-picker>
+</label>
+
+<label class="field" for="custom-mode-date">
+  Clavier imposé
+  <date-picker id="custom-mode-picker" locale="fr-BE">
+    <input id="custom-mode-date" name="custom" inputmode="search">
+  </date-picker>
+</label>
+
+<fieldset class="field">
+  <legend>Plage</legend>
+  <date-picker id="entry-range" range locale="fr-BE">
+    <input id="entry-start" data-range-start name="start" aria-label="Début">
+    <input id="entry-end" data-range-end name="end" aria-label="Fin">
+  </date-picker>
+</fieldset>
+
+<label class="field" for="korean-date">
+  Locale exotique
+  <date-picker id="korean-entry-picker" locale="ko-KR">
+    <input id="korean-date" name="korean">
+  </date-picker>
+</label>
+
+<label class="field" for="ime-date">
+  Composition
+  <date-picker id="ime-picker" locale="fr-BE">
+    <input id="ime-date" name="ime">
+  </date-picker>
+</label>
+
+<script type="module">
+import "/src/define.js";
+
+const form = document.getElementById("entry-form");
+const out = document.getElementById("entry-out");
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  out.textContent = new URLSearchParams(new FormData(form)).toString();
+});
+
+document.getElementById("disabled-picker").isDateDisabled = (date) => date === "2026-09-14";
+</script>

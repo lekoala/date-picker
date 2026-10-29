@@ -8,6 +8,7 @@ export default {
   calendar: "Bir tarih seç",
   unavailable: "Uygun değil",
   invalidDate: "Geçerli bir tarih girin",
+  outOfRangeDate: "Tarih izin verilen aralığın dışında",
   unavailableDate: "Bu tarih uygun değil",
   formatHint: "Biçim",
   week: "Hafta",

@@ -8,6 +8,7 @@ export default {
   calendar: "اختيار تاريخ",
   unavailable: "غير متاح",
   invalidDate: "أدخل تاريخًا صالحًا",
+  outOfRangeDate: "التاريخ خارج النطاق المسموح",
   unavailableDate: "هذا التاريخ غير متاح",
   formatHint: "التنسيق",
   week: "الأسبوع",

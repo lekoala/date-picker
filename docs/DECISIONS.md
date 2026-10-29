@@ -99,3 +99,15 @@ It also carries a real UX contract: the band shows what the next pick will commi
 The drag failed these criteria: pointer capture, cancellation, trailing click, endpoint identity and a cursor affordance were its own machine. The two features are therefore not a pair — drag is application-owned (D9), preview stays here.
 
 Revisit only if a real consumer needs a picker without preview. The answer would then be an explicit opt-out, not a silent removal.
+
+## D11 — Entry formatting is a locale projection, never a strict mask
+
+Manual entry gets automatic separators, but not an editing model:
+
+- **Not a second parser.** A complete value is handed to the existing `adapter.parse()`; the parser decides what the text means, and the mask never reinterprets it. `31/02/2026` stays typable and is rejected by the same gate as a calendar pick.
+- **Not a strict mask.** Letters and partial drafts are not blocked, digits are not refused per character, and no component is silently corrected. Only a draft the mask could itself have produced (`29/10/2`) is re-rendered, and only when the edit is an append: an edit inside an existing value keeps its text and its caret, because reformatting it would insert digits in front of the edit and could complete the wrong date. A partial draft with explicit separators (`2/9/20`) or with whitespace (`2 9 2026`) is kept as typed until the parser or the commit can read it; whitespace is a separator, never a character to skip.
+- **No `beforeinput` machine.** The component listens to `input`, formats, and restores the logical caret. Two rules read the event instead of parsing the text twice: only a draft that extends the previous text is completed (a caret at the end also describes replacing the last group), and only a `delete*` input may erase the digit that a removed separator separated, so a paste keeping the same digits is never mistaken for Backspace.
+- **Local, not shared.** `date-mask.js` is a small pure projection owned by this package. Actual CSS `mask.js` stays generic (`data-mask`, `99/99/9999`) and is not a dependency: its tokens know shape, not date semantics. An input that already carries `data-mask` must not be combined with the picker (documented, not detected).
+- **Opt-out is one attribute.** `format-on-type="false"` turns the separators off; there is no collection of mask options.
+- **Text stays a draft.** The mask writes the visible input only; `value`, the hidden ISO field and the authority in `ARCHITECTURE.md` §11.5 are unchanged, and every masked edit goes through the same `handleInput()`/`commit()` pipeline.
+- **Submission safety is unchanged.** The hidden ISO is cleared as soon as the draft differs from the canonical value, and `setCustomValidity` blocks the form. `aria-invalid` is announced after a failed commit, not on each keystroke.

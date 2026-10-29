@@ -29,12 +29,24 @@ Do not introduce timestamps, UTC strings, timezone-bearing types or `Date` objec
 
 Do not add a Temporal dependency without an explicit compatibility decision.
 
+## Manual entry
+
+Typed text is a draft, not a value: only a commit (`blur`/`change`/`validate()`) changes the canonical date, and the hidden ISO is cleared as soon as the draft differs.
+
+- An invalid committed draft keeps its text, reports native validity, sets `aria-invalid` and never restores the previous value.
+- A complete draft is the existing parser's business. The entry mask only re-renders drafts it could itself have produced; never redistribute a partial draft that carries explicit separators.
+- Separators, order and digits come from `Intl`. Never guess the component order and never accept a two-digit year.
+- The entry mask is a projection, not a second parser and not a strict character filter.
+- The visible field is bounded to one complete locale value (`maxlength`), so an unparsable draft never grows without limit.
+- Do not add an external mask to a picker input: two writers on one value have no defined caret behavior.
+
 ## Layering
 
 Keep pure logic out of custom element classes:
 
 - `date.js` — civil math;
 - `intl.js` — formatting/parsing;
+- `date-mask.js` — locale entry mask (pure digit/caret projection);
 - `calendar-model.js` — state transitions;
 - `source.js` — source normalization/fetch adapter;
 - `date-range.js` — cross-picker relationship + range state machine;
@@ -122,7 +134,7 @@ Two product shapes cover the range cases:
 
 ## Language
 
-Docs and code comments are written in English. Demo content and user-facing localized strings stay in their display language.
+Docs and code comments are written in English. Demo content is English too, except where a card deliberately demonstrates another language (the Korean locale card). User-facing localized strings stay in the language they demonstrate.
 
 ## Tooling
 

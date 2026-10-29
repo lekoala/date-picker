@@ -8,7 +8,7 @@ import {
 } from "./control-classes.js";
 import { compareDates, isDate, monthKey, todayISO } from "./date.js";
 import { DateCalendarElement } from "./date-calendar.js";
-import { DateFieldController, isEditable } from "./date-field.js";
+import { DateFieldController, isEditable, setInputValidity } from "./date-field.js";
 import { DateRangeController, normalizeRange } from "./date-range.js";
 import { createDateAdapter, formatLongDate, resolveLocale } from "./intl.js";
 import { getDefaultMessages, setDefaultMessages, subscribeDefaultMessages } from "./messages.js";
@@ -22,7 +22,15 @@ let uid = 0;
  * @typedef {{id: number}} PickIntent */
 
 export class DatePickerElement extends HTMLElement {
-  static observedAttributes = ["value", "locale", "min", "max", "open-on-focus", "month-format"];
+  static observedAttributes = [
+    "value",
+    "locale",
+    "min",
+    "max",
+    "open-on-focus",
+    "format-on-type",
+    "month-format",
+  ];
 
   /** @public @param {Partial<import("./control-classes.js").ControlClasses>} classes */
   static setDefaultControlClasses(classes) {
@@ -118,6 +126,7 @@ export class DatePickerElement extends HTMLElement {
       "max",
       "monthFormat",
       "openOnFocus",
+      "formatOnType",
       "coordinateSpace",
       "controlClasses",
       "messages",
@@ -169,6 +178,7 @@ export class DatePickerElement extends HTMLElement {
     this._input = input;
     this._discoverTimeFields();
     this._field = new DateFieldController(input, { messages: this.messages, locale: this.locale });
+    this._configureField(this._field);
     this._field.onAttributesChanged = () => this._syncInputState();
     this._field.confirm = (date, options) => this._confirmDate(date, options);
     this._setupFormValue();
@@ -243,6 +253,7 @@ export class DatePickerElement extends HTMLElement {
       endInput.getAttribute("aria-describedby") || "",
     ];
     for (const field of this._fields) {
+      this._configureField(field);
       field.onAttributesChanged = () => this._syncRangeFields();
       field.confirm = (date, options) => this._confirmDate(date, options);
       field.setupFormValue();
@@ -346,6 +357,10 @@ export class DatePickerElement extends HTMLElement {
     }
     if (name === "locale") this._refreshLocale();
     if (name === "open-on-focus") return;
+    if (name === "format-on-type") {
+      this._applyFormatOnType();
+      return;
+    }
     this._syncCalendarOptions();
     void this.validate();
   }
@@ -436,6 +451,16 @@ export class DatePickerElement extends HTMLElement {
   set openOnFocus(value) {
     if (value === false) this.setAttribute("open-on-focus", "false");
     else this.removeAttribute("open-on-focus");
+  }
+
+  /** @public Whether typed digits are rendered with locale separators (default true). Validation and parsing are never disabled. */
+  get formatOnType() {
+    return this.getAttribute("format-on-type") !== "false";
+  }
+
+  set formatOnType(value) {
+    if (value === false) this.setAttribute("format-on-type", "false");
+    else this.removeAttribute("format-on-type");
   }
 
   /** @public */
@@ -540,6 +565,21 @@ export class DatePickerElement extends HTMLElement {
 
   _setupFormValue() {
     this._field?.setupFormValue();
+  }
+
+  /**
+   * `format-on-type="false"` keeps validation and localized parsing, only the
+   * automatic separators are off. An external `data-mask` must not be combined
+   * with the picker: see the "Manual entry" section of `docs/API.md`.
+   * @param {DateFieldController} field
+   */
+  _configureField(field) {
+    field.setFormatOnType(this.formatOnType);
+  }
+
+  _applyFormatOnType() {
+    for (const field of this._fields || []) this._configureField(field);
+    if (this._field) this._configureField(this._field);
   }
 
   _syncInputState() {
@@ -706,10 +746,10 @@ export class DatePickerElement extends HTMLElement {
 
     input.addEventListener(
       "input",
-      () => {
+      (event) => {
         // Raw text is no longer the validated canonical value: the old ISO
         // must never submit (requestSubmit/FormData can bypass blur/change).
-        this._field?.handleInput();
+        this._field?.handleInput(/** @type {InputEvent} */ (event));
       },
       { signal },
     );
@@ -807,9 +847,9 @@ export class DatePickerElement extends HTMLElement {
       const endpoint = index === 1 ? "end" : "start";
       field.input.addEventListener(
         "input",
-        () => {
+        (event) => {
           // handleInput() rewrites the custom validity: any order error is gone.
-          field.handleInput();
+          field.handleInput(/** @type {InputEvent} */ (event));
           this._orderTags.delete(index);
           if (!field.isDirty) this._revalidateRange(endpoint);
         },
@@ -1166,6 +1206,8 @@ export class DatePickerElement extends HTMLElement {
       this._fields[1].setLocale(this.locale);
       hint.textContent = `${this.messages.formatHint}: ${this._fields[0].placeholder}`;
       for (const [index, field] of this._fields.entries()) {
+        this._applyInputMode(field);
+        this._applyMaxLength(field);
         if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholders.has(field.input)) {
           field.input.placeholder = field.placeholder;
           this._generatedPlaceholders.add(field.input);
@@ -1179,6 +1221,8 @@ export class DatePickerElement extends HTMLElement {
     const field = this._field;
     if (!field) return;
     field.setLocale(this.locale);
+    this._applyInputMode(field);
+    this._applyMaxLength(field);
     hint.textContent = `${this.messages.formatHint}: ${field.placeholder}`;
     if (!field.input.hasAttribute("placeholder") || this._generatedPlaceholders.has(field.input)) {
       field.input.placeholder = field.placeholder;
@@ -1186,6 +1230,28 @@ export class DatePickerElement extends HTMLElement {
     }
     if (this._value) field.input.value = field.format(this._value);
     this._refreshButtonLabel();
+  }
+
+  /**
+   * Numeric keyboard hint for formats that have a mask. An authored
+   * `inputmode` always wins: the hint is a keyboard aid, not a character
+   * restriction.
+   * @param {DateFieldController} field
+   */
+  _applyInputMode(field) {
+    if (field.mask && !field.input.hasAttribute("inputmode")) {
+      field.input.setAttribute("inputmode", "numeric");
+    }
+  }
+
+  /**
+   * A complete locale value is also the character bound of the field, so an
+   * unparsable draft can never grow without limit, in masked and plain formats
+   * alike. An authored `maxlength` wins (handled by the field controller).
+   * @param {DateFieldController} field
+   */
+  _applyMaxLength(field) {
+    field.applyMaxLength(field.entryLength);
   }
 
   _refreshButtonLabel() {
@@ -1265,7 +1331,18 @@ export class DatePickerElement extends HTMLElement {
     }
     const confirmed = await calendar.ensureDate(date);
     const state = calendar.getDateState(date);
-    if (!confirmed || state.disabled) return { ok: false, message: this.messages.unavailableDate };
+    if (!confirmed) return { ok: false, message: this.messages.unavailableDate };
+    if (state.disabled) {
+      // Bounds are a different answer from "this date is unavailable": the
+      // user can fix a bound, not a business rule.
+      const outsideBounds =
+        Boolean(calendar.min && compareDates(date, calendar.min) < 0) ||
+        Boolean(calendar.max && compareDates(date, calendar.max) > 0);
+      return {
+        ok: false,
+        message: outsideBounds ? this.messages.outOfRangeDate : this.messages.unavailableDate,
+      };
+    }
     return { ok: true };
   }
 
@@ -1400,14 +1477,14 @@ export class DatePickerElement extends HTMLElement {
     const bounds = ["start", "end"];
     for (const bound of bounds) {
       const index = bound === "end" ? 1 : 0;
-      const input = this._fields[index].input;
+      const field = this._fields[index];
       const message = bound === "end" ? this.messages.rangeOrderEnd : this.messages.rangeOrderStart;
       const shouldHaveOrder = inverted && bound === which;
       if (shouldHaveOrder) {
-        input.setCustomValidity(message);
+        field.setValidity(message, { announce: true });
         this._orderTags.add(index);
       } else if (this._orderTags.has(index)) {
-        input.setCustomValidity("");
+        field.setValidity("");
         this._orderTags.delete(index);
       }
     }
@@ -1440,17 +1517,17 @@ export class DatePickerElement extends HTMLElement {
       const message = bound === "end" ? this.messages.rangeOrderEnd : this.messages.rangeOrderStart;
       const shouldHaveOrder = inverted && bound === which;
       if (shouldHaveOrder) {
-        input.setCustomValidity(message);
+        setInputValidity(input, message, { announce: true });
         this._timeOrderOwned.add(input);
       } else if (this._timeOrderOwned.has(input)) {
-        input.setCustomValidity("");
+        setInputValidity(input, "");
         this._timeOrderOwned.delete(input);
       }
     }
   }
 
   _clearTimeOrderValidity() {
-    for (const input of this._timeOrderOwned) input.setCustomValidity("");
+    for (const input of this._timeOrderOwned) setInputValidity(input, "");
     this._timeOrderOwned.clear();
   }
 

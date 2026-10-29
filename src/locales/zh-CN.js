@@ -8,6 +8,7 @@ export default {
   calendar: "选择日期",
   unavailable: "不可用",
   invalidDate: "请输入有效日期",
+  outOfRangeDate: "日期超出允许范围",
   unavailableDate: "此日期不可用",
   formatHint: "格式",
   week: "周",

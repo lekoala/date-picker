@@ -8,6 +8,7 @@ export default {
   calendar: "날짜 선택",
   unavailable: "사용할 수 없음",
   invalidDate: "유효한 날짜를 입력하세요",
+  outOfRangeDate: "허용된 범위를 벗어난 날짜입니다",
   unavailableDate: "이 날짜는 사용할 수 없습니다",
   formatHint: "형식",
   week: "주",

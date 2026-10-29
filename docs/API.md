@@ -170,9 +170,28 @@ The direct child text input is required. On enhancement its original `name` move
 - `min`;
 - `max`;
 - `open-on-focus` — boolean (default `true`): open the popover when the input receives focus without moving focus; `open-on-focus="false"` keeps focus alone passive;
+- `format-on-type` — boolean (default `true`): render typed digits with the locale separator (`29102026` → `29/10/2026`); `format-on-type="false"` keeps the draft exactly as typed. Parsing, validation, `min`/`max` and the ISO value are unaffected;
 - `month-format` — `long | short` (default `long`): visible month-name style forwarded to the popup calendar;
 - `open` — read-only: whether the popover is shown;
-- `openOnFocus` — property form of `open-on-focus`.
+- `openOnFocus` / `formatOnType` — property forms of `open-on-focus` / `format-on-type`.
+
+### Manual entry
+
+The visible field is the editing surface; the canonical value changes only when a commit runs (`blur`, `change`, `validate()`, or a programmatic assignment).
+
+- **Format.** Group order, separator and placeholder come from `Intl` for the effective `locale`; there is no per-country table. A locale whose numeric pattern is not three groups split by one simple separator (for example `ko-KR` → `2026. 09. 06.`) keeps plain typing with no automatic separators, still bounded to the length of one formatted value.
+- **Typing.** Digits are rendered into the locale pattern as they are typed: `2`, `29`, `29/1`, `29/10`, `29/10/2026`. The caret keeps its logical digit position, and deleting a separator removes the digit it separates instead of re-inserting it — only a real deletion does that, never a paste that happens to keep the same digits.
+- **Only an append is completed.** An edit inside an existing value is kept as typed and normalized at commit: with the day of `29/10/2026` selected, typing `15` produces `15/10/2026` and commits `2026-10-15`. A caret at the end is not enough to call it an append, because replacing the last group ends there too (`29` → `1` in `2026-10-29`); the draft must extend the previous one. Reformatting mid-edit would add a leading zero, move the caret to the end and push the second digit outside the group being replaced.
+- **Complete values use the existing parser.** A draft that parses is normalized to the locale format, whatever shape it was typed or pasted in: `2/9/2026`, `29-10-2026`, `29.10.2026`, `29 / 10 / 2026`, `29102026` or ISO. Typing or pasting into the field normalizes immediately; a paste that replaces an existing draft is normalized by the commit, so pasted text is never rewritten under a caret that did not move.
+- **A partial draft with explicit separators is kept as typed.** `2/9/20` and `2 9 2026` are not redistributed by the mask; they are normalized when the parser can read the complete date, or reported invalid at commit. Whitespace is a separator like `/`, `-` and `.`, so a space inside a group is never dropped. Inserting a digit inside an already complete value is refused by the field bound; a longer draft can only come from a programmatic write and is kept as typed rather than silently truncated.
+- **Tolerant, not guessing.** Separator variants and the eight-digit compact form are accepted, but the component order is never inferred: `10/29/2026` is invalid in `fr-BE`, and a two-digit year is refused.
+- **Intermediate drafts are allowed.** No per-character rejection: `31/02/` and `2` are normal editing states. Only a complete, committed value is validated.
+- **Invalid drafts are kept.** A committed draft that does not parse, exists outside `min`/`max`, or resolves to a disabled date keeps its text, reports native validity (`setCustomValidity`), sets `aria-invalid`, and never fills the hidden ISO field. The previous canonical value is not restored. Editing the draft again clears `aria-invalid` (not the native invalidity) until the next failed commit.
+- **Submission.** While the visible draft differs from the canonical value, the hidden ISO field is empty, and native constraint validation blocks the submission. The distinction is reported through `messages.invalidDate` (unreadable or impossible date), `messages.outOfRangeDate` (`min`/`max`) and `messages.unavailableDate` (disabled by `dateState`, `isDateDisabled` or the source).
+- **Keyboard.** `inputmode="numeric"` is added when the format has a mask; a `maxlength` matching one complete formatted value is added for every numeric date format, so an unparsable draft cannot grow without limit. Authored `inputmode`/`maxlength` values are never overridden; `autocomplete` and `pattern` stay the application's.
+- **Programmatic changes.** Assigning `value`/`range` supersedes any draft, reformats the field and clears validity and `aria-invalid`. A direct native write to `input.value` is still read at the next commit.
+- **Do not add an external mask.** The picker owns the input's formatting; combining it with `data-mask` or another masking library means two writers on the same value with no defined caret behavior.
+- **Known limitation.** Typing an ISO string character by character is read as locale digits (four digits fill a locale group). Paste the ISO string or use `format-on-type="false"` for ISO-first entry.
 
 ### Native form semantics
 
