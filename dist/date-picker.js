@@ -2435,6 +2435,7 @@
       "min",
       "max",
       "open-on-focus",
+      "placement",
       "format-on-type",
       "month-format"
     ];
@@ -2502,6 +2503,7 @@
         "openOnFocus",
         "formatOnType",
         "coordinateSpace",
+        "placement",
         "controlClasses",
         "messages",
         "source",
@@ -2713,7 +2715,7 @@
       }
       if (name === "locale")
         this._refreshLocale();
-      if (name === "open-on-focus")
+      if (name === "open-on-focus" || name === "placement")
         return;
       if (name === "format-on-type") {
         this._applyFormatOnType();
@@ -2882,6 +2884,13 @@
     }
     set coordinateSpace(value) {
       this._coordinateSpace = value === "document" ? "document" : "viewport";
+    }
+    get placement() {
+      const value = this.getAttribute("placement") || "";
+      return /^(top|right|bottom|left)(-(start|end))?$/.test(value) ? value : "bottom-end";
+    }
+    set placement(value) {
+      this.setAttribute("placement", value);
     }
     _adapter() {
       return this._field?.adapter ?? this._fields?.[0]?.adapter ?? createDateAdapter(this.locale);
@@ -3767,9 +3776,10 @@
       this._open = true;
       this._setExpanded(true);
       const coordinateSpace = this.coordinateSpace;
+      const placement = this.placement;
       panel.style.position = coordinateSpace === "document" ? "absolute" : "fixed";
       const position = () => reposition(this, panel, {
-        placement: "bottom-start",
+        placement,
         distance: 4,
         shiftPadding: 8,
         coordinateSpace

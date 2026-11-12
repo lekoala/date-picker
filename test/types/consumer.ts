@@ -38,6 +38,11 @@ calendar.focusDate("2026-10-10", { moveFocus: false });
 void calendar.getDateState("2026-10-10");
 
 const start = new DatePickerElement();
+start.placement = "bottom-start";
+const placement: import("@lekoala/floating").Placement = start.placement;
+void placement;
+// @ts-expect-error placement is limited to the floating placements
+start.placement = "nonsense";
 // @ts-expect-error underscore-prefixed implementation state is not public API
 start._field;
 start.controlClasses = { nav: "btn", month: "data-[state=open]:bg-muted" };

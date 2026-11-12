@@ -255,6 +255,7 @@ test("pre-definition assignments reach every writable public accessor", async ({
       weeks: calendar.showWeekNumbers,
       openOnFocus: picker.openOnFocus,
       coordinateSpace: picker.coordinateSpace,
+      placement: picker.placement,
     };
   });
   expect(result.shadowed).toEqual([]);
@@ -282,6 +283,7 @@ test("pre-definition assignments reach every writable public accessor", async ({
     weeks: true,
     openOnFocus: false,
     coordinateSpace: "document",
+    placement: "bottom-start",
   });
   for (const selector of ["#picker", "#range", "#calendar"]) {
     await expect(page.locator(`${selector} .dp-month-select`)).toHaveClass(/select sm/);

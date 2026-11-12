@@ -101,6 +101,9 @@ export declare class DatePickerElement extends HTMLElement {
     /** @public JS-only coordinate-space policy: "viewport" by default, "document" as an explicit opt-in; a change made while open applies to the next opening only. @returns {"viewport" | "document"} */
     get coordinateSpace(): "viewport" | "document";
     set coordinateSpace(value: "viewport" | "document");
+    /** @public Preferred popup placement, defaulting to "bottom-end". Changes while open apply on the next opening without invalidating pending work. @returns {import("@lekoala/floating").Placement} */
+    get placement(): import("@lekoala/floating").Placement;
+    set placement(value: import("@lekoala/floating").Placement);
     /** @public */
     validate(): Promise<boolean>;
     /** @public @param {{moveFocus?:boolean, endpoint?:"start"|"end", returnFocus?:HTMLElement}} [options] */

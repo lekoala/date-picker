@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Classic bundle property upgrade</title>
+    <link rel="stylesheet" href="/dist/date-picker.min.css" />
     <script defer src="/dist/date-picker.min.js"></script>
   </head>
   <body>
@@ -33,7 +34,7 @@
         source, dateState, renderDay, isDateDisabled,
       };
       Object.assign(document.getElementById("picker"), options, {
-        value: "2026-09-10", openOnFocus: false, coordinateSpace: "document",
+        value: "2026-09-10", openOnFocus: false, coordinateSpace: "document", placement: "bottom-start",
       });
       Object.assign(document.getElementById("range"), options, {
         range: { start: "2026-09-10", end: "2026-09-15" },

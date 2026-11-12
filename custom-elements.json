@@ -294,6 +294,9 @@
               "name": "open-on-focus"
             },
             {
+              "name": "placement"
+            },
+            {
               "name": "format-on-type"
             },
             {
@@ -396,6 +399,10 @@
             {
               "kind": "getter",
               "name": "coordinateSpace"
+            },
+            {
+              "kind": "getter",
+              "name": "placement"
             },
             {
               "kind": "method",

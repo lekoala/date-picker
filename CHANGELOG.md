@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `placement` attribute/property for the picker popup, including `bottom-end` for alignment with an end-of-field trigger. Changes while open apply on the next opening.
+
+### Changed
+
+- Popup placement now defaults to `bottom-end` to keep the calendar near the trigger on wide fields. Use `placement="bottom-start"` to retain the previous alignment.
+
 ## 0.6.1 — 2026-10-29
 
 ### Added

@@ -149,6 +149,8 @@ The picker creates a `<date-calendar selection="none">` in a native manual popov
 
 Native Popover owns the top layer. `@lekoala/floating` owns coordinates and geometry updates.
 
+`placement` (attribute/property, `"bottom-end"` by default) chooses the preferred side and alignment relative to the picker host. `"bottom-end"` supports a trigger at the end of the field (U1). The request is captured once per opening; changes while open apply on the next opening without invalidating pending work. Flip/shift remain owned by `@lekoala/floating`.
+
 ### Coordinate space
 
 `picker.coordinateSpace` (`"viewport"` default, `"document"` explicit opt-in, JS-only, no attribute) is frozen once per opening in `show()`; `panel.style.position` is coupled:
@@ -235,7 +237,7 @@ Do not merge them. The signal says nothing about a newer intent, and neither say
 | identity of `[data-range-start]` / `[data-range-end]` inputs | fixed at connect |
 | presence and role of `[data-time-start]` / `[data-time-end]` | fixed at connect |
 | initial values (`input.value`, `defaultValue`) | read at connect |
-| public API (`value`, `range`, `min`, `max`, `locale`, `source`, `dateState`, `renderDay`, `isDateDisabled`, `messages`, `controlClasses`, `monthFormat`, `openOnFocus`, `coordinateSpace`) | live; each setter documents whether it invalidates pending work |
+| public API (`value`, `range`, `min`, `max`, `locale`, `source`, `dateState`, `renderDay`, `isDateDisabled`, `messages`, `controlClasses`, `monthFormat`, `openOnFocus`, `coordinateSpace`, `placement`) | live; each setter documents whether it invalidates pending work |
 | `name`, `form`, `disabled`, `readonly`, disabled fieldset, form reset, `defaultValue` | followed: this is the browser contract, not an arbitrary mutation |
 | visible input text | draft, read at commit (blur/change/validate) |
 | replacing child inputs | unsupported without reconnecting |

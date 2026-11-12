@@ -28,6 +28,7 @@ export class DatePickerElement extends HTMLElement {
     "min",
     "max",
     "open-on-focus",
+    "placement",
     "format-on-type",
     "month-format",
   ];
@@ -128,6 +129,7 @@ export class DatePickerElement extends HTMLElement {
       "openOnFocus",
       "formatOnType",
       "coordinateSpace",
+      "placement",
       "controlClasses",
       "messages",
       "source",
@@ -356,7 +358,7 @@ export class DatePickerElement extends HTMLElement {
       return;
     }
     if (name === "locale") this._refreshLocale();
-    if (name === "open-on-focus") return;
+    if (name === "open-on-focus" || name === "placement") return;
     if (name === "format-on-type") {
       this._applyFormatOnType();
       return;
@@ -557,6 +559,18 @@ export class DatePickerElement extends HTMLElement {
 
   set coordinateSpace(value) {
     this._coordinateSpace = value === "document" ? "document" : "viewport";
+  }
+
+  /** @public Preferred popup placement, defaulting to "bottom-end". Changes while open apply on the next opening without invalidating pending work. @returns {import("@lekoala/floating").Placement} */
+  get placement() {
+    const value = this.getAttribute("placement") || "";
+    return /^(top|right|bottom|left)(-(start|end))?$/.test(value)
+      ? /** @type {import("@lekoala/floating").Placement} */ (value)
+      : "bottom-end";
+  }
+
+  set placement(value) {
+    this.setAttribute("placement", value);
   }
 
   _adapter() {
@@ -1699,10 +1713,11 @@ export class DatePickerElement extends HTMLElement {
     // change made while open takes effect on the next opening, never the
     // current one.
     const coordinateSpace = this.coordinateSpace;
+    const placement = this.placement;
     panel.style.position = coordinateSpace === "document" ? "absolute" : "fixed";
     const position = () =>
       reposition(this, panel, {
-        placement: "bottom-start",
+        placement,
         distance: 4,
         shiftPadding: 8,
         coordinateSpace,

@@ -174,6 +174,7 @@ The direct child text input is required. On enhancement its original `name` move
 - `month-format` — `long | short` (default `long`): visible month-name style forwarded to the popup calendar;
 - `open` — read-only: whether the popover is shown;
 - `openOnFocus` / `formatOnType` — property forms of `open-on-focus` / `format-on-type`.
+- `placement` — attribute and property, default `"bottom-end"`: `top`, `right`, `bottom` or `left`, optionally suffixed with `-start` or `-end`. Alignment is logical (respects RTL); the side is physical. Missing, empty or invalid values resolve to `"bottom-end"`. For a button at the end of the field, use `placement="bottom-end"`. The reference remains the picker host in both single and range mode. Floating positioning may flip or shift to fit the viewport. A change while open applies on the next opening and does not invalidate pending work.
 
 ### Manual entry
 
