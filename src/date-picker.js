@@ -1714,16 +1714,20 @@ export class DatePickerElement extends HTMLElement {
     // current one.
     const coordinateSpace = this.coordinateSpace;
     const placement = this.placement;
+    // The date field includes its overlaid trigger, but excludes time companions.
+    // Range mode keeps the shared surface anchored to the pair of date fields.
+    /** @type {Element} */
+    const reference = this._input || this;
     panel.style.position = coordinateSpace === "document" ? "absolute" : "fixed";
     const position = () =>
-      reposition(this, panel, {
+      reposition(reference, panel, {
         placement,
         distance: 4,
         shiftPadding: 8,
         coordinateSpace,
       });
     position();
-    this._stopTracking = autoUpdate(this, panel, position);
+    this._stopTracking = autoUpdate(reference, panel, position);
     if (options.moveFocus !== false) {
       const session = this._session;
       if (session) queueMicrotask(guard(session.signal, () => calendar.focusGrid()));

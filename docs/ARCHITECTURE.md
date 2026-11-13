@@ -149,7 +149,7 @@ The picker creates a `<date-calendar selection="none">` in a native manual popov
 
 Native Popover owns the top layer. `@lekoala/floating` owns coordinates and geometry updates.
 
-`placement` (attribute/property, `"bottom-end"` by default) chooses the preferred side and alignment relative to the picker host. `"bottom-end"` supports a trigger at the end of the field (U1). The request is captured once per opening; changes while open apply on the next opening without invalidating pending work. Flip/shift remain owned by `@lekoala/floating`.
+`placement` (attribute/property, `"bottom-end"` by default) chooses the preferred side and alignment relative to the date field (including its overlaid trigger) in single mode, or the picker host in range mode. Time companions do not extend the single-mode anchor. `"bottom-end"` supports a trigger at the end of the field (U1). The request is captured once per opening; changes while open apply on the next opening without invalidating pending work. Flip/shift remain owned by `@lekoala/floating`.
 
 ### Coordinate space
 

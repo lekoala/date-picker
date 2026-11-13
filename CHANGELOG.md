@@ -8,6 +8,7 @@
 
 ### Changed
 
+- Single-mode popups anchor to the date field including its overlaid trigger, excluding time companions.
 - Popup placement now defaults to `bottom-end` to keep the calendar near the trigger on wide fields. Use `placement="bottom-start"` to retain the previous alignment.
 
 ## 0.6.1 — 2026-10-29

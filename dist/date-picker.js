@@ -3777,15 +3777,16 @@
       this._setExpanded(true);
       const coordinateSpace = this.coordinateSpace;
       const placement = this.placement;
+      const reference = this._input || this;
       panel.style.position = coordinateSpace === "document" ? "absolute" : "fixed";
-      const position = () => reposition(this, panel, {
+      const position = () => reposition(reference, panel, {
         placement,
         distance: 4,
         shiftPadding: 8,
         coordinateSpace
       });
       position();
-      this._stopTracking = autoUpdate(this, panel, position);
+      this._stopTracking = autoUpdate(reference, panel, position);
       if (options.moveFocus !== false) {
         const session = this._session;
         if (session)

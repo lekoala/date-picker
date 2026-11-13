@@ -27,6 +27,31 @@ export function placementTests(path) {
       });
       expect(direction === "ltr" ? boxes.right : boxes.left).toBeCloseTo(0, 0);
     });
+
+    test(`composed input anchors to the date field in ${direction}`, async ({ page }) => {
+      await page.locator("#placement-picker").evaluate((picker, dir) => {
+        picker.remove();
+        picker.dir = dir;
+        picker.style.cssText = "position:fixed;left:320px;top:40px;width:840px";
+        picker.innerHTML =
+          '<input name="placement-date"><input type="time" data-time-start><input type="time" data-time-end>';
+        document.body.append(picker);
+      }, direction);
+      await page.locator("#placement-picker .dp-picker-button").click();
+      const offsets = await page.locator("#placement-picker").evaluate((picker) => {
+        const field = picker
+          .querySelector('input:not([type="hidden"]):not([type="time"])')
+          .getBoundingClientRect();
+        const panel = picker.querySelector(".dp-picker-panel").getBoundingClientRect();
+        return {
+          left: panel.left - field.left,
+          right: panel.right - field.right,
+          gap: panel.top - field.bottom,
+        };
+      });
+      expect(direction === "ltr" ? offsets.right : offsets.left).toBeCloseTo(0, 0);
+      expect(offsets.gap).toBeCloseTo(4, 0);
+    });
   }
 
   test("placement reflects, falls back, and is captured per opening", async ({ page }) => {
