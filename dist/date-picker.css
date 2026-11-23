@@ -179,6 +179,10 @@ html[dir="rtl"] .dp-month-select.dp-skin {
   border-collapse: separate;
   /* --dp-gap scopes to the header grid; vertical week rhythm is --dp-row-gap. */
   border-spacing: 0 var(--dp-row-gap);
+  /* why: border-spacing also separates the outer rows from the table edge.
+     Without this, the last week sat one row gap above the panel padding and
+     the header gap was larger than --dp-header-block-gap. */
+  margin-block: calc(var(--dp-row-gap) * -1);
   table-layout: fixed;
 }
 
