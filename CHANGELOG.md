@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `.dp-grid` no longer adds a `--dp-row-gap` above the weekday row and below the last week: the panel's bottom air matches its top, and the header gap is exactly `--dp-header-block-gap`.
+
 ## 0.6.2 — 2026-11-13
 
 ### Added

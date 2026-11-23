@@ -300,6 +300,32 @@ test("month/year controls render at equal heights in a compact header", async ({
   expect(Math.abs(heights.month - heights.prev)).toBeLessThanOrEqual(1);
 });
 
+// border-spacing also separates the outer rows from the table edge: the last
+// week sat one --dp-row-gap above the panel padding, so the bottom air read
+// larger than the top, and the header gap was larger than its token.
+test("the week rows add no row gap at the grid's outer edges", async ({ page }) => {
+  await page.click("#simple-picker .dp-picker-button");
+  await expect(page.locator("#simple-picker .dp-picker-panel")).toBeVisible();
+  const air = await page.evaluate(() => {
+    const panel = document.querySelector("#simple-picker .dp-picker-panel");
+    const grid = panel.querySelector(".dp-grid");
+    const header = grid.previousElementSibling;
+    const rows = grid.querySelectorAll("tr");
+    const style = getComputedStyle(panel);
+    const panelBottom =
+      panel.getBoundingClientRect().bottom -
+      parseFloat(style.paddingBottom) -
+      parseFloat(style.borderBottomWidth);
+    return {
+      top: Math.round(rows[0].getBoundingClientRect().top - header.getBoundingClientRect().bottom),
+      headerGap: Math.round(parseFloat(getComputedStyle(header).marginBlockEnd)),
+      bottom: Math.round(panelBottom - rows[rows.length - 1].getBoundingClientRect().bottom),
+    };
+  });
+  expect(air.top).toBe(air.headerGap);
+  expect(air.bottom).toBe(0);
+});
+
 test("month select truncates long names with an ellipsis instead of painting under the caret", async ({
   page,
 }) => {
