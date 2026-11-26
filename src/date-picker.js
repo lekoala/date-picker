@@ -120,6 +120,13 @@ export class DatePickerElement extends HTMLElement {
 
   connectedCallback() {
     if (this._connected) return;
+    // Leave the authored fields in charge when the popup cannot be shown.
+    if (
+      typeof HTMLElement.prototype.showPopover !== "function" ||
+      typeof HTMLElement.prototype.hidePopover !== "function"
+    ) {
+      return;
+    }
     this._session = createSession();
     upgradeProperties(this, [
       "locale",

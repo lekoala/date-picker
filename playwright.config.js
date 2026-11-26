@@ -3,6 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./test",
   testMatch: "**/*.spec.js",
+  testIgnore: "**/mobile-safari.spec.js",
   timeout: 30_000,
   expect: { timeout: 3_000 },
   fullyParallel: true,
@@ -28,5 +29,11 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "firefox", use: { ...devices["Desktop Firefox"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    {
+      name: "mobile-safari",
+      testMatch: "**/mobile-safari.spec.js",
+      testIgnore: [],
+      use: { ...devices["iPhone 15"] },
+    },
   ],
 });

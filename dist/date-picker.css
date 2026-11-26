@@ -333,15 +333,16 @@ date-picker > input:not([type="hidden"]) {
   min-inline-size: 0;
 }
 
-/* Date fields reserve room for the trigger, which is painted inside the
-   field's own box: the field is the real outer box, so its focus ring wraps
-   the affordance too. `grid-row` must stay explicit, otherwise the trigger
-   (placed with a definite row) claims the row and pushes the field down. */
+/* Keep the field and the overlaid trigger in the same explicit grid cell. */
 date-picker > input:not([type="hidden"]):not([type="time"]) {
   grid-column: 1;
   grid-row: 1;
   box-sizing: border-box;
   inline-size: 100%;
+}
+
+/* Reserve room only after enhancement adds the trigger. */
+date-picker:where(:has(> .dp-picker-button)) > input:not([type="hidden"]):not([type="time"]) {
   padding-inline-end: calc(var(--dp-picker-button-size) + 0.5rem);
 }
 

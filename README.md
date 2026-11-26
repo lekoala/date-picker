@@ -6,6 +6,10 @@ Small, native-first date picker and inline calendar primitives.
 
 This project fills the gap between a normal editable date field and a full scheduling calendar. A plain date input remains the right answer for simple CMS/editing forms. This component becomes useful when a date has context: availability, disabled days, annotations, remote state, start/end relationships, or a mini calendar that navigates another view.
 
+## Browser requirements
+
+The picker popup requires the native Popover API (Chrome and Edge 114+, Firefox 125+, Safari 17+). In browsers without Popover, the original inputs keep their HTML editing, validation and submission behavior. Put any fallback default on the input's `value` attribute. The inline `<date-calendar>` works independently of Popover. See [browser compatibility](docs/API.md#browser-compatibility).
+
 ## The two primitives
 
 ### `<date-calendar>`
@@ -43,12 +47,12 @@ A composition around a real editable text input. The user sees and edits a short
 **Use `<date-picker>` when choosing a date benefits from calendar context.** For a simple editable date field, a normal input with formatting and validation is the right tool instead.
 
 ```html
-<date-picker value="2026-09-10" locale="fr-BE">
-  <input name="appointment_date" required>
+<date-picker locale="fr-BE">
+  <input name="appointment_date" value="2026-09-10" required>
 </date-picker>
 ```
 
-With JavaScript enabled the input displays `10/09/2026`; the hidden submitted value remains `2026-09-10`. The visible input keeps the label, focus, required state and validation UI.
+After enhancement the input displays `10/09/2026` and the hidden input submits `2026-09-10`. The visible input keeps the label, focus, required state and validation UI.
 
 By default the calendar opens when the field receives focus — without stealing the keyboard focus, so typing works immediately. `open-on-focus="false"` makes the calendar opt-in (trigger button or `ArrowDown`). Under `readonly` the value stays editable-by-calendar-off but is still submitted; under `disabled` the field is also unsubmitted.
 

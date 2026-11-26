@@ -1,5 +1,18 @@
 import { expect, test } from "@playwright/test";
 
+test("the standalone bundle leaves authored inputs usable without Popover", async ({ page }) => {
+  await page.addInitScript(() => {
+    delete HTMLElement.prototype.showPopover;
+  });
+  await page.goto("/test/fixtures/dist.html");
+  await expect(page.locator("#cal .dp-day")).toHaveCount(42);
+  await expect(page.locator("#picker button, #picker [popover], #picker input[type=hidden]")).toHaveCount(0);
+  const input = page.locator('#date-input[name="date"]');
+  await input.fill("2026-09-11");
+  await input.blur();
+  await expect(input).toHaveValue("2026-09-11");
+});
+
 test.describe("packaged standalone bundle", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/test/fixtures/dist.html");

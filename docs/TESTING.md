@@ -22,7 +22,7 @@ Chromium covers the fast interaction loop. Before release:
 bun run test:browser:all
 ```
 
-runs Chromium, Firefox and WebKit.
+runs desktop Chromium, Firefox and WebKit, plus a focused WebKit suite using Playwright's iPhone 15 profile. The mobile suite uses touch to open, select and dismiss the popup and checks positioning after scroll and viewport resize. This emulation leaves real Safari, virtual-keyboard and VoiceOver checks on the manual checklist.
 
 For the accessibility-adjacent browser subset used by the AT checklist:
 

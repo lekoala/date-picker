@@ -19,9 +19,8 @@ jobs:
     # Each shard keeps the 4 workers the config allows and gets its own runner,
     # so sharding cuts wall time without raising per-job parallelism (more than
     # 4 concurrent browser workers produced protocol flakes). Shards split by
-    # test count, which currently lands one engine per shard: the wall time is
-    # set by the slowest engine (firefox), not by the slowest test. Shard 1 also
-    # runs the dist smoke, which is independent of the test split.
+    # test count across desktop and mobile projects. Shard 1 also runs the
+    # dist smoke, which is independent of the test split.
     strategy:
       fail-fast: false
       matrix:

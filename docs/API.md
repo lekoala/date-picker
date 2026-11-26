@@ -2,6 +2,18 @@
 
 The public surface — flat event names, `selection` values, `--dp-*` styling tokens and the `dateactivate`/`renderDay()` seams — is frozen in [DECISIONS.md](DECISIONS.md). Everything else stays internal and is free to change within the same major version.
 
+## Browser compatibility
+
+| Feature requirement | Chrome / Edge | Firefox | Safari (macOS and iOS) |
+|---------------------|---------------|---------|------------------------|
+| Native Popover API for the `<date-picker>` popup | 114+ | 125+ | 17+ |
+
+These are the versions that introduced the popup prerequisite. Automated tests run on the Chromium, Firefox and WebKit versions bundled with Playwright. See the [Popover browser support table](https://developer.chrome.com/blog/introducing-popover-api#the_popover_attribute).
+
+Without Popover, `<date-picker>` leaves its single or range inputs in charge of their own values and validity. The browser submits their current text under their authored names. Put fallback defaults and native constraints directly on the inputs, and use the input and form APIs for fallback interactions. Localized formatting, canonical hidden inputs and picker-specific validation require enhancement.
+
+The inline `<date-calendar>` is independent of Popover. Its stylesheet uses modern features including `color-mix()`, `:has()` and `:focus-visible`. The same Playwright desktop engines cover its behavior.
+
 ## `<date-calendar>`
 
 ### Attributes / properties

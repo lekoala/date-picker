@@ -2494,6 +2494,9 @@
     connectedCallback() {
       if (this._connected)
         return;
+      if (typeof HTMLElement.prototype.showPopover !== "function" || typeof HTMLElement.prototype.hidePopover !== "function") {
+        return;
+      }
       this._session = createSession();
       upgradeProperties(this, [
         "locale",

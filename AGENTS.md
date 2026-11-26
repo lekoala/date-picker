@@ -154,6 +154,8 @@ Source remains JavaScript with JSDoc + TypeScript `checkJs`, matching `@lekoala/
 
 ## Distribution
 
+Record every user-facing change in the `Unreleased` section of `CHANGELOG.md` in the same change.
+
 A test passing on `src/` does not validate what ships. Source, bundles, standalone build, types and minified CSS must expose the same contract (`bun run test:dist`).
 
 `build.js` minifies CSS with regexes that do not understand strings or `url()`. If the CSS gains quoted `content`, URLs or comments inside strings, add a fixture or switch to a grammar-aware minifier.
