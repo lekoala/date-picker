@@ -16,6 +16,9 @@ import { createSession, guard } from "./session.js";
 import { compareTimes, isTime } from "./time.js";
 import { upgradeProperties } from "./upgrade-properties.js";
 
+const SINGLE_DATE_INPUT_SELECTOR =
+  ":scope > input:not([type=hidden]):not([type=time]):not([data-time-start]):not([data-time-end])";
+
 let uid = 0;
 
 /** A grid activation intent: the generation at interaction time.
@@ -176,9 +179,7 @@ export class DatePickerElement extends HTMLElement {
   }
 
   _connectSingle() {
-    const input = this.querySelector(
-      ":scope > input:not([type=hidden]):not([type=time]):not([data-time-start]):not([data-time-end])",
-    );
+    const input = this.querySelector(SINGLE_DATE_INPUT_SELECTOR);
     if (!(input instanceof HTMLInputElement)) {
       console.warn("<date-picker> expects a direct child text input");
       return;
@@ -1667,9 +1668,7 @@ export class DatePickerElement extends HTMLElement {
     if (!input) {
       const dateInputs = this.hasAttribute("range")
         ? this.querySelectorAll(":scope > input[data-range-start], :scope > input[data-range-end]")
-        : this._input
-          ? [this._input]
-          : [];
+        : [this.querySelector(SINGLE_DATE_INPUT_SELECTOR)].filter(Boolean);
       const timeInputs = this.querySelectorAll(
         ":scope > input[type=time][data-time-start], :scope > input[type=time][data-time-end]",
       );
