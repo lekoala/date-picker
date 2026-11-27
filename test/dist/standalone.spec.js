@@ -7,8 +7,15 @@ test("the standalone bundle leaves authored inputs usable without Popover", asyn
   await page.goto("/test/fixtures/dist.html");
   await expect(page.locator("#cal .dp-day")).toHaveCount(42);
   await expect(page.locator("#picker button, #picker [popover], #picker input[type=hidden]")).toHaveCount(0);
+  const picker = page.locator("#picker");
   const input = page.locator('#date-input[name="date"]');
+  await input.evaluate((element) => {
+    element.required = true;
+  });
+  await input.fill("");
+  expect(await picker.evaluate((element) => element.validate())).toBe(false);
   await input.fill("2026-09-11");
+  expect(await picker.evaluate((element) => element.validate())).toBe(true);
   await input.blur();
   await expect(input).toHaveValue("2026-09-11");
 });

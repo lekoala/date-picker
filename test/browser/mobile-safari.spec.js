@@ -37,6 +37,19 @@ for (const coordinateSpace of ["viewport", "document"]) {
     const position = coordinateSpace === "viewport" ? "fixed" : "absolute";
     await expect(panel).toHaveCSS("position", position);
 
+    const fitsViewport = () =>
+      panel.evaluate((element) => {
+        const { left, right, top, bottom } = element.getBoundingClientRect();
+        const { width, height } = window.visualViewport;
+        return left >= 0 && top >= 0 && right <= width && bottom <= height;
+      });
+
+    // Resize before scrolling: the scroll below would otherwise hide an
+    // overflow of the popup's padding and border behind the extra 50px.
+    await page.setViewportSize({ width: 390, height: 500 });
+    await expect(panel).toBeVisible();
+    await expect.poll(fitsViewport).toBe(true);
+
     await page.evaluate(() => window.scrollTo(0, 50));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(50);
     await expect
@@ -48,17 +61,6 @@ for (const coordinateSpace of ["viewport", "document"]) {
         }),
       )
       .toBe(4);
-
-    await page.setViewportSize({ width: 390, height: 500 });
-    await expect(panel).toBeVisible();
-    await expect
-      .poll(() =>
-        panel.evaluate((element) => {
-          const { left, right, top, bottom } = element.getBoundingClientRect();
-          const { width, height } = window.visualViewport;
-          return left >= 0 && top >= 0 && right <= width && bottom <= height;
-        }),
-      )
-      .toBe(true);
+    await expect.poll(fitsViewport).toBe(true);
   });
 }
