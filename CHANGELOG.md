@@ -6,6 +6,7 @@
 
 - In browsers without the native Popover API, including Safari 16, single and range date pickers leave their original inputs editable and preserve native form validation and submission. The calendar trigger is omitted and inline calendars remain available.
 - A single picker's `validate()` checks its authored date input even when the picker has not been enhanced, so an empty required input is reported invalid.
+- The picker popup includes its padding and border in the available height, so it stays inside a short viewport.
 
 ## 0.6.3 — 2026-11-23
 
