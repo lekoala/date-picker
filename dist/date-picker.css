@@ -429,6 +429,7 @@ date-picker[range] > .dp-picker-button[data-endpoint="end"] {
   position: fixed;
   inset: auto;
   margin: 0;
+  box-sizing: border-box;
   padding: 0.875rem 1rem;
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius);

@@ -253,7 +253,7 @@ picker.hide();
 await picker.validate();
 ```
 
-When disconnected, `validate()` cannot run source availability checks and returns the current native validity of the authored date/time inputs.
+When disconnected or running without Popover support, `validate()` cannot run source availability checks and returns the current native validity of the authored date/time inputs.
 
 ### Events
 

@@ -1,4 +1,4 @@
-/*** @lekoala/date-picker v0.6.3 - https://github.com/lekoala/date-picker ***/
+/*** @lekoala/date-picker v0.6.4 - https://github.com/lekoala/date-picker ***/
 (() => {
   var __defProp = Object.defineProperty;
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -2426,6 +2426,7 @@
   }
 
   // src/date-picker.js
+  var SINGLE_DATE_INPUT_SELECTOR = ":scope > input:not([type=hidden]):not([type=time]):not([data-time-start]):not([data-time-end])";
   var uid2 = 0;
 
   class DatePickerElement extends HTMLElement {
@@ -2542,7 +2543,7 @@
       }
     }
     _connectSingle() {
-      const input = this.querySelector(":scope > input:not([type=hidden]):not([type=time]):not([data-time-start]):not([data-time-end])");
+      const input = this.querySelector(SINGLE_DATE_INPUT_SELECTOR);
       if (!(input instanceof HTMLInputElement)) {
         console.warn("<date-picker> expects a direct child text input");
         return;
@@ -3743,7 +3744,7 @@
       }
       const input = this._field?.input;
       if (!input) {
-        const dateInputs = this.hasAttribute("range") ? this.querySelectorAll(":scope > input[data-range-start], :scope > input[data-range-end]") : this._input ? [this._input] : [];
+        const dateInputs = this.hasAttribute("range") ? this.querySelectorAll(":scope > input[data-range-start], :scope > input[data-range-end]") : [this.querySelector(SINGLE_DATE_INPUT_SELECTOR)].filter(Boolean);
         const timeInputs = this.querySelectorAll(":scope > input[type=time][data-time-start], :scope > input[type=time][data-time-end]");
         return [...dateInputs, ...timeInputs].every((candidate) => candidate instanceof HTMLInputElement && candidate.checkValidity());
       }
